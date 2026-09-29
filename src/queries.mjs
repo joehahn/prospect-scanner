@@ -302,6 +302,7 @@ async function runList(cfg, b, { save = false, events = null, wires = false } = 
   const seenBefore = new Set(db.prepare('SELECT hits FROM search_runs').all()
     .flatMap((r) => JSON.parse(r.hits || '[]').map((h) => `${key(h.organisation)}|${h.url}`)));
   const model = cfg.models?.cheap;
+  const forbidden = (cfg.forbidden_hosts ?? []).map((h) => (typeof h === 'string' ? h : h.host)).filter(Boolean);
   const runId = startRun(db, 'queries-run', { model });
   const system = readFileSync(resolve(ROOT, QUALIFY_FILE), 'utf8');
   const context = businessBlock(b);
@@ -313,7 +314,10 @@ async function runList(cfg, b, { save = false, events = null, wires = false } = 
     // A web page often carries no machine-readable date; the filter reads the
     // page's own words for one, and an undated find is saved without a signal.
     const { topic, args } = searchFor(b, q);
-    const { results = [] } = await searchNews(q.query, { sinceDate: since, maxResults: 6, ...args });
+    // A web search reaches sites a news search never did, job postings on the
+    // forbidden hosts among them. Their pages are not ours to take, even second hand.
+    const { results = [] } = await searchNews(q.query, { sinceDate: since, maxResults: 6, ...args,
+      excludeDomains: forbidden });
     let hits = [];
     if (results.length) {
       const res = await complete(db, runId, { model, system, schema: QUALIFY_SCHEMA, effort: 'low', thinking: false,

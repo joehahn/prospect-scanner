@@ -18,6 +18,8 @@
 //               (searched_in: web, for an event found in what people write and say
 //               themselves; news, the default, for one found in reporting)
 //   label: a short name for a filter chip; the name is used everywhere else
+//   where.kinds: firm kinds (staffing, investor, ...) a target is limited to; a
+//               firm of that kind is filed under it and gets its size band
 //
 // Nothing about any particular operator is written here; see CLAUDE.md.
 
@@ -169,6 +171,10 @@ export function targetsOfPeople(db, business) {
         country) FROM people p WHERE p.org_id = o.id), '') here FROM orgs o`).all()) {
       for (const t of placed) if (inCountries(o.here, t.where.countries)) add(o.id, t.id);
     }
+  }
+  for (const t of targets.filter((x) => x.where?.kinds?.length)) {
+    for (const o of db.prepare(`SELECT id FROM orgs WHERE kind IN (${t.where.kinds.map(() => '?').join(',')})`)
+      .all(...t.where.kinds)) add(o.id, t.id);
   }
   const judged = new Map();
   if (has('judgments')) {

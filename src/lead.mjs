@@ -19,7 +19,7 @@
 //                              to gate and rank.
 //   npm run lead -- add-org    --name "Firm Name" [--domain x.com] [--vertical id]
 //                              [--aum 21e9] [--revenue N] [--headcount N] [--hq "City ST"]
-//                              [--kind end_client|investor|advisor|delivery_firm|marketplace|individual]
+//                              [--kind end_client|investor|advisor|delivery_firm|marketplace|staffing|individual]
 //   npm run lead -- add-person --org <org_id> --name "Full Name" --title "Title"
 //                              [--url <profile-url>] [--degree 1|2|3] [--email a@b.c]
 //   npm run lead -- move       --person <id> --to <org_id> --url <source-url>
@@ -235,7 +235,7 @@ function addOrg(db, cfg, targeting, args) {
     }
   }
 
-  const KINDS = ['end_client', 'investor', 'advisor', 'delivery_firm', 'marketplace', 'individual'];
+  const KINDS = ['end_client', 'investor', 'advisor', 'delivery_firm', 'marketplace', 'staffing', 'individual'];
   const kind = args.kind && args.kind !== true ? String(args.kind) : null;
   if (kind && !KINDS.includes(kind)) {
     throw new Error(`--kind must be one of: ${KINDS.join(', ')}`);

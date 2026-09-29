@@ -1,4 +1,4 @@
-# qualify-results — v4, 2026-09-27
+# qualify-results — v5, 2026-09-29
 
 System prompt for `npm run queries -- --compare`. One call per search; the same
 prompt judges every search, old and new, so the comparison is between the
@@ -23,6 +23,12 @@ A result qualifies only if all of these hold:
   software (that is marketing), when it is about the industry in general rather
   than their own organisation, or when the page does not say where they work.
   Give the date the page shows; leave it empty if it shows none.
+- **A job posting counts as a happening** for an event about hiring or about a
+  search being posted. The organisation is the one that posted it, which on a
+  job board is the listed company, and a staffing firm's posting is the staffing
+  firm's. Give the posting date if the page shows one; an undated posting still
+  qualifies. Job boards carry no other kind of dated news, so without this every
+  posting was refused and those events never fired.
 - That happening matches one of the listed events, and none of that event's
   "does not count" entries.
 - The organisation fits one of the targets **on the target's own terms**:
@@ -34,6 +40,9 @@ A result qualifies only if all of these hold:
     own). A household-name multinational or a global group is outside a band
     that stops at a few thousand people, however well the event fits. When the
     result does not say, judge from what the organisation plainly is.
+
+*v5: job postings count as the happening for hiring and posted-search events;
+v4 required a dated news event, and a web search for postings qualified none.*
 
 *v3: web results were added for events found in what people write and say
 themselves; v2 read "not an opinion piece" as excluding every first-person

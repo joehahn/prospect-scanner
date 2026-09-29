@@ -1407,6 +1407,14 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
       return { id: null, why: 'sells AI delivery — overflow_bench is retired and buyers_side never fits a firm that judges vendors for a living' };
     case 'marketplace':
       return { id: null, why: 'brokers talent or expert calls — the marketplace_or_expert_network gate kills this' };
+    case 'staffing':
+      // A recruiter places contractors with client firms, so the operator's
+      // hourly time is what they sell on, not what they compete with. Split out
+      // of `marketplace` on 2026-09-29, when a recruiter at a small firm placing
+      // senior engineers C2C wrote to the operator unprompted.
+      return has('senior_capacity')
+        ? { id: 'senior_capacity', why: 'staffing firm placing contractors — offer hours by the hour, C2C, for their clients' }
+        : null;
     default:
       return { id: null, why: 'firm kind unknown — set it with `npm run lead -- add-org --kind ...` before pitching' };
   }

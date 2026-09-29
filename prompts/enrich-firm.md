@@ -1,4 +1,9 @@
-# enrich-firm — v2, 2026-09-27
+# enrich-firm — v3, 2026-09-29
+
+*v3: adds `staffing`, split out of `marketplace`. A recruiting firm whose
+recruiters place contractors with client firms is a way in for an independent;
+a self-serve platform or expert-call network is not, and the two had one label.*
+
 
 *v2: `what_they_do` is a plain sentence in the model's words, not the firm's; v1's
 "in the words of their own pages" stored slogans ("Sell your home the minute
@@ -66,7 +71,12 @@ fact here produces a wrong kill, and the operator never learns why.
    - `investor` — private equity, venture, family office. Owns companies.
    - `end_client` — an operating company whose business is something other than
      technology services.
-   - `marketplace` — brokers independent talent or expert calls.
+   - `marketplace` — a platform or network that brokers independent talent or
+     expert calls: the independent applies through it, or is booked for calls.
+   - `staffing` — a recruiting or staffing firm whose recruiters place
+     engineers or consultants, as contractors or hires, into client firms'
+     projects. People there recruit; the pages talk about candidates, placements
+     and open roles.
    If the pages do not make this clear, return null rather than guessing.
 6. **Named people matter more than anything else you extract.** List every person
    the pages name along with the title given for them. That list is what the
@@ -78,6 +88,6 @@ fact here produces a wrong kill, and the operator never learns why.
 
 The gates downstream ask: does this firm already employ the capability being
 sold; does it have a large in-house consulting group; is its identity a platform
-partnership; is it a talent marketplace; is it too small to afford the fee. Your
+partnership; is it a talent marketplace or a staffing firm; is it too small to afford the fee. Your
 extraction is the input to all of those. Bias toward completeness on named people
 and platform partnerships, and toward caution on numbers.

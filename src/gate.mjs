@@ -28,7 +28,8 @@ import { loadBusiness, inCountries } from './business.mjs';
 // THE SIZE BAND, from config/business.yml (2026-09-26), falling back to the old
 // runtime.yml icp block. A target may carry its own band -- large Gulf firms
 // are large by nature -- and it applies to a firm located in that target's
-// countries, read from its people's recorded country or its headquarters.
+// countries, read from its people's recorded country or its headquarters, or
+// to a firm of one of the target's `where.kinds`.
 // Firms are not yet filed under the new targets, so location is the link. A
 // null in a target's band means no limit on that side.
 let BIZ = null;
@@ -47,8 +48,10 @@ function sizeBand(ctx) {
     ctx.org.hq ?? '',
   ].join(' | ').toLowerCase();
   for (const t of BIZ.targets ?? []) {
-    if (!t.size || !t.where?.countries?.length) continue;
-    if (!inCountries(here, t.where.countries)) continue;
+    if (!t.size) continue;
+    if (t.where?.kinds?.length) {
+      if (!t.where.kinds.includes(ctx.org.kind)) continue;
+    } else if (!t.where?.countries?.length || !inCountries(here, t.where.countries)) continue;
     const band = { ...base, target: t.name };
     for (const k of ['revenue_min_usd', 'headcount_max', 'revenue_max_usd']) if (k in t.size) band[k] = t.size[k];
     return band;
@@ -98,6 +101,14 @@ const EVALUATORS = {
   capability_already_staffed(ctx) {
     const titles = ctx.gate.capability_titles ?? capabilityTitles(ctx.cfg);
     if (!titles.length) return null;
+
+    // A staffing firm's AI engineers are the people it places, and an
+    // independent is one more of them, not a competitor for the work.
+    if (ctx.org.kind === 'staffing') {
+      return { outcome: 'pass', reason: 'Not applicable to a staffing firm: it places contractors ' +
+        'with its clients, so the capability it lists is what it sells on, not a team that displaces one.',
+        evidence_id: ctx.derivedFrom };
+    }
 
     // TENURE. The operator's own thesis says a RECENTLY named AI exec is the
     // buyer — fresh mandate, unspent budget, no team yet — and that the gate
@@ -522,7 +533,7 @@ const EVALUATORS = {
     // instead of buying it. At a consultancy or a delivery firm that question is
     // meaningless — consultants ARE their business, and counting them kills every
     // one of them for existing.
-    if (['delivery_firm', 'advisor', 'marketplace', 'individual'].includes(ctx.org.kind)) {
+    if (['delivery_firm', 'advisor', 'marketplace', 'staffing', 'individual'].includes(ctx.org.kind)) {
       return { outcome: 'pass',
         reason: `Not applicable to a ${ctx.org.kind}: consulting headcount is their product, ` +
           'not an internal group that displaces an outside adviser.', evidence_id: ctx.derivedFrom };

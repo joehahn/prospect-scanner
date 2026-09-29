@@ -47,7 +47,7 @@ const SCHEMA = {
     // An enum cannot also be nullable in this schema dialect, so "unknown" is an
     // explicit member rather than null. It is mapped back to null on write.
     kind: { type: 'string',
-      enum: ['end_client', 'investor', 'advisor', 'delivery_firm', 'marketplace', 'unknown'] },
+      enum: ['end_client', 'investor', 'advisor', 'delivery_firm', 'marketplace', 'staffing', 'unknown'] },
     kind_confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
     headcount_est: { type: 'integer', description: '0 if no page states one.' },
     headcount_basis: { type: 'string', description: 'How the number was arrived at. \'\' if none.' },
