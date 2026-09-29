@@ -924,6 +924,57 @@ export function finishRun(db, runId,
   }
 }
 
+// UNDOING AN ADMISSION. `npm run firms` vets candidates in the book, because
+// enrich and gate work on org rows, and takes out every one that fails. These
+// remove what the vet wrote: every row keyed to the firm or its people. The
+// runs ledger keeps its cost; it holds no org or person id.
+const tablesWith = (db, col) => db.prepare(`SELECT m.name FROM sqlite_master m, pragma_table_info(m.name) p
+  WHERE m.type = 'table' AND p.name = ?`).all(col).map((r) => r.name);
+
+// Rows elsewhere that cite evidence about to go: a gate's reason can cite a
+// staff listing. A nullable citation is cleared, a required one goes with it.
+function releaseEvidence(db, where, args) {
+  const ids = db.prepare(`SELECT id FROM evidence WHERE ${where}`).all(...args).map((r) => r.id);
+  if (!ids.length) return;
+  const marks = ids.map(() => '?').join(',');
+  for (const { name } of db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()) {
+    for (const fk of db.prepare(`SELECT "from" col FROM pragma_foreign_key_list(?) WHERE "table" = 'evidence'`).all(name)) {
+      const required = db.prepare(`SELECT "notnull" n FROM pragma_table_info(?) WHERE name = ?`).get(name, fk.col).n;
+      db.prepare(required ? `DELETE FROM ${name} WHERE ${fk.col} IN (${marks})`
+        : `UPDATE ${name} SET ${fk.col} = NULL WHERE ${fk.col} IN (${marks})`).run(...ids);
+    }
+  }
+}
+
+/** Remove people and every row keyed to them. */
+export function purgePeople(db, personIds) {
+  if (!personIds.length) return;
+  const marks = personIds.map(() => '?').join(',');
+  db.transaction(() => {
+    releaseEvidence(db, `person_id IN (${marks})`, personIds);
+    for (const t of tablesWith(db, 'person_id')) {
+      db.prepare(`DELETE FROM ${t} WHERE person_id IN (${marks})`).run(...personIds);
+    }
+    db.prepare(`DELETE FROM people WHERE id IN (${marks})`).run(...personIds);
+  })();
+}
+
+/** Remove a firm, its people, and every row keyed to either. */
+export function purgeOrg(db, orgId) {
+  const people = db.prepare('SELECT id FROM people WHERE org_id = ?').all(orgId).map((r) => r.id);
+  db.transaction(() => {
+    purgePeople(db, people);
+    releaseEvidence(db, 'org_id = ?', [orgId]);
+    const has = (t) => db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(t);
+    if (has('holdings')) db.prepare('DELETE FROM holdings WHERE company_id = ? OR investor_id = ?').run(orgId, orgId);
+    if (has('board_seats')) db.prepare('DELETE FROM board_seats WHERE company_id = ?').run(orgId);
+    for (const t of tablesWith(db, 'org_id')) {
+      if (t !== 'orgs') db.prepare(`DELETE FROM ${t} WHERE org_id = ?`).run(orgId);
+    }
+    db.prepare('DELETE FROM orgs WHERE id = ?').run(orgId);
+  })();
+}
+
 /** Slug usable as an orgs.id, matching the hand-authored style in the seed file. */
 export function slugify(s) {
   return String(s)

@@ -49,7 +49,7 @@ flowchart TD
 ## Intake: dated events, not lists
 
 A prospect enters because something happened: a new AI leader named, a vendor chosen,
-a fund raised, a conference talk about a problem the operator solves. Four sources:
+a fund raised, a conference talk about a problem the operator solves. Five sources:
 
 - **Measured searches.** Written by a model from the operator's plain-prose targets and
   events, approved once, run weekly. Each run records what it found and what each find
@@ -61,6 +61,12 @@ a fund raised, a conference talk about a problem the operator solves. Four sourc
   session they are giving arrive together.
 - **The operator's pastes** of a profile they read themselves, stored with a
   provenance marker so they are never mistaken for something retrieved.
+- **Firm lists,** for a target limited to one kind of firm that publishes no events,
+  such as small recruiting firms that place contractors. Rankings and directories are
+  found and read for firm names; each firm waits outside the book until its own site
+  has been checked. It is admitted only if the site makes it the target's kind, no
+  gate kills it, and it names someone in one of the target's seats. Everyone else at
+  an admitted firm is dropped, and every firm turned away keeps its reason.
 
 Every stored event keeps what its source actually said, not just an event label, and
 `npm run recheck` re-reads older ones against their source and retracts any the words
@@ -87,7 +93,9 @@ bio address is detected and discarded.
 
 **Gates are code, not judgment.** Too small, too big, already staffed for the work, a
 marketplace, a recent note to the same firm: each is a function with a recorded
-reason, and a killed firm stays in the log with why.
+reason, and a killed firm stays in the log with why. A talent marketplace or expert
+network is killed; a staffing firm whose recruiters place contractors is a separate
+kind, and passes.
 
 ## The judge
 
@@ -170,6 +178,7 @@ daily run strings the routine ones together.
 | Searches | `npm run queries` | propose, run, measure and retire searches | default / cheap |
 | Appointments | `npm run moves` | new data and AI leaders from trade columns | cheap |
 | Agendas | `npm run events` | speakers and sessions from conference sites | default |
+| Firm lists | `npm run firms` | a target's firms from rankings and directories, each checked on its own site before it is kept | cheap |
 | Vet | `npm run lead -- vet` | the firm's own site, then the gates | cheap |
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
 | Gates | `npm run gate` | deterministic disqualifiers | none |

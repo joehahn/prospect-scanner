@@ -20,6 +20,7 @@
 //   label: a short name for a filter chip; the name is used everywhere else
 //   where.kinds: firm kinds (staffing, investor, ...) a target is limited to; a
 //               firm of that kind is filed under it and gets its size band
+//   seats:      titles worth writing to at the target's firms (npm run firms)
 //
 // Nothing about any particular operator is written here; see CLAUDE.md.
 
@@ -127,6 +128,14 @@ export function describeForJudge(b) {
   const targets = (b.targets ?? []).map((t) => `- ${t.name}: ${t.description}`
     + (t.examples?.length ? `\n    e.g. ${t.examples.slice(0, 3).join('; ')}` : ''));
   return ['## The operator', 'Offers:', ...offers, '', 'The kinds of client they look for:', ...targets].join('\n');
+}
+
+/** Whether a title is one of a target's `seats`, matched as words anywhere in it. */
+export function inSeat(target, title) {
+  const seats = target?.seats ?? [];
+  if (!seats.length || !title) return false;
+  return new RegExp(`\\b(${seats.map((s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\s+/g, '\\s+')).join('|')})`, 'i').test(title);
 }
 
 /** A short stable id for a target, from its name, for page files and filters. */

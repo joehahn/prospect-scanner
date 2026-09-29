@@ -33,6 +33,7 @@
     "recheck": "node --env-file-if-exists=.env src/recheck.mjs",
     "describe": "node --env-file-if-exists=.env src/describe-firms.mjs",
     "bios": "node --env-file-if-exists=.env src/bios.mjs",
+    "firms": "node --env-file-if-exists=.env src/firms.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

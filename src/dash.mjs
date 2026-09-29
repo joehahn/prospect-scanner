@@ -21,7 +21,7 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBu
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { scoreboard, searchFunnel, spend } from './measures.mjs';
-import { loadBusiness, targetsOfPeople } from './business.mjs';
+import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -487,9 +487,18 @@ function collect(db, cfg, targeting) {
   // Head of Underwriting, VP Claims Digital Experience -- matched their personas
   // correctly, scored 0.18, and vanished. The persona had done its job and the
   // floor threw the answer away.
-  const seatOk = (p) => (p.persona_authority
-    ? p.persona_authority === 'buyer' || p.persona_authority === 'router'
-    : (p.seat_authority ?? p.authority ?? 0) >= 0.5);
+  //
+  // A TARGET'S OWN SEATS COUNT TOO. A target limited to a kind of firm names who
+  // there is worth writing to (`seats:` in business.yml), and the personas the
+  // formula matches were written for buyers, not for, say, recruiters placing
+  // contractors. Without this a Technical Recruiter the operator marked write
+  // first scored 0.15 and never reached the page.
+  const seatTargets = (loadBusiness(cfg, targeting).targets ?? [])
+    .filter((t) => t.where?.kinds?.length && t.seats?.length);
+  const seatOk = (p) => seatTargets.some((t) => t.where.kinds.includes(p.org_kind) && inSeat(t, p.title))
+    || (p.persona_authority
+      ? p.persona_authority === 'buyer' || p.persona_authority === 'router'
+      : (p.seat_authority ?? p.authority ?? 0) >= 0.5);
   const noAuthority = eligible.filter((p) => !seatOk(p));
 
   // People held until a date, at surviving firms. They are correctly excluded
