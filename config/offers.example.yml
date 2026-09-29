@@ -1,0 +1,388 @@
+# Acme Advisory — what I sell. TEMPLATE — copy to the name without .example.
+#
+# One of five orthogonal input files in config/. See config/README.md for
+# what belongs where and why. Each pitch names its services, its buyer, when it fires and
+# when it must not. `rank` proposes exactly one per prospect.
+
+
+# THREE PITCHES, not two lines and not four services.
+#
+# Restructured 2026-08-25. The earlier `service_lines` split had two entries and
+# was wrong: it merged "subcontract behind a delivery firm" with "build it for
+# the company that needs it." Those are the same WORK sold to different BUYERS,
+# and the 2026-08-25 audit showed one of them is structurally dead while the
+# other has never been tried.
+#
+# A pitch = (which services, which buyer, what problem they have, when it fires,
+# when it must not). `rank` proposes exactly one per prospect; `draft` may name
+# only that one. See prompts/draft-cold-note.md.
+#
+# The selector is the KIND of firm:
+#   investor       — oversees portfolio companies that are buying AI  -> buyers_side
+#   end_client     — has the problem itself                           -> buyers_side or build_direct
+#   delivery_firm  — sells AI delivery services                       -> overflow_bench (DEAD)
+#   marketplace    — brokers talent or expert calls                   -> nothing, gate kills it
+buyers:
+# `label` is what the dashboard nav prints for each pitch. Use the words your own
+# site uses for the same group of engagements: the operator reads the dashboard
+# and the prospect reads the site, and they should not be two vocabularies for
+# one menu. Falls back to `name`, then to the id, so it is safe to omit.
+  - id: buyers_side
+    label: "The words your site uses for this group"
+    name: "Independent judgment on something being bought"
+    status: live
+    services: [the_read, the_long_read]
+    buyer_problem: "a proposal, pilot or renewal on the desk and nobody in-house whose job it is to judge it"
+    buyer_seat: "the person who signs it, or who answers for the spend"
+    fires_when: "the firm is buying AI from a vendor, or oversees companies that are"
+    never_when: >
+      the firm sells AI services itself. They judge vendors for a living and an
+      outside read is the one thing they will not buy.
+    sells: "independence and judgment"
+    proof_needed: "evidence they are being sold something, or have budget in motion"
+    website_path: "/buyers_side"
+
+  - id: build_direct
+    label: "The words your site uses for this group"
+    name: "Hands-on AI build for the company that has the problem"
+    status: untested          # zero sends on record as of 2026-08-25
+    services: [project_work, fixed_price_build, working_session, retainer]
+    buyer_problem: "a named AI or ML problem, a deadline, and nobody in-house to build it"
+    buyer_seat: "the person who owns the outcome, not the person who owns the budget"
+    fires_when: >
+      an END CLIENT with a specific named problem and no AI staff of their own.
+      A manufacturer, an operator, a portfolio company — someone whose business
+      is not selling AI.
+    never_when: "the firm sells AI delivery services, or already employs the capability"
+    sells: "the build, finished"
+    proof_needed: "a specific named problem, not a general interest in AI"
+    website_path: "/build"
+
+  - id: referral_ask
+    label: "Ask for an introduction"
+    name: "Warm reconnect and a referral ask"
+    status: live
+    services: []              # nothing is being sold; a referrer needs the range
+    buyer_problem: "none — this person is not a buyer and must not be treated as one"
+    buyer_seat: "someone with a live network into the buying seats, who knows Joe favourably"
+    fires_when: >
+      the person is a referral node rather than a buyer: a warm prior
+      relationship, an active network, and no bench to sell to. The type case is
+      someone already KILLED as a buyer who is nonetheless worth writing to — a
+      large first-degree following, and a profile that plainly invites the kind
+      of conversation your buyers are having. Being disqualified as a buyer is what
+      makes the referral ask honest: there is nothing to sell them.
+    never_when: "the person could plausibly buy; ask them to buy instead"
+    sells: "nothing. It asks for a name."
+    note: >
+      THE ONE PLACE THE FULL MENU IS CORRECT. A referrer cannot route anyone
+      without knowing the whole range, so naming every service is right here and
+      wrong everywhere else. See prompts/draft-cold-note.md.
+
+  - id: overflow_bench
+    label: "Subcontract capacity"
+    name: "Subcontract capacity behind a delivery firm"
+    status: dead
+    retired_on: "2026-08-25"
+    services: [project_work]
+    buyer_problem: "signed work, a deadline, and not enough senior hands"
+    buyer_seat: "VP Delivery, Head of Delivery, founder at a small shop"
+    fires_when: "(nothing — retired)"
+    never_when: "always. See retired_because."
+    retired_because: >
+      Sent to a full cohort of AI delivery firms; nothing converted. A profile
+      audit found the mechanism, and it is worth keeping even though the pitch is
+      dead: EVERY FIRM THAT LOOKS SHORT OF AI DELIVERY CAPACITY IS A FIRM HIRING
+      FOR IT. Each one in the cohort — named partners of the major model and data
+      vendors, several with a chief AI officer or a head of applied AI appointed
+      that year — already employed the capability outright. One of them answered
+      by routing the note to their Director of Talent with an apply link, which
+      is the whole thesis refuting itself in a single reply.
+
+      These firms buy capacity as headcount, not as a service. The general lesson
+      is that "they look short-handed" is a thesis about a firm's CONSTRAINT, and
+      a hiring req is evidence they have already chosen how to relieve it. Do not
+      re-enter without a materially different reason.
+    sells: "capacity that needs no onboarding"
+
+
+  - id: senior_capacity
+    label: Hands on the work
+    name: Senior capacity by the hour, to a team that already has one
+    status: untested
+    services: [project_work]
+    buyer_problem: >-
+      a team that already owns the capability and is short of senior hands on a
+      specific piece of work
+    buyer_seat: CTO, VP Engineering, Head of Data or AI at an end client
+    fires_when: >-
+      the firm employs the capability at scale — the exact condition the other
+      two pitches are disqualified by. capability_already_staffed is 25 of 40
+      kills on record, more than every other gate combined, and every one of
+      those firms is a candidate here.
+    never_when: >-
+      the firm SELLS AI delivery. This is the ground overflow_bench died on and
+      the reason transfers exactly: a consultancy short of delivery capacity
+      HIRES for it, because the capability is its product, so an outside
+      independent reads as a candidate rather than a supplier. End clients only.
+
+      Also never when the named seat is publicly recruiting for the same skill.
+      A capacity offer landing in front of someone running a search for it reads
+      as an application, and that misread costs more than the note is worth.
+    sells: >-
+      senior hands with no onboarding runway, out of a services budget rather
+      than a headcount req
+    proof_needed: >-
+      evidence the team exists and is loaded — named AI or data staff, a broad
+      remit under one leader, open senior reqs, or shipped AI product
+
+# ===========================================================================
+# SERVICES — the priced offers. INVENTED, and they need to stay invented.
+#
+# This file is tracked and ships publicly. Until 2026-09-19 it carried the
+# author's real product names and real rates, because it had been made by
+# copying a working config and lightly editing it. That is not a template: a
+# template teaches a SHAPE, and a copy teaches someone else's pricing.
+#
+# What matters here is not the numbers but the RELATIONSHIPS between them, and
+# each of these exists to demonstrate one:
+#
+#   a paid first step small enough to be an impulse, credited against the build
+#   a fixed price, so the buyer knows the number before saying yes
+#   a read priced UNDER a typical signature threshold, so one person approves it
+#   a read priced OVER it, which is why it needs a committee and sells slowly
+#   an hourly rate, which clears no threshold at all and is bought like contract
+#     engineering — out of a services budget rather than a headcount requisition
+#   a retainer, which is a SECOND sale and cannot be reached from a cold dossier
+#
+# Change the numbers to your own. Keep the ladder, because the notes below
+# explain each price by where it sits relative to the others, and a set of round
+# placeholders would make every one of those sentences false.
+# ===========================================================================
+packages:
+  - id: working_session
+    priority: 2
+    buyer: build_direct
+    name: "Paid first session"
+    price_usd: 200
+    duration: "one hour, plus a written page"
+    best_for: "someone who wants a considered answer before committing to anything"
+    buyer_titles: ["Owner", "Founder", "CEO", "COO", "VP Engineering"]
+    note: >-
+      The smallest paid step, credited in full against a build. Its job is to
+      convert a conversation into a transaction, after which the second sale is
+      a different kind of conversation.
+
+  - id: fixed_price_build
+    priority: 4
+    buyer: build_direct
+    name: "One build, one price"
+    price_usd: 4000
+    duration: "three weeks"
+    best_for: "one named process, automated end to end, for a firm with no consulting budget line"
+    buyer_titles: ["Owner", "President", "General Manager", "Controller"]
+    fires_when:
+      max_headcount: 200
+    note: >-
+      Priced so the buyer knows the number before agreeing. A firm this size
+      will not sign an open-ended hourly engagement, and asking it to is how a
+      cheap offer becomes an expensive conversation.
+
+  - id: the_read
+    priority: 5
+    buyer: buyers_side
+    name: "An independent read"
+    price_usd: 2000
+    duration: "5 business days"
+    best_for: "a vendor proposal on the desk and nobody in-house whose job it is to judge it"
+    buyer_titles: ["CFO", "COO", "Owner", "Operating Partner", "VP Finance"]
+    fires_when:
+      triggers_any: [vendor_selection_underway]
+    note: >-
+      DELIBERATELY UNDER a typical signature threshold, which is the whole
+      design: one person can approve it without asking anyone. Compare the next
+      entry, which cannot.
+
+  - id: the_long_read
+    priority: 6
+    buyer: buyers_side
+    name: "An independent read, in depth"
+    price_usd: 10000
+    duration: "three weeks"
+    best_for: "a budget in hand and a decision not yet made"
+    buyer_titles: ["Operating Partner", "CEO", "CFO", "Principal"]
+    fires_when:
+      triggers_any: [integrator_engaged]
+      min_headcount: 200
+    note: >-
+      Above the threshold, so it needs a committee, and it therefore sells on a
+      timescale the cheaper read does not. Carry it if you sell it; do not
+      expect a cold note to close it.
+
+  - id: project_work
+    priority: 1
+    buyer: build_direct
+    name: "Project work"
+    rate_usd_hour: 200
+    best_for: "signed work, a deadline, and not enough senior hands"
+    buyer_titles: ["VP Delivery", "Head of Delivery", "VP Engineering", "CTO", "COO", "Founder"]
+    fires_when:
+      triggers_any: [ai_coe_announcement]
+      staffed: false
+    note: >-
+      Hourly, so it clears no signature threshold and needs no committee — it is
+      bought the way contract engineering is bought, out of a services budget
+      rather than a headcount requisition. For most engineering leaders the
+      requisition is the scarcer of the two, and that is the whole argument.
+
+  - id: retainer
+    priority: 7
+    buyer: build_direct
+    name: "Monthly retainer"
+    price_usd_month: 3000
+    best_for: "a team that wants a senior hand continuously engaged"
+    buyer_titles: ["CTO", "VP Engineering", "COO", "Founder"]
+    # A STANDING ENGAGEMENT IS A SECOND SALE. Nothing in a cold dossier
+    # evidences it, so it is made deliberately unreachable from discovery rather
+    # than given a condition it cannot support. `never` is more honest than a
+    # condition written to look like a judgment.
+    fires_when:
+      never: true
+      reason: a second sale; it follows delivery rather than opening it.
+    note: "Reserved hours and a standing weekly session. Hours do not roll over."
+
+# ===========================================================================
+# CAPABILITIES — WHAT THE WORK IS, as distinct from how it is bought.
+#
+# `services:` above are COMMERCIAL FORMS: a price, a duration, a signature
+# threshold, a buyer's seat. "Project work at an hourly rate" says how something
+# is bought and nothing about what it is. This block says what it is.
+#
+# Keeping them apart matters, and conflating them causes a specific defect. A
+# router that picks a FORM straight from trigger evidence has to turn a dated
+# fact about a firm's document backlog into "therefore, hourly work" — a leap
+# the evidence does not support, and a reliable way to produce offers that read
+# as a judgment while being a default.
+#
+# They come from different places:
+#   EVIDENCE tells you the CAPABILITY. A firm advertising for three contract
+#     administrators is describing the work in its own words, with a date on it.
+#   THE SEAT tells you the FORM. Whether it arrives as a fixed-price build, an
+#     hourly engagement or a paid conversation depends on who is buying and what
+#     they can approve alone. None of that is in the trigger.
+#
+# TWO DESCRIPTIONS, FOR TWO READERS, and both are needed.
+#
+# `what_it_is` is for the BUYER. It is the sentence a draft should be able to
+# use without translating it first, so it must not contain the name of a
+# technique: "ask your data a question in plain English" is a capability,
+# "NL2SQL" is an implementation detail nobody asked for.
+#
+# `technique` is for YOU. Written only in the buyer's words, two capabilities
+# can read almost identically — "answers from your own documents" and "ask your
+# data a question" are a retrieval system and a query generator, and on a page
+# listing both you cannot tell which is which. Say the method here, plainly,
+# once.
+#
+# TWO GROUPINGS, FOR TWO DIFFERENT JOBS, and they are not interchangeable:
+#
+#   form:           WHAT THE BUYER GETS. Group these the way your own marketing
+#                   groups them, so the site and the dossier cannot end up
+#                   describing the business differently. The right axis for
+#                   writing a note.
+#   evidence_class: HOW THE PROSPECT IS FOUND. Declared on each TRIGGER in
+#                   signals.yml, never here, and inherited — a job posting is a
+#                   job posting whatever it evidences. The right axis for
+#                   deciding what to build next.
+#
+# Resist merging capabilities into whichever grouping feels tidier. Merging is
+# lossy in the place it costs most: the specific sentence is the pitch, and
+# "your reviews say quotes take a week" sells where "you have manual work" does
+# not. Grouping is free; merging is not.
+#
+# The failure worth anticipating: grouped by BENEFIT, capabilities that share an
+# unretrievable evidence class scatter across several buckets and sit beside
+# well-supplied ones, so each bucket looks partly healthy and the common cause
+# is invisible. Grouped by EVIDENCE, the same fact is one line — "five of seven
+# are blocked on the same channel" — and it tells you what to fix.
+# ===========================================================================
+work:
+
+  - id: doc_agent
+    label: "Reads, checks, drafts"
+    form: automate-manual-work
+    what_it_is: >-
+      an agent that does the reading, checking and drafting your people are
+      doing by hand
+    technique: >-
+      LLM extraction against the document, a rules pass to check it, a templated
+      draft out.
+    fires_when:
+      # Declared in signals.example.yml. A capability naming a trigger that
+      # does not exist is a silent dead end: it can never fire, and nothing
+      # tells you so.
+      triggers_any: [published_ai_cost_concern]
+    delivered_by: [project_work, fixed_price_build]
+
+  - id: self_serve_answers
+    label: "Ask your data a question"
+    form: close-the-blind-spots
+    what_it_is: >-
+      ask a question in plain English and get an answer, without waiting on
+      someone to write the query
+    technique: >-
+      NL2SQL against their warehouse, with the generated query shown.
+    # A firm hiring a reporting analyst is buying a HUMAN QUERY LAYER. That is
+    # the need stated as a requisition, which is as legible as evidence gets.
+    fires_when:
+      triggers_any: [unfilled_leadership_req]
+    delivered_by: [project_work, working_session]
+
+  - id: custom_build
+    label: "Move a number"
+    form: move-a-number
+    what_it_is: >-
+      something built to move one number the business already watches
+    fires_when:
+      triggers_any: [ai_coe_announcement]
+    delivered_by: [project_work]
+
+  - id: independent_judgment
+    label: "Judge someone else's work"
+    form: advisory
+    what_it_is: >-
+      an independent read on a proposal, a pilot or a vendor, from someone with
+      nothing to sell you afterwards
+    # Worth carrying even if you do not lead with it, so that the services which
+    # DO sell it are not left with no capability at all — a gap in the taxonomy
+    # reads as an oversight rather than as a position.
+    fires_when:
+      triggers_any: [vendor_selection_underway, integrator_engaged]
+    delivered_by: [the_read]
+
+
+# ---------------------------------------------------------------------------
+# WHAT IS NOT A SALE. Added 2026-09-19.
+#
+# The outreach table had 28 rows and every surface called that "28 sends",
+# including the one that reports progress toward the n >= 40 a measured response
+# rate requires. Three of them were JOB APPLICATIONS — seeded from the
+# operator's own history in May, no subject, no pitch summary, and pitched under
+# a `service_pitched` of "employment" that has never existed in this catalogue.
+#
+# They are real outreach and they stay in the table: the record of who has been
+# contacted is what stops a duplicate approach, and that is true whether the
+# note asked for work or offered it. What they are not is EVIDENCE ABOUT
+# SELLING. Left in the denominator they make the sales record look 12% larger
+# than it is and drag the measured response rate down with a cohort that was
+# never pitched anything.
+#
+# Declared here rather than hardcoded so the rule is visible to the person whose
+# numbers it changes, and so a fork with its own non-sales history can say so
+# without editing source.
+# ---------------------------------------------------------------------------
+not_sales:
+  services: [employment]
+  why: >-
+    Applying for a job is outreach, but it is not a pitch. Counting it as one
+    inflates the sales denominator and measures a cohort that was never sold to.

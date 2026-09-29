@@ -1,0 +1,100 @@
+# Acme Advisory — who I am. TEMPLATE — copy to the name without .example.
+#
+# One of five orthogonal input files in config/. See config/README.md for
+# what belongs where and why. Identity, skills, proof points and the honesty guardrails.
+# Changes rarely.
+
+firm:
+  name: "Acme Advisory"
+  url: "https://example.com"
+  contact_email: "you@example.com"
+  size: 1
+  location:
+    metro: "Your City, ST"
+    secondary: "Second City, ST"
+    remote_ok: true
+    relocation: false
+    travel: "occasional, not Mon-Thu"
+
+# THREE PITCHES, not two lines and not four services.
+#
+# Restructured 2026-08-25. The earlier `service_lines` split had two entries and
+# was wrong: it merged "subcontract behind a delivery firm" with "build it for
+# the company that needs it." Those are the same WORK sold to different BUYERS,
+# and the 2026-08-25 audit showed one of them is structurally dead while the
+# other has never been tried.
+#
+# A pitch = (which services, which buyer, what problem they have, when it fires,
+# when it must not). `rank` proposes exactly one per prospect; `draft` may name
+# only that one. See prompts/draft-cold-note.md.
+#
+# The selector is the KIND of firm:
+#   investor       — oversees portfolio companies that are buying AI  -> buyers_side
+#   end_client     — has the problem itself                           -> buyers_side or build_direct
+#   delivery_firm  — sells AI delivery services                       -> overflow_bench (DEAD)
+#   marketplace    — brokers talent or expert calls                   -> nothing, gate kills it
+
+
+# How many notes you can send a month, per channel. The Ready page counts this
+# month's sends against it. InMail is usually the tighter one: it spends credits.
+outreach_budget_per_month:
+  linkedin_inmail: 15
+  email: 50
+
+operator:
+  strengths:
+    - "LLM evaluation and model right-sizing"
+    - "AI/ML solution architecture and presales discovery"
+    - "scoping and delivering Pilots and POCs"
+    - "document and knowledge-work AI"
+    - "agentic systems via Anthropic Claude Code and SDK"
+  proof_points:
+    - claim: "Eight models graded on ~4,500 agent decisions; the most expensive finished last and a $6.42 model landed within three points of the leader"
+      evidence_url: "https://example.com/your-writeup"
+      buyers: [buyers_side]
+    - claim: "Seven counterbalanced ten-year games across four models; a 10% gain in reward cost roughly 2.5x the parameters or the spend"
+      evidence_url: "https://example.com/your-writeup"
+      buyers: [buyers_side]
+    - claim: "1,000 forecasts across 50 Chicago geographies reaching R2=0.96 at one month and R2=0.91 at four months"
+      evidence_url: "https://example.com/your-writeup"
+      buyers: [build_direct]
+    - claim: "ML alerting before dangerous conditions develop inside a steel furnace"
+      evidence_url: null
+      buyers: [build_direct]
+      # No public link, so a dossier may NOT cite this. Fix or drop it.
+  # STANDING FACTS about the operator today, as against the credentials below,
+  # which are things he has done. A drafter that knows only the credentials
+  # writes the Acme years in the present tense and leaves a reader thinking
+  # the note came from a vendor's employee — which is the opposite of what is
+  # being sold.
+  standing:
+    - "Runs his own independent practice. The Acme years are past employment, not a current affiliation."
+    - "No vendor relationships, no reseller agreements, no referral fees from anyone."
+  # Words that identify you, for the leak check (`npm run leaks`), which fails
+  # if any of them turns up in code or prompts that would be published: a past
+  # employer, a product you built. Your firm name, domain, email, town and
+  # GitHub handle are found automatically; list only what they miss.
+  identifying_terms: ["Acme Corp"]
+  credentials:
+    - "Seven cloud-platform certifications"
+    - "Anthropic Academy courses on Claude Code"
+    - "Eight years in Acme Corp's AI Center of Excellence"
+  # Honesty guardrails. Never assert these in a dossier or a draft.
+  never_claim:
+    - "Docker"
+    - "Kubernetes"
+    - "FastAPI"
+    - "Go"
+    - "Rust"
+    - "Snowflake"
+    - "Databricks"
+    - "Delta Lake"
+    - "R"
+    # An entry is split on " or ", and each piece of FOUR OR MORE WORDS is read by
+    # the drafting prompt but skipped by the after-the-fact screen. That is useful:
+    # put the product name first so it stays a hard match, then the nuance, which
+    # prints beside any flag so you can tell a real breach from a fair mention.
+    - "Neo4j or hands-on experience with any native graph database — adjacent
+       awareness from a related product is not the same claim and may be made"
+    - "production ML ownership"
+    - "outbound business development or quota-carrying sales"

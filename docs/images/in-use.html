@@ -1,0 +1,141 @@
+<!-- Rendered to in-use.png with Playwright at 1600x1000, deviceScaleFactor 2. Every firm, person and address here is fictional. -->
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 1600px; height: 1000px; overflow: hidden;
+    font: 14px/1.45 -apple-system, "SF Pro Text", "Segoe UI", system-ui, sans-serif; color: #1b1b1b;
+    background: radial-gradient(1200px 700px at 20% 10%, #3a4f7a 0%, #1c2438 55%, #121724 100%); }
+  .win { position: absolute; border-radius: 12px; overflow: hidden; background: #fbfbf9;
+    box-shadow: 0 30px 70px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08); }
+  .bar { height: 36px; background: #e9e9e6; display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    border-bottom: 1px solid #d6d6d2; }
+  .dots { display: flex; gap: 7px; margin-right: 10px; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+  .dots i:nth-child(1) { background: #ff5f57; } .dots i:nth-child(2) { background: #febc2e; } .dots i:nth-child(3) { background: #28c840; }
+  .url { flex: 1; background: #fff; border: 1px solid #d3d3cf; border-radius: 7px; height: 24px; padding: 2px 10px;
+    font-size: 12.5px; color: #555; }
+  /* dashboard */
+  .dash { left: 40px; top: 40px; width: 1020px; height: 760px; }
+  .dash .body { padding: 18px 26px; }
+  h1 { font-size: 26px; margin: 0 0 2px; }
+  .sub { color: #666; font-size: 13px; margin-bottom: 12px; }
+  .nav { display: flex; gap: 18px; margin-bottom: 14px; }
+  .col { display: flex; flex-direction: column; gap: 5px; }
+  .grp { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: #3b5ba9; text-transform: uppercase; }
+  .chip { font-size: 12px; padding: 3px 10px; border: 1px solid #d6d6d2; border-radius: 14px; background: #fff; white-space: nowrap; }
+  .chip.page { border-radius: 5px; border-style: dashed; }
+  .chip.here { border-style: solid; font-weight: 600; box-shadow: inset 3px 0 0 #3b5ba9; }
+  .chip.on { background: #3b5ba9; color: #fff; border-color: #3b5ba9; }
+  .card { border: 1px solid #deded9; border-radius: 10px; padding: 14px 16px; background: #fff; }
+  .rank { font-weight: 700; color: #3b5ba9; margin-right: 6px; }
+  .card h3 { margin: 0 0 4px; font-size: 17px; }
+  .title { font-weight: 400; color: #555; font-size: 14px; }
+  .meta { color: #555; font-size: 12.5px; margin: 3px 0; }
+  .lead { font-weight: 600; margin: 6px 0; }
+  .ev { font-size: 12.5px; margin: 4px 0 4px 16px; padding: 0; }
+  .ev li { margin: 2px 0; }
+  a { color: #3b5ba9; }
+  .reach { font-size: 12.5px; margin: 6px 0; }
+  .btns { display: flex; gap: 6px; margin: 8px 0; align-items: center; font-size: 12.5px; }
+  .btn { border: 1px solid #c9c9c4; border-radius: 5px; padding: 2px 9px; background: #f6f6f3; font-size: 12.5px; }
+  .btn.pri { background: #3b5ba9; color: #fff; border-color: #3b5ba9; }
+  .note { border-top: 1px solid #ecece8; margin-top: 8px; padding-top: 8px; }
+  .note .ta { border: 1px solid #d3d3cf; border-radius: 6px; padding: 8px 10px; font-size: 12.5px; background: #fff; color: #222; }
+  .tiles { display: flex; gap: 10px; margin: 0 0 12px; }
+  .tile { border: 1px solid #deded9; border-radius: 8px; padding: 6px 12px; background: #fff; font-size: 12px; color: #555; }
+  .tile b { display: block; font-size: 18px; color: #1b1b1b; }
+  /* profile page */
+  .prof { left: 860px; top: 120px; width: 700px; height: 600px; }
+  .prof .body { background: #f3f2ef; height: 100%; padding: 16px; }
+  .ptop { height: 38px; background: #fff; border-bottom: 1px solid #e0dfdc; display: flex; align-items: center; padding: 0 14px; gap: 10px; color: #666; font-size: 12.5px; }
+  .ptop .logo { width: 24px; height: 24px; border-radius: 5px; background: #6b7280; }
+  .pcard { background: #fff; border-radius: 10px; border: 1px solid #e0dfdc; overflow: hidden; }
+  .cover { height: 90px; background: linear-gradient(120deg, #9fb4c7, #c9d6cf); }
+  .avatar { width: 96px; height: 96px; border-radius: 50%; border: 4px solid #fff; margin: -52px 0 0 20px;
+    background: radial-gradient(circle at 50% 38%, #e8c9a8 0 26%, transparent 27%), radial-gradient(circle at 50% 100%, #5b6f86 0 48%, transparent 49%), #dfe6ee; }
+  .pbody { padding: 6px 20px 16px; }
+  .pname { font-size: 21px; font-weight: 700; }
+  .phead { font-size: 14px; margin: 2px 0; }
+  .ploc { font-size: 12.5px; color: #666; }
+  .psec { background: #fff; border-radius: 10px; border: 1px solid #e0dfdc; margin-top: 10px; padding: 12px 20px; font-size: 13px; }
+  .psec h4 { margin: 0 0 6px; font-size: 15px; }
+  .exp { display: flex; gap: 10px; margin: 6px 0; }
+  .exp .lg { width: 34px; height: 34px; border-radius: 6px; background: #cfd8e3; flex: none; }
+  .copyhint { position: absolute; right: 24px; bottom: 16px; background: #1c2438; color: #fff; font-size: 12px; padding: 5px 10px; border-radius: 6px; }
+  /* terminal */
+  .term { left: 180px; top: 700px; width: 1240px; height: 330px; background: #15181e; }
+  .term .bar { background: #23272f; border-bottom: 1px solid #2f343d; }
+  .term .url { background: transparent; border: 0; color: #9aa3b2; }
+  .tbody { padding: 14px 18px; font: 13px/1.55 "SF Mono", Menlo, Consolas, monospace; color: #d7dbe2; white-space: pre; }
+  .p { color: #e0a96d; } .dim { color: #8b93a1; } .ok { color: #7cc48a; } .hl { color: #9ecbff; }
+</style></head>
+<body>
+
+<!-- the dashboard -->
+<div class="win dash">
+  <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">127.0.0.1:8787/ready.html</span></div>
+  <div class="body">
+    <h1>Ready</h1>
+    <div class="sub">Harbor Lane Security · generated Mon 7:04 AM</div>
+    <div class="nav">
+      <div class="col"><span class="grp">Overall · pages</span>
+        <span class="chip page">All prospects</span><span class="chip page here">Ready</span><span class="chip page">Sent</span>
+        <span class="chip page">Scoreboard</span><span class="chip page">Spend</span></div>
+      <div class="col"><span class="grp">Offers · filter</span>
+        <span class="chip">Security readiness review (1 day)</span><span class="chip on">Fractional security lead (hourly)</span>
+        <span class="grp" style="margin-top:6px">Your call · filter</span>
+        <span class="chip">Write first 2</span><span class="chip">Would write 9</span></div>
+      <div class="col"><span class="grp">Targets · filter</span>
+        <span class="chip on">New compliance need</span><span class="chip">Just raised a round</span><span class="chip">First security hire</span></div>
+      <div class="col"><span class="grp">Who decides · filter</span>
+        <span class="chip on">Owns the budget</span><span class="chip">Influences</span><span class="chip">Not judged yet</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="rank">judge: 5/5</span> Dana Whitfield <span class="title">VP of Engineering</span></h3>
+      <div class="meta">Meridian Freightworks · 140 people · Denver, CO · in the seat since 2025-11</div>
+      <div class="meta">Meridian builds dispatch and route-planning software for regional freight carriers.</div>
+      <div class="lead">Her largest customer now requires a SOC 2 report by Q2, and there is no security lead on the team.</div>
+      <div class="meta">Need <b>named</b> · Owner <b>owns</b> · Value <b>3</b> · 9 days since compliance requirement · email</div>
+      <ul class="ev">
+        <li><b>new compliance requirement</b> (Sep 19): "we're working toward SOC 2 Type II to meet customer requirements" <a>source</a></li>
+        <li><b>just raised a round</b> (Aug 30): Series A, $14M, led by a logistics fund <a>source</a></li>
+      </ul>
+      <div class="reach"><b>Reach by:</b> email, free <span style="font-family:Menlo,monospace;background:#f1f1ee;padding:0 4px">dana@meridianfreight.example</span> <span class="btn">copy</span> <span class="meta">(a real address, which reaches them wherever they are)</span></div>
+      <div class="btns">Would you write to them? <span class="btn pri">Write first</span><span class="btn">Would write</span><span class="btn">Wouldn't</span></div>
+      <div class="note"><b>Note</b> <span class="meta">v2 · Email · To: dana@meridianfreight.example</span>
+        <div class="ta">Greetings Dana,<br><br>A first SOC 2 audit lands hardest on the engineering lead who also ships the product.
+          Scoping the controls so the audit is passed once, not rebuilt twice, is what I do…</div>
+        <div class="btns"><span class="btn">Draft again</span><span class="btn">Go</span><span class="btn" style="background:#e7f6e7">Sent as Email</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- the author's own public LinkedIn profile (header and About only), standing in for a prospect's page opened by hand -->
+<div class="win prof">
+  <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">linkedin.com/in/hahnjoe</span></div>
+  <div class="body" style="padding:14px">
+    <img src="author-profile-header.png" style="width:100%;display:block;border-radius:8px;border:1px solid #e0dfdc">
+    <img src="author-profile-about.png" style="width:100%;display:block;border-radius:8px;border:1px solid #e0dfdc;margin-top:10px">
+  </div>
+  <div class="copyhint">For a prospect's page: ⌘A ⌘C, then paste into their card</div>
+</div>
+
+<!-- Claude Code in a terminal -->
+<div class="win term">
+  <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">~/prospect-scanner — claude</span></div>
+  <div class="tbody"><span class="p">&gt;</span> who owns the budget on Ready that I haven't written to?
+
+<span class="dim">⏺ Checking Ready for undecided cards rated 4+ where the judge says "owns the budget"…</span>
+
+  <span class="hl">Who</span>                          <span class="hl">Firm</span>                      <span class="hl">Reach by</span>
+  Dana Whitfield, VP Eng       Meridian Freightworks     email (real address)
+  Marcus Ortiz, CTO            Tallgrass Health Labs     InMail · 1 of your 9 credits
+  Priya Raman, Head of IT      Northbeam Credit Union    connection request · she knows you
+
+<span class="ok">⏺</span> Dana is the strongest: a named SOC 2 deadline and a real address, so the note is free.
+  Want me to draft hers as an email?</div>
+</div>
+
+</body></html>

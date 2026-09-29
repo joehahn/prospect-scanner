@@ -1,0 +1,80 @@
+#!/bin/sh
+# Refuse a commit message that names a real prospect.
+#
+# .gitignore protects files, not commit messages. This repo may go public, and
+# its history currently has to be rewritten first because messages named people
+# and firms from the book — a debt that grew every time someone wrote a concrete
+# commit message, which is exactly when concrete feels most useful.
+#
+# The names come from the database, so the list is never stale and never
+# committed. If data/prospects.db is absent the hook passes: a fresh clone has
+# no book to leak.
+
+MSG_FILE="$1"
+DB="$(git rev-parse --show-toplevel)/data/prospects.db"
+[ -f "$DB" ] || exit 0
+command -v sqlite3 >/dev/null 2>&1 || exit 0
+
+# Strip the trailer block: Co-Authored-By and session URLs are not prose.
+BODY=$(grep -viE '^(Co-Authored-By|Claude-Session|Signed-off-by):' "$MSG_FILE")
+
+# Multi-word names and firms only. A single common word ("Smith", "Apple") would
+# fire on ordinary English; a full name or firm name in a commit message is
+# deliberate and is the thing worth stopping.
+HITS=$(sqlite3 "$DB" "
+  SELECT name FROM people WHERE length(name) > 8 AND instr(name,' ') > 0
+  UNION SELECT name FROM orgs WHERE length(name) > 8 AND instr(name,' ') > 0;" 2>/dev/null |
+  while IFS= read -r n; do
+    [ -z "$n" ] && continue
+    printf '%s' "$BODY" | grep -qiF -- "$n" && printf '  %s\n' "$n"
+  done)
+
+# SINGLE-WORD FIRM NAMES LEAK THROUGH THE RULE ABOVE. A one-word insurer's name
+# reached a commit message while this hook was installed and passing, because the
+# multi-word test that keeps "Smith" and "Apple" from firing on ordinary English
+# also excludes every one-word firm name, and those are the ones worth
+# catching: they were the ones exempt.
+#
+# Matched CASE-SENSITIVELY as a whole word, which is the discriminator: a firm
+# name in a commit body is capitalised because it is a proper noun. "nationwide"
+# in a sentence passes; "Nationwide" as a firm does not. Six characters or more,
+# so short tickers and initials do not fire.
+ORGHITS=$(sqlite3 "$DB" "
+  SELECT name FROM orgs WHERE length(name) >= 6 AND instr(name,' ') = 0;" 2>/dev/null |
+  while IFS= read -r n; do
+    [ -z "$n" ] && continue
+    printf '%s' "$BODY" | grep -qE -- "(^|[^A-Za-z])${n}([^A-Za-z]|\$)" && printf '  %s\n' "$n"
+  done)
+
+# A FIRM IS WRITTEN BY ITS SHORT NAME. "The Northwind Group" is caught above
+# and "Northwind" alone was not, which is how two firm names reached a commit
+# message on 2026-09-28 with this hook passing. So the first distinctive word
+# of every multi-word firm is checked too, case-sensitively, when it is at
+# least six characters and not a generic word that begins many names.
+SHORTHITS=$(sqlite3 "$DB" "SELECT name FROM orgs WHERE instr(name,' ') > 0;" 2>/dev/null |
+  sed -E 's/^(The|the) //' | awk '{print $1}' | sed -E "s/[,.'’]+$//" |
+  grep -E '^[A-Z][A-Za-z0-9&-]{5,}$' |
+  grep -vxE 'American|National|Global|United|International|Capital|Partners|Community|Federal|Western|Eastern|Northern|Southern|Central|Pacific|Atlantic|Security|Financial|Insurance|General|Standard|Premier|Citizens|Farmers|Mutual|County|Department|University|Health|Medical|Regional|Advanced|Digital|Technology|Systems|Services|Solutions|Industries|Holdings|Company|Consulting|Associates|Group|Office|Public|Texas|California|Florida|Georgia|Virginia|Carolina|Colorado|Michigan|Illinois|Arizona|Nevada|Oregon|Washington|Houston|Austin|Dallas|Chicago|Boston|Denver|Phoenix|Atlanta|Pennsylvania|Kentucky|Tennessee|Alabama|Louisiana|Missouri|Minnesota|Wisconsin|Indiana|Oklahoma|Kansas|Nebraska|Montana|Virginia|London|Canada|America|Europe|Summit|Frontier|Pinnacle|Beacon|Liberty|Heritage|Pioneer|Guardian|Sterling|Horizon|Meridian|Select|Advance|Integrated|Strategic|Premium|Unified|Modern|Smart' |
+  sort -u | while IFS= read -r n; do
+    printf '%s' "$BODY" | grep -qE -- "(^|[^A-Za-z])${n}([^A-Za-z]|\$)" && printf '  %s\n' "$n"
+  done)
+
+HITS=$(printf '%s\n%s\n%s' "$HITS" "$ORGHITS" "$SHORTHITS" | sed '/^[[:space:]]*$/d')
+
+[ -z "$HITS" ] && exit 0
+
+cat >&2 <<EOF
+
+COMMIT REFUSED — the message names someone in the book:
+
+$HITS
+
+This repo may go public and its history cannot be un-written. Describe the ROLE
+and the SHAPE instead: "a CIO at a large insurer", "three non-executive
+directors at one bank". The commit is more readable for it, and nothing has to
+be scrubbed later.
+
+To override for a message that genuinely needs the name:
+  git commit --no-verify
+EOF
+exit 1

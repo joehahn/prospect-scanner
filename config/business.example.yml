@@ -1,0 +1,136 @@
+# What your business is and what it wants. Copy to config/business.yml and make
+# it yours; business.yml is gitignored, this example is not.
+#
+# This one is a FICTIONAL two-person cybersecurity and compliance consultancy,
+# chosen because it is nothing like the business the tool was first built for.
+# The tests run against it: if something only works for one kind of business,
+# this file is where that shows.
+#
+# A setting belongs here only if another business would need to change it.
+# How the pipeline RUNS (models, sources, limits) is in runtime.yml.
+
+firm:
+  name: "Harbor Lane Security"            # fictional
+  url: "https://example.com"              # your site; it is also the contact
+                                          # address in the user-agent every fetch sends
+  contact_email: "hello@example.com"
+  size: 2
+  location:
+    metro: "Columbus, OH"                 # what "near home" is matched against
+    town: "Worthington, OH"
+
+# Notes you can send a month, per channel. The Ready page counts this month's
+# sends against it.
+outreach_budget_per_month:
+  linkedin_inmail: 10
+  email: 40
+
+# Facts about you, for the drafter and the claim check. Nothing a draft says
+# about you may go beyond these.
+you:
+  strengths:
+    - "security assessments for companies of 20 to 500 people"
+    - "SOC 2 and HIPAA readiness, from gap analysis to audit"
+    - "incident response planning and tabletop exercises"
+  proof_points:
+    - claim: "Took a 90-person fintech from no controls to a clean SOC 2 Type I in 14 weeks"
+      evidence_url: null                  # a public link when there is one
+  standing:
+    - "Independent; no reseller agreements and no referral fees from any vendor."
+  credentials:
+    - "Ten years in a regional bank's security team"
+    - "CISSP"
+  never_claim:                            # things a draft must never say you can do
+    - "penetration testing"               # e.g. you refer it out
+    - "24x7 monitoring"
+  identifying_terms: []                   # words that identify you, for `npm run leaks`
+                                          # (a past employer, say); name, domain and
+                                          # email are found automatically
+
+# What you sell. Each offer says who it is FOR, literally: the judge reads it
+# that way, so "for a team that already has X" makes having X a reason to write.
+offers:
+  - name: "Security Snapshot"
+    price: 3000
+    unit: "fixed, two weeks"
+    for: "a company that has never had its security looked at and needs to know where it stands"
+    pitch: "Two weeks, a fixed price, and a ranked list of what to fix first."
+  - name: "SOC 2 Readiness"
+    price: 18000
+    unit: "fixed, about three months"
+    for: "a company whose customers or investors now require SOC 2 and who has no one to own it"
+    pitch: "From gap analysis to a clean audit, priced before it starts."
+  - name: "Fractional security lead"
+    price: 200
+    unit: "per hour, no minimum"
+    for: "a team with engineers but no security lead, facing a customer questionnaire or an audit"
+    pitch: "A senior security person by the hour, out of a services budget rather than a hire."
+
+# The size of firm you serve by default. A target below can override it.
+size:
+  revenue_min_usd: 5000000
+  headcount_max: 500
+  revenue_max_usd: 200000000
+
+where:
+  countries: ["US"]
+  home_metro: "Columbus metro"
+  home_metro_towns: ["Columbus", "Worthington", "Dublin", "Westerville"]
+  home_region: "Ohio"
+
+# The kinds of client you look for, in plain prose, two to six of them. Search
+# queries are generated from these, and the judge rates candidates against them,
+# so write them the way you would explain them to a colleague. Examples help
+# more than adjectives.
+targets:
+  - name: "Software companies that just met a compliance requirement"
+    label: "New compliance need"   # optional: the short name on a dashboard filter chip
+    description: "A software company of 30 to 300 people that has just raised a round,
+      signed its first enterprise customer, or been handed a security questionnaire it
+      cannot answer, and has no one whose job security is."
+    examples:
+      - "a 120-person SaaS firm that raised a Series B and posted a job for a first security engineer"
+      - "a startup whose largest customer now requires SOC 2 by year end"
+  - name: "Regional healthcare providers"
+    description: "A clinic group, practice network or home-health agency handling patient
+      data, near home by preference, after a peer's breach made the news or a new rule
+      tightened what they must show."
+    examples:
+      - "a 200-person physical-therapy network after a nearby provider's ransomware incident"
+  - name: "Towns and school districts after a public incident"
+    description: "A city, county or school district that has had, or watched a neighbour
+      have, a ransomware incident, with a small IT team and more to fix than people."
+    examples:
+      - "a county whose neighbour's systems were down for two weeks"
+    size:
+      headcount_max: null                 # public bodies are judged by need, not headcount
+      revenue_min_usd: null
+
+# Dated events worth writing on. Each keeps what does NOT count: the list of
+# near-misses that were once accepted and were wrong. It is the most useful
+# thing in this file to grow over time.
+events:
+  - name: "funding round"
+    description: "Raised a priced round within the last six months"
+    counts_for_days: 180
+    does_not_count:
+      - "A debt facility or a line of credit, which brings no new customers or investors asking about security."
+  - name: "first security hire"
+    description: "Posted a job for its first security engineer or security lead"
+    counts_for_days: 120
+    does_not_count:
+      - "A security job at a company that already names a CISO or security team on its site."
+  - name: "breach nearby"
+    description: "A peer in the same sector and region publicly suffered a breach or ransomware incident"
+    counts_for_days: 90
+  - name: "new compliance requirement"
+    description: "A customer, regulator or insurer began requiring an attestation the company does not yet have"
+    counts_for_days: 365
+  - name: "founder wrote about a security scare"
+    description: "A founder or engineering lead wrote or spoke publicly about a security incident, audit or customer questionnaire at their own company"
+    counts_for_days: 180
+    # Found in what people write and say themselves (posts, talks, podcasts), so
+    # its searches cover the whole web instead of the news index. Default: news.
+    searched_in: web
+    does_not_count:
+      - "A security vendor's blog post about a customer."

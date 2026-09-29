@@ -1,0 +1,47 @@
+{
+  "name": "prospect-scanner",
+  "version": "0.1.0",
+  "description": "Configurable prospect-discovery pipeline for small consulting firms, with a self-grading evaluation harness",
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "lead": "node --env-file-if-exists=.env src/lead.mjs",
+    "scan": "node --env-file-if-exists=.env src/scan.mjs",
+    "seed": "node --env-file-if-exists=.env src/seed.mjs",
+    "rank": "node --env-file-if-exists=.env src/rank.mjs",
+    "dash": "node --env-file-if-exists=.env src/dash.mjs",
+    "draft": "node --env-file-if-exists=.env src/draft.mjs",
+    "enrich": "node --env-file-if-exists=.env src/enrich.mjs",
+    "gate": "node --env-file-if-exists=.env src/gate.mjs",
+    "grade": "node --env-file-if-exists=.env src/grade.mjs",
+    "news": "node --env-file-if-exists=.env src/news.mjs",
+    "snapshot": "node scripts/snapshot.mjs",
+    "unblock": "node --env-file-if-exists=.env src/unblock.mjs",
+    "events": "node --env-file-if-exists=.env src/events.mjs",
+    "glean": "node --env-file-if-exists=.env src/glean.mjs",
+    "read": "node --env-file-if-exists=.env src/read.mjs",
+    "size": "node --env-file-if-exists=.env src/size.mjs",
+    "inbox": "node --env-file-if-exists=.env src/inbox.mjs",
+    "audit": "node --env-file-if-exists=.env src/audit.mjs",
+    "bench": "node --env-file-if-exists=.env src/bench.mjs",
+    "harvest": "node --env-file-if-exists=.env src/harvest.mjs",
+    "moves": "node --env-file-if-exists=.env src/moves.mjs",
+    "leaks": "node src/leaks.mjs",
+    "judge": "node --env-file-if-exists=.env src/judge.mjs",
+    "queries": "node --env-file-if-exists=.env src/queries.mjs",
+    "daily": "node --env-file-if-exists=.env src/daily.mjs",
+    "recheck": "node --env-file-if-exists=.env src/recheck.mjs",
+    "describe": "node --env-file-if-exists=.env src/describe-firms.mjs",
+    "bios": "node --env-file-if-exists=.env src/bios.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
+    "better-sqlite3": "^13.0.3",
+    "playwright": "^1.63.0",
+    "yaml": "^2.9.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

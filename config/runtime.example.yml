@@ -1,0 +1,121 @@
+# Acme Advisory — plumbing. TEMPLATE — copy to the name without .example.
+#
+# One of five orthogonal input files in config/. See config/README.md for
+# what belongs where and why. Which sources to read, which models to call, what counts as
+# in-market. No business judgment lives here.
+
+
+icp:
+  include_industries:
+    - "enterprise software private equity"
+    - "industrial manufacturing"
+    - "energy and Gulf Coast industrials"
+    - "wealth management and financial services consultancies"
+    - "AI consultancies and delivery firms with overflow"
+  revenue_floor_usd: 50000000
+  ai_spend_floor_usd_month: 50000   # below this, model right-sizing cannot justify a fee
+  geography: ["US"]
+  # Towns the operator can drive to. Matched as substrings, case-insensitively,
+  # against a person's own location and then the firm's HQ. Leave empty to turn
+  # the local bonus off entirely.
+  home_metros:
+    - "Austin"
+    - "Round Rock"
+    - "Round Rock"
+    - "Georgetown"
+    - "San Marcos"
+    - "Kyle"
+    - "Pflugerville"
+  # The phrase `news --discover --local` appends to every search query, and the
+  # region the discovery prompt then holds candidates to. A search term biases
+  # results; it does not filter them, so the prompt does the rejecting and this
+  # string has to read like something a journalist would write, not like a list.
+  discovery_region: "Austin, Texas"
+  home_metro_label: "Austin metro"
+  # The drivable tier between the metro and the rest of the country. Three hours
+  # is not coffee, but it is not a cold InMail either, and the ranker treated
+  # Houston exactly like Boston until this existed.
+  home_region: ["Texas", "TX"]
+  home_region_label: "Texas"
+
+# Declarative disqualifiers. Each one encodes a lesson already paid for.
+
+
+sources:
+  job_apis:
+    greenhouse: true
+    ashby: true
+    lever: true
+
+    # Greenhouse, Ashby and Lever have no global search: every request is scoped
+    # to one company's board token. So this list IS the scan surface. Curate it.
+    # `npm run scan -- --discover` probes token guesses for orgs already in the
+    # database and prints the ones that answer, which is how this list grows.
+    lookback_days: 120          # a posting older than this is not a live signal
+    stale_req_days: 60          # past this, an open capability req is an unfilled gap
+    boards:
+      # enterprise software — the PE-ownable side of the ICP
+      - { ats: greenhouse, token: databricks,     name: "Databricks" }
+      - { ats: greenhouse, token: cloudflare,     name: "Cloudflare" }
+      - { ats: greenhouse, token: gitlab,         name: "GitLab" }
+      - { ats: greenhouse, token: celonis,        name: "Celonis" }
+      - { ats: greenhouse, token: sigmacomputing, name: "Sigma Computing" }
+      - { ats: greenhouse, token: carta,          name: "Carta" }
+      - { ats: lever,      token: veeva,          name: "Veeva Systems" }
+      # industrial and logistics
+      - { ats: greenhouse, token: samsara,        name: "Samsara" }
+      - { ats: greenhouse, token: flexport,       name: "Flexport" }
+      # energy
+      - { ats: lever,      token: arcadia,        name: "Arcadia" }
+      # wealth management and financial services
+      - { ats: greenhouse, token: betterment,     name: "Betterment" }
+      - { ats: ashby,      token: ramp,           name: "Ramp" }
+      # AI consultancies and delivery firms — the overflow-bench thesis
+      - { ats: greenhouse, token: aldergrove,     name: "Aldergrove Digital" }
+      - { ats: lever,      token: palantir,       name: "Palantir" }
+      - { ats: ashby,      token: sierra,         name: "Sierra" }
+      - { ats: ashby,      token: harvey,         name: "Harvey" }
+      - { ats: ashby,      token: writer,         name: "Writer" }
+      - { ats: ashby,      token: decagon,        name: "Decagon" }
+      - { ats: ashby,      token: deepgram,       name: "Deepgram" }
+      - { ats: ashby,      token: abridge,        name: "Abridge" }
+
+      # The optional `org:` key pins a board to a row in YOUR orgs table, so a
+      # new capability req at a firm you have already contacted — or already
+      # killed — shows up as a change rather than as a fresh discovery. That is
+      # usually the most useful thing on the watchlist, because a firm that just
+      # started hiring for the capability you sell has answered your question
+      # without being asked.
+      #
+      # Invented examples. Fill these with firms from your own book; the entries
+      # above need no `org:` because they are being watched, not tracked.
+      - { ats: greenhouse, token: northgate,   org: northgate_partners,  name: "Northgate Partners" }
+      - { ats: ashby,      token: vermillion,  org: vermillion_data,     name: "Vermillion Data" }
+      - { ats: lever,      token: quaystone,   org: quaystone_advisory,  name: "Quaystone Advisory" }
+      #
+      # One firm can appear twice when it runs two boards — keep both rows and
+      # give them the same `org:` so the dossier does not split in half:
+      - { ats: ashby,      token: quaystone-eu, org: quaystone_advisory, name: "Quaystone Advisory" }
+  news_rss: []
+  # NOT BUILT. There is no src/sources/edgar.mjs, so nothing reads this block.
+  # It is kept as the shape the source should take, and left `false` so the
+  # config does not declare a channel the code cannot run.
+  sec_edgar:
+    enabled: false
+    full_text_queries:
+      - "artificial intelligence center of excellence"
+      - "inference cost"
+
+
+models:
+  default: "claude-sonnet-5"
+  # Drafting gets its own model because it is the one stage whose output is the
+  # thing you send. Measured head-to-head on one prospect, same prompt and same
+  # dossier: the cheaper model reverted to unfalsifiable filler ("I'd guess that
+  # means...") that the prompt had already been corrected for three times, and
+  # dropped the specific thing the brief asked it to name. Four times the price
+  # per draft, on a stage you run a few dozen times a year.
+  draft: "claude-opus-5"
+  cheap: "claude-haiku-4-5"
+  grader: "claude-opus-5"
+  bakeoff: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"]

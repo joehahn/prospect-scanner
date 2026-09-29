@@ -1,0 +1,119 @@
+# segments.yml — WHO the buyer is, one level above the sector. Public template.
+#
+# `sectors.yml` answers "where do money and urgency coincide". This answers
+# "who is the person, and are they worth chasing at all". Keep them separate:
+# one segment usually spans several sectors, and a sector can serve more than
+# one segment.
+#
+# THE POINT OF THIS FILE IS TO CARRY SEGMENTS THAT ARE GOING BADLY. A tool that
+# only records its successes cannot tell you which segments are good and which
+# are bad, which is half the reason to run one. A segment that has resisted
+# discovery belongs here WITH THE EVIDENCE, not deleted.
+#
+# ---------------------------------------------------------------------------
+# THE TWO AXES ARE SEPARATE AND MUST STAY SEPARATE
+# ---------------------------------------------------------------------------
+#
+#   reachability — can discovery find these people at all?
+#   value        — do they convert, and at what price?
+#
+# They fail independently, for unrelated reasons, and the most common mistake
+# this file exists to prevent is asserting the second from the first. A segment
+# can be unreachable and excellent. Until something has been SENT, `value` stays
+# `untested` no matter how many discovery channels have failed.
+#
+# The mirror-image mistake is reading a channel result as a segment result.
+# "Paid search converts badly here" is a fact about paid search. Record it on
+# the channel.
+#
+# ---------------------------------------------------------------------------
+# HOW IT CONNECTS
+# ---------------------------------------------------------------------------
+#
+# Every vertical in sectors.yml declares `serves: <id from this file>`, plus
+# `discovery: active | paused`.
+#
+# `discovery: paused` retires a vertical FROM DISCOVERY ONLY, and that is a
+# different thing from `status: retired`. Retiring hides the vertical from
+# ranking too, which throws away the people already found under it. Pausing
+# stops spending on new candidates while leaving the existing book scoreable —
+# a firm found under a thesis you have moved on from can still qualify under a
+# live one. `--vertical <id>` overrides a pause so a paused thesis can be
+# re-tested without editing config.
+
+segments:
+
+    # `buys:` REMOVED 2026-09-20. It listed which packages this segment buys,
+    # and so does `service_fit` on every thesis that serves the segment — one
+    # judgment written down twice, which is the defect the offers rewire just
+    # removed from packages and work. The two had already drifted: this
+    # segment said build + owners_technical_rep while the thesis serving it
+    # said senior_capacity + owners_technical_rep + read_proposal. `service_fit`
+    # is the copy that survives, because `rank` actually reads it and this one
+    # was rendered and nothing else.
+  - id: owner_operator
+    label: "Owner-operator with no technical staff"
+    priority: 2
+    hypothesis: >-
+      The owner has a question rather than a project. The first sale is a paid
+      conversation; a fraction turn into something larger.
+    typical_first_sale_usd: 250
+
+    reachability:
+      # blocked | hard | working
+      status: blocked
+      # WHY, structurally — worth more than the status. The useful distinction
+      # is between ENUMERATION (listing the population) and QUALIFICATION
+      # (telling one member from another). Several cheap channels enumerate this
+      # segment perfectly and qualify nobody, because the thing that makes a
+      # member worth contacting is a state of mind and leaves no public artifact.
+      #
+      # That is falsifiable, not final: a channel that qualifies un-blocks the
+      # segment with no scope argument.
+      channels_falsified:
+        - { channel: public_registries, on: 2026-01-15, why: "name and address only; registration is not an event" }
+        - { channel: social_pages,      on: 2026-01-16, why: "page content is promotional; no signal of intent" }
+      note: "Enumeration was never the problem here. Qualification is."
+
+    value:
+      status: untested        # untested | poor | promising | proven
+      sends: 0
+      note: >-
+        NOT "poor". Nothing has been sent. If an ad account says this segment
+        converts badly, that measures the ad channel — record it there.
+
+  - id: mid_market_operator
+    label: "Mid-size firm with an operational problem and nobody assigned to it"
+    priority: 1
+    hypothesis: >-
+      Large enough for the problem to cost real money, small enough to have no
+      one whose job it is. Buys work, not advice.
+
+    reachability:
+      status: hard
+      # A structural bias worth writing down: firms are discoverable through
+      # announced events, and events are announced by firms with PR departments,
+      # which skews large. A book that fills up with big names is often this
+      # bias rather than a targeting mistake.
+      open_question:
+        q: "Is there a free, parseable feed of hiring data for this size of firm?"
+        cost: "~15 minutes to check"
+        yes_means: "the segment becomes buildable at volume"
+        no_means: "it is a purchase decision, and the question closes"
+      channels_working: []
+
+    value:
+      status: untested
+      sends: 0
+
+# What has to become true. Each goal is falsifiable and carries a number.
+# Keep the project-level one honest: below the n in
+# sectors.yml ranking.response_likelihood.min_n_for_measured_rate, any rate you
+# display is asserted rather than observed.
+goals:
+  project:
+    goal: "response rate becomes a measurement instead of a prior"
+    done_when: "n = 40"
+  mid_market_operator:
+    goal: "is this segment reachable without paying for data?"
+    done_when: "the open question above is answered yes or no"

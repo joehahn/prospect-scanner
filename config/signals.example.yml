@@ -1,0 +1,170 @@
+# Acme Advisory — what disqualifies, and what activates. TEMPLATE — copy to the name without .example.
+#
+# One of five orthogonal input files in config/. See config/README.md for
+# what belongs where and why. Gates and triggers are the same thing with opposite sign:
+# a gate says STOP, a trigger says NOW. Encoding one lesson touches one file.
+
+
+# Declarative disqualifiers. Each one encodes a lesson already paid for.
+gates:
+  - id: capability_already_staffed
+    description: "Firm already employs the capability being sold"
+    capability_titles:
+      ["Head of AI", "Director of AI", "AI Operating Partner", "Chief AI Officer",
+       "FinOps", "Tokenomics", "Applied AI", "Data Science Director"]
+    kill_if: "a team page, leadership page or employee title matches any capability_title"
+    severity: kill
+    # TENURE. The title alone is the wrong test. Someone appointed three weeks ago
+    # is the BUYER — mandate live, budget unspent, nobody in-house to lean on.
+    # Someone years in has a team, and the kill is right. This is where that line
+    # sits; `gate` stops killing under it and `rank` caps the appointee at router
+    # authority, both reading this number.
+    fresh_months: 12
+  - id: open_req_for_capability
+    description: "Firm has an open req for the capability being sold"
+    kill_if: "a job posting within 120 days matches any capability_title"
+    severity: warn
+    note: "An unfilled leadership req past 60 days is an interim gap, not a closed door. Surface for human review."
+  - id: in_house_consulting_arm
+    description: "Firm has a large internal consulting or value-creation group"
+    kill_if: "an in-house consulting, growth or value-creation team of 15 or more is named publicly"
+    severity: kill
+  - id: too_small
+    kill_if: "estimated revenue below icp.revenue_floor_usd"
+    severity: kill
+  - id: marketplace_or_expert_network
+    description: "Talent marketplaces and expert networks have never converted"
+    kill_if: "the firm's business model is brokering independent talent or expert calls"
+    severity: kill
+  - id: platform_partner_firm
+    description: "SAP, Salesforce and Microsoft partner shops sell platform work"
+    kill_if: "the firm's primary identity is implementation partner for a major enterprise platform"
+    severity: warn
+  - id: clearance_required
+    kill_if: "the work requires Secret or TS clearance"
+    severity: kill
+  - id: relationship_stale
+    kill_if: "last_contact older than 24 months and no warm intro path"
+    severity: warn
+
+
+# `evidence_class` on a trigger says WHAT KIND OF ARTIFACT carries it, which is
+# what decides whether any retrieval channel can reach it:
+#
+#   announcement  the firm says something about itself — newsroom, trade press
+#   vendor_event  someone else's move involving the firm — a selection, a pilot
+#   hiring_req    a job posting
+#
+# Declared here and nowhere else. A capability in offers.yml inherits the class
+# of its triggers, because a job posting is a job posting whatever it evidences,
+# and declaring it in both files is how the two end up disagreeing.
+#
+# It earns its keep when several things you sell stop working at once: if they
+# share an evidence class, you have one retrieval problem rather than several
+# market problems, and those call for opposite responses.
+triggers:
+  - id: unfilled_leadership_req
+    weight: 3
+    description: "Leadership req for AI or data open more than 60 days"
+  - id: capital_event
+    weight: 3
+    description: "Funding, acquisition, or announced capex program within 12 months"
+  - id: ai_coe_announcement
+    weight: 3
+    description: "Public announcement of an AI Center of Excellence or AI program"
+  - id: integrator_engaged
+    weight: 4
+    description: "A named integrator or hyperscaler was engaged to DELIVER an AI program"
+    news_terms: '"selected Accenture" OR "engaged Deloitte" OR "multi-year agreement" OR "systems integrator" OR "implementation partner" AI'
+    discovery_terms: '"selected" OR "engaged" OR "appointed" Accenture OR Deloitte OR Capgemini OR Infosys OR Wipro OR Cognizant OR "Microsoft" OR "Google Cloud" OR AWS "AI transformation" OR "AI programme" OR "AI implementation"'
+    # THE PUREST owners_technical_rep SIGNAL. The service reads: "a pilot where
+    # the only people with the expertise are the ones being paid to deliver it."
+    # That IS a big-four or hyperscaler AI engagement, by construction — the
+    # integrator writes the plan, staffs the work, reports on its own progress
+    # and bills for the scope it recommends. The client's own technical people
+    # are usually elsewhere, and at a quant-heavy firm they are emphatically
+    # elsewhere: pricing markets, not supervising an ERP-adjacent AI programme.
+    #
+    # This fires the pitch the gates otherwise suppress. capability_already_staffed
+    # kills a firm for employing applied-AI titles — correctly, for a proposal
+    # read. It is the WRONG test here: a firm with the best quants in the sector
+    # still has nobody watching Accenture, because the quants are not going to.
+    not:
+      # Every line below is a real false positive from this book's own record,
+      # or the shape of one. A `not:` list of generic cautions taught the judge
+      # nothing; specific wrong answers changed the outcome.
+      - "a partnership or alliance to BUILD something together — a design partner
+         is not a client, and 'collaborated with Google in a group helping shape'
+         a product was accepted here once and was wrong"
+      - "a product launched WITH a technology partner. The firm is selling, not buying"
+      - "the integrator's own case study or press release naming a client. That is
+         vendor marketing, it is usually undated, and the client did not say it"
+      - "a reseller, channel or marketplace listing agreement"
+      - "a cloud migration or licence renewal with no AI programme attached"
+      - "an investment in, or acquisition of, an AI firm. That is capital_event"
+  - id: vendor_selection_underway
+    weight: 3
+    description: "RFP issued or vendor evaluation publicly underway"
+    # `not:` is handed to the news judge verbatim. Write one line per wrong
+    # match you have actually seen; a generic warning teaches it nothing.
+    not:
+      - "A partnership, alliance or co-marketing arrangement. A design partner
+         is not a customer."
+      - "A product the firm launched, alone or with a partner. That is the firm
+         selling, not buying."
+      - "Anything phrased as positioning the firm to evaluate, or expected to
+         evaluate. A future purchase is not a purchase."
+  - id: new_portco
+    weight: 2
+    description: "PE firm announced a new platform acquisition within 6 months"
+  - id: published_ai_cost_concern
+    weight: 2
+    description: "Leadership publicly discussing AI cost, inference economics or gross-margin pressure"
+  # Added 2026-08-25 for a sector thesis in sectors.yml.
+  # The mirror image of unfilled_leadership_req: that one fires when the seat is
+  # EMPTY past 60 days, this one when it was just FILLED. Different plays, both
+  # live. NOTE: capability_already_staffed currently kills on these same titles
+  # regardless of tenure, which would disqualify every firm this trigger finds.
+  - id: capability_leader_recently_named
+    weight: 3
+    description: >
+      An executive was named to own AI within the last 6 months and has not yet
+      built a team: fresh mandate, unspent budget, no in-house judgment to lean on
+    not:
+      - "A board appointment. A director advises; they do not hold a budget or
+         staff a team."
+      - "An executive whose remit is not AI, however much AI the article
+         mentions. The seat must own AI."
+      - "A promotion or reorganisation of someone already there."
+      - "An appointment at a subsidiary or portfolio company, credited to the
+         parent."
+  # The code refers to the triggers below by id (which ones mean the firm is
+  # being SOLD something, which ones are urgency, which one conference agendas
+  # write), so a working install needs them declared even if it never searches
+  # for them.
+  - id: vendor_led_pilot
+    weight: 2
+    kind: work
+    description: "An AI pilot or proof of concept run with an outside party: a vendor, integrator or university"
+  - id: business_unit_shipped_its_own
+    weight: 3
+    kind: work
+    description: "A business unit, not the technology team, described AI it built or rolled out itself, still in progress"
+  - id: practitioner_aired_ai_difficulty
+    weight: 4
+    kind: work
+    decay_days: 180
+    description: "A named person spoke or wrote publicly about applying AI in their own operation and framed it as unfinished"
+    not:
+      - "A vendor on the panel describing their product."
+      - "A success story. A result is not a need."
+  - id: contract_award_won
+    weight: 3
+    kind: urgency
+    decay_days: 180
+    description: "The firm won a contract or grant with a stated period of performance, within 6 months"
+  - id: crossed_ten_billion_assets
+    weight: 4
+    kind: urgency
+    decay_days: 365
+    description: "A bank's assets crossed a regulatory size threshold within the last four quarters"

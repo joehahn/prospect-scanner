@@ -1,0 +1,65 @@
+node_modules/
+.DS_Store
+*.log
+.env
+
+# ---------------------------------------------------------------------------
+# Operator data. Never pushed, public or private.
+# ---------------------------------------------------------------------------
+# The database holds real outreach: who was contacted, when, what was said, and
+# who replied. It also holds the suppression list, which names real people.
+data/
+
+# ---------------------------------------------------------------------------
+# HELD BACK — the tuned inputs (the portfolio-wave-rider pattern)
+#
+# The code in src/ is the plumbing and it ships. What took the work is the
+# CONFIGURATION: the gates, the theses, and the voice file. Each of those is a
+# lesson already paid for, and each has a slim starter that IS tracked so a
+# reader can run the system without being handed the tuning.
+#
+# Leading slashes anchor these to the repo root, so the `*.example.*` siblings
+# beside them stay tracked.
+# ---------------------------------------------------------------------------
+
+# The five input files. Each is a lesson already paid for; each ships a slim
+# .example.yml sibling that IS tracked. See config/README.md.
+# IGNORE EVERY config/*.yml, then re-admit the templates. This was an allowlist
+# of six filenames until 2026-09-19, which meant a NEW config file was PUBLIC BY
+# DEFAULT until someone remembered to add it — and `config/segments.yml` was
+# written that day and was not ignored. Fail safe, not fail open: a config file
+# nobody has thought about should be private, and the template has to opt in.
+/config/*.yml
+!/config/*.example.yml
+
+# THE VOICE FILE. Extracted from notes the operator actually sent — his
+# structure, his register, his tics, and the specific failure modes he has paid
+# for. This is the single artifact that would let someone else clone the
+# approach rather than build their own. Starter: prompts/voice.example.md
+/prompts/voice.md
+# Offer-selection rules, learned the same way and just as specific to one
+# operator's services. Starter: prompts/read-rules.example.md
+/prompts/read-rules.md
+
+# Business strategy, not code. A researched proposal for a public-sector source
+# branch. Useful to a competitor, not to a reader of the code.
+/docs/gov-sourcing.md
+
+# Generated. Rebuild with `npm run dash`.
+/data/dashboard.html
+/data/dash/
+
+# Working todo — names real prospects, see item 1
+TODO.md
+
+# git filter-branch scratch. It was committed once by a `git add -A` during a
+# history scrub, and then blocked every later scrub with "you have unstaged
+# changes" — the tool tripping over its own leftovers.
+.git-rewrite/
+
+# Consistent copies of the database, for Dropbox to sync instead of the live
+# file. Same content as data/, so the same rule applies: never pushed.
+db-snapshots/
+
+# Design history and the old spec: kept locally, not published (2026-09-29).
+/docs/private/

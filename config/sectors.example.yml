@@ -1,0 +1,237 @@
+# Targeting theses. Copy to sectors.yml and fill in. Gitignored user data.
+#
+# icp.include_industries in runtime.yml is a flat list of sectors. This file is the
+# richer thing: a named hypothesis about WHERE MONEY AND URGENCY COINCIDE, written
+# so that `scan` can turn it into a search and `rank` can turn it into a rubric.
+#
+# Retired theses stay in the file with the reason. The record of what did not work
+# is the most useful thing here.
+
+# ---------------------------------------------------------------------------
+# How the three scores are combined. They are kept SEPARATE on purpose:
+# they fail independently, and one blended number hides which is weak.
+# ---------------------------------------------------------------------------
+ranking:
+  # Weights within each score. They do not cross-contribute.
+  vertical:
+    money: 0.40          # can firms here pay, and is the fee trivial to them
+    trigger_frequency: 0.35   # how often does a live event actually fire here
+    findability: 0.25    # are the decision-makers publicly nameable at all
+  firm:
+    fit: 0.30            # match to icp and services
+    urgency: 0.45        # decayed trigger total; recency is most of the value
+    fee_vs_authority: 0.25    # can one person approve this without a committee
+  person:
+    # Ordered by the operator's own rule: authority outranks hook quality.
+    authority: 0.50      # can they actually buy, or only route
+    reachability: 0.30   # is there a channel that is not a cold InMail
+    warmth: 0.20         # shared history, mutual, prior thread
+
+  # Response likelihood is a PRIOR, NOT A MEASUREMENT. Below the
+  # threshold there is no statistical power and any rate shown is asserted, not
+  # observed. Every surface that displays it must label it as a prior.
+  response_likelihood:
+    source: prior
+    # Below this, never render as a measured rate. The number is ASSERTED and it
+    # is optimistic: at the ~15% base rate this record shows, n=40 buys a 95%
+    # interval of 7%-29%, a four-fold range around the estimate. Crossing it
+    # licenses the word "measured" while the interval is still nearly as wide as
+    # the number inside it. Useful narrowing starts near n=100. Raising the floor
+    # is defensible; lowering it, or grouping channels together to reach it
+    # sooner, is not: a small sample promises more than it can pay.
+    min_n_for_measured_rate: 40
+    # Priors the operator asserts. Replaced by observed rates only above min_n.
+    priors:
+      small_firm_principal: 0.15   # under ~25 people; they read their own inbox
+      founder_or_owner: 0.12
+      functional_vp_large_firm: 0.03   # gatekept
+      warm_reconnect: 0.25
+      # 0.02 was asserted before anything had been sent. The record now holds
+      # 10 cold InMails with 1 open thread — 0.10, five times the assertion.
+      # It stays a PRIOR and not a measurement: n=10 is a quarter of
+      # min_n_for_measured_rate, and one reply either way moves it from 0.00 to
+      # 0.20. Revised to 0.05 rather than 0.10 because the single response was an
+      # opened thread, not an answer, and because a prior that tracks the last
+      # observation at n=10 is just the observation wearing a different word.
+      # Raised 2026-09-17; the old value was suppressing InMail-only candidates
+      # in the ranking on a number nothing supported.
+      cold_inmail: 0.05
+      # NOT LISTED, DELIBERATELY: cold email. n=1 on file, zero responses. There
+      # is no prior here worth asserting and no measurement to make. Any claim
+      # that email beats InMail, or loses to it, is currently unsupported by
+      # this database in either direction.
+
+# ---------------------------------------------------------------------------
+# The theses themselves.
+# ---------------------------------------------------------------------------
+  # KNOBS. Every number the ranking turns on lives here rather than in the code,
+  # so it is visible, versioned and arguable. Each is a judgment about buyers,
+  # not an implementation detail; the dashboard prints them with their values.
+  thresholds:
+    router_authority_cap: 0.5       # a capability hire under fresh_months scores no higher
+    firm_cooling_days: 14           # do not surface a second person at a firm inside this
+    signature_threshold_usd: 5000   # at or below, one person can sign alone
+    committee_threshold_usd: 15000  # above, it needs a committee and the sale is harder
+    decayed_below: 0.5              # a trigger decayed past this reads as a con, not a pro
+    persona_tier_penalty: 0.08      # each step down the persona list costs this much authority
+  # Reachability by channel. ASSERTED PRIORS, not measured rates — the record is
+  # far too small to measure any of them, and the dashboard labels them as priors.
+  reachability:
+    verified_email: 0.9
+    first_degree: 0.85
+    guessed_email: 0.7              # a real channel, unverified; a bounce costs more than a delay
+    second_degree: 0.6
+    profile_only: 0.45
+    third_degree: 0.35
+    nothing: 0.15
+  # GEOGRAPHY. icp.geography in runtime.yml says where the operator sells; this
+  # says what it costs a contact to be somewhere else. A SOFT penalty on purpose:
+  # a global firm's London partner is not a bad prospect, he is the wrong one of
+  # two, and his Chicago colleague is the right one. Killing the firm would lose
+  # both. A person whose location is unknown is not penalised — absence of data
+  # is not evidence of distance.
+  outside_home_factor: 0.55
+  # And the opposite sign. A contact in the home metro can be met in person, and
+  # that is the only channel in this record that has never had to be cold-opened.
+  # Applied to the person's own location first, the firm's HQ second — a nine
+  # person Austin shop really is in Austin, even when nobody pasted a profile.
+  # Set to 1.0 to score local and far alike.
+  home_metro_factor: 1.25
+  # Between the metro bonus and no bonus at all, because the drive is real but
+  # so is the day it costs. Set to 1.0 to score the rest of the home region the
+  # same as the rest of the country.
+  home_region_factor: 1.10
+  # THE ORDERING SCORE. The one number the shortlist sorts on, and the only
+  # place the three scores are ever blended — they are kept separate
+  # everywhere else because they fail independently. Must sum to 1.
+  # Below this reachability, a contact earns a blocker rather than a send. Not a
+  # statement that he cannot be reached — InMail is still there — but that the
+  # silence would not be interpretable. Raise it to be stricter; 0 turns the
+  # channel blocker off entirely.
+  channel_floor: 0.35
+  # AUTHORITY BY REMIT, not by title. Multiplies the persona's authority once a
+  # pasted profile says whether this person actually controls spend on what is
+  # being sold. `unclear` is 1.0 on purpose: a page nobody has read is not
+  # evidence against the person.
+  capability_authority:           # multiplies authority; the heaviest lever in the score
+    owns: 1.0
+    influences: 0.6
+    none: 0.15
+    # A person read the profile and still could not tell. Scoring that the same
+    # as a confirmed `owns` made the judgment worthless in the one case it was
+    # added to catch. 0.8 is asserted, not measured — it sits between
+    # `influences` and `owns` because an ambiguous remit is usually one of those.
+    unclear: 0.8
+    # NOBODY HAS LOOKED. A different state from `unclear`, and the code treated
+    # them as one until 2026-09-17: every unread profile scored as full budget
+    # authority, which is how two people with no LinkedIn profile at all came to
+    # sit at ranks 1 and 2 of the shortlist, above the one man in that firm whose
+    # profile had been read and whose seat was the right one.
+    # 0.45 is the weighted mean of what the remit turns out to be once someone
+    # reads it, across the 50 judged so far (none 29, owns 10, influences 7,
+    # unclear 4): 0.451. A base rate over a population, not a response rate, so
+    # the n>=40 floor above is met and is not the rule that governs it.
+    unexamined: 0.45
+  shortlist_blend:
+    person: 0.60
+    firm: 0.40
+  activity_factor:                  # multiplies reachability; a dormant inbox is not a channel
+    # NOBODY HAS LOOKED. Not a guess: the weighted mean of what a profile turns
+    # out to be once someone reads it. Recomputed 2026-09-17 across the 58 read
+    # so far (active 22, dormant 20, low 10, high 6) it comes to 0.757, so 0.72
+    # is holding up and is left alone — this knob was checked and found right
+    # while the authority one beside it was found wrong by a factor of two.
+    unknown: 0.72
+    dormant: 0.4
+    low: 0.7
+    active: 1.0
+    high: 1.15
+verticals:
+  - id: example_thesis
+    # WHICH SEGMENT IN segments.yml THIS THESIS HUNTS FOR. Required on every
+    # thesis that is not retired, and checked against the declared segment ids.
+    # A segment is the MARKET — is it reachable, is it worth reaching. A thesis
+    # is one testable way of hunting inside it, so a segment may be served by
+    # several. Leaving this unchecked is how a live file ends up with most of
+    # its theses pointing at a segment that does not exist.
+    serves: mid_market_operator
+    name: "Short human name for the vertical"
+    status: hypothesis            # hypothesis | validated | retired
+    # WHAT SELECTS A FIRM FOR THIS THESIS. Required, with no default, because
+    # it decides what `firm_shapes` below actually means:
+    #
+    #   sector     the firm's INDUSTRY is the constraint — a bank, a law firm,
+    #              a hedge fund. `firm_shapes` is the payload, and discovery
+    #              composes shapes x triggers on it.
+    #   situation  what is HAPPENING at the firm is the constraint, in whatever
+    #              industry — it declared an AI programme and staffed nobody, a
+    #              business unit is routing around central IT. `firm_shapes` is
+    #              illustrative only; the triggers are the payload.
+    #
+    # Worth keeping apart because it is measurable. On a situation thesis, two
+    # OPPOSITE shape vocabularies ("global manufacturer" and "regional
+    # distributor") returned the same class of firm — which is what a shape
+    # list does when the thesis was never about the shape. Writing the scope
+    # down stops that being rediscovered as a tuning problem.
+    scope: sector                 # sector | situation
+    thesis: >
+      One sentence naming the condition that makes a firm here live RIGHT NOW.
+      Not "they use AI" — something dated and specific that just happened.
+
+    money:
+      revenue_floor_usd: 50000000
+      ai_spend_floor_usd_month: 50000
+      why_they_can_pay: "what makes the fee trivial relative to what is at stake"
+
+    # Which of the triggers declared in signals.yml fire in this vertical, and where
+    # the evidence is publicly findable. A trigger with no findable source is a
+    # trigger this system cannot detect, and saying so here prevents a dead build.
+    triggers:
+      - id: capital_event
+        evidence_sources: ["press release", "SEC 8-K", "trade press"]
+      - id: ai_coe_announcement
+        evidence_sources: ["company blog", "conference keynote"]
+
+    # Who owns the budget. Ordered most to least likely.
+    personas:
+      - title_patterns: ["CTO", "Chief Data Officer"]
+        authority: buyer          # buyer | router | blocker | referral_node
+        note: "why this person, not the one above them"
+      - title_patterns: ["COO"]
+        authority: router
+
+    findability:
+      rating: medium              # high | medium | low — be honest, it gates everything
+      note: "where names are actually published for this vertical, if anywhere"
+
+    # Must name at least one package that is declared in offers.yml AND not
+    # retired. A thesis whose whole menu is retired spends discovery queries
+    # finding firms it has no offer for, so that is an error where discovery is
+    # active and a warning where it is paused.
+    #
+    # This line said `proposal_review` from the day the config was split and no
+    # such package has ever existed in offers.example.yml — a fresh copy of
+    # these templates failed on its first run, and nothing checked it until the
+    # sellability rule was added on 2026-09-20.
+    service_fit: [the_read, project_work]
+
+    # Prose. Anything that does not fit the fields above goes here and is read
+    # by the drafting stage as context.
+    notes: >
+      What you know about this vertical that is not in any of the fields above.
+
+    # Filled from the responses table once n clears min_n_for_measured_rate.
+    # Left null until then. Never hand-fill this.
+    observed:
+      sent: 0
+      replied: 0
+      rate: null
+
+  - id: example_retired_thesis
+    scope: sector               # sector | situation — required on every thesis
+    name: "A thesis that did not work"
+    status: retired
+    retired_on: "2026-01-01"
+    retired_because: >
+      State plainly what killed it and how many attempts it took. This is the
+      most valuable entry in the file.

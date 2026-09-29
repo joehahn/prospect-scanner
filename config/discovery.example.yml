@@ -1,0 +1,116 @@
+# discovery.yml — HOW a prospect physically arrives. Public template.
+#
+# The other config files say where to look, what counts as an event, and what is
+# for sale. None of them says which channel actually fetched a firm, what it
+# cost, whether it is permitted, or whether it has ever worked.
+#
+# That gap has two costs, and both are worth designing against:
+#
+#   1. SETTLED QUESTIONS GET RE-OPENED. A channel you tested and rejected stays
+#      attractive afterwards, because what survives is the headline ("a free
+#      feed with 31,000 records") and what evaporates is the reason it failed.
+#      Record the REASON, not the verdict.
+#   2. A RULE IN PROSE IS NOT A RULE. Anything you have written in a README
+#      about what the code must never touch is a rule a human reads. Put the
+#      host in `forbidden_hosts` and it fails a run instead.
+#
+# ---------------------------------------------------------------------------
+# `automation` IS THE FIELD THAT MATTERS MOST
+#
+#   allowed      code may call it
+#   manual_only  a PERSON may use it; no module may. Someone reading a site in
+#                their own browser is a person using a site as a person, and
+#                that is a different act from a crawler.
+#   forbidden    nothing may touch it by any route, including a browser your
+#                own code drives
+#
+# A site whose terms prohibit automation IN WORDS is a policy, not a control.
+# No technical capability changes the answer, and "we could" is not "we may".
+#
+# `status` says what a channel has DONE, never how promising it looks:
+#
+#   working        has returned firms that are in the book
+#   low_yield      has run, and returns little worth keeping
+#   untested       written and permitted, never pointed at anything
+#   unimplemented  declared in config, with no source module behind it
+#
+# Keep the last two apart. Collapsing them lets a config declare a channel that
+# no code can run, and this page is the one that is supposed to catch that.
+# ---------------------------------------------------------------------------
+
+mechanisms:
+
+  - id: websearch_by_shape
+    label: "Search by the shape of a firm, not its name"
+    automation: allowed
+    status: working
+    # Record MEASURED yield, not intent. "The workhorse" is an opinion; "92 of
+    # 138 firms arrived this way" survives an argument.
+    # NO `found_firms:` HERE, deliberately. A yield kept by hand beside a database
+    # that already records which mechanism found each firm goes stale — the live
+    # config said 92 while the book held 131. Derive it; do not type it.
+    evidence_classes: [announcement, vendor_event]
+    cost: "one search credit per query; a sweep is firm_shapes x trigger terms"
+    # Worth writing down for any search-based channel, because it explains a
+    # skew you will otherwise mistake for a targeting error: it finds firms that
+    # ANNOUNCE things, and announcing needs a communications function, which
+    # skews large.
+    known_bias: "selects for firms with PR"
+
+  - id: fetch_firm_site
+    label: "Read the firm's own website"
+    automation: allowed
+    status: working
+    cost: "free, plus one model call to read what came back"
+    note: "robots-respecting, one page at a time, rate-limited"
+
+  - id: operator_paste
+    label: "The operator reads a profile and pastes the text in"
+    automation: manual_only
+    status: working
+    cost: "the operator's own minutes, usually the scarcest input"
+    provenance: operator_supplied
+    why_marked: >-
+      Store it with a provenance marker so it is never confused with something
+      the system retrieved. A claim a person typed and a claim a fetcher
+      returned are not the same kind of evidence, and a grader has to be able to
+      tell them apart.
+
+  - id: job_boards
+    label: "Public ATS job-board APIs"
+    automation: allowed
+    status: low_yield
+    evidence_classes: [hiring_req]
+    cost: "free"
+    # A low yield matters more when a channel is the ONLY source for an evidence
+    # class. Check that before deprioritising it: if five of the things you sell
+    # can only be evidenced this way, a weak channel here is a hole in the
+    # product rather than a minor inefficiency.
+    limitation: "the vendors with open APIs may not be the ones your market uses"
+
+# ---------------------------------------------------------------------------
+# CLOSED. The point of this section is that a rejected channel stays rejected.
+# Write the REASON — a verdict is forgettable and a reason is not.
+# ---------------------------------------------------------------------------
+closed:
+  - id: example_enumeration_source
+    asked: 2026-01-20
+    answer: "enumeration solved, qualification impossible"
+    why: >-
+      The channel lists the whole population cheaply and cannot tell one member
+      from another. What makes a member worth contacting was a state of mind,
+      and a state of mind leaves no public artifact. Distinguish ENUMERATION
+      from QUALIFICATION whenever a source looks too good: a large result set is
+      not the same as a usable one.
+
+# ---------------------------------------------------------------------------
+# ENFORCED AT LOAD TIME. A host listed here must not appear in any source
+# module, and the check distinguishes a MENTION from a TARGET — it looks for the
+# host inside a URL literal or a network call, with comments stripped. That
+# distinction is not fussiness: documentation that says "nothing fetches X" will
+# otherwise trip the guard, and a guardrail that cries wolf gets switched off.
+# ---------------------------------------------------------------------------
+forbidden_hosts:
+  - host: example-social-network.com
+    why: "Their terms prohibit crawlers, bots and automated messaging."
+    manual_alternative: operator_paste
