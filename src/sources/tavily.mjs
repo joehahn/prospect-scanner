@@ -31,6 +31,28 @@ let credits = 0;
 /** Requests made this process. The free tier's ~1000/month is the real budget. */
 export const creditsUsed = () => credits;
 
+// THE FORBIDDEN HOSTS, AT THE ONE DOOR EVERY SEARCH PASSES. Added 2026-09-30.
+// Web searches return LinkedIn pages -- posts, job ads, profiles -- and a
+// result is a page this system has, second hand, taken from a site CLAUDE.md
+// says it must never retrieve from. Each caller used to decide for itself, and
+// the newer ones excluded it while the older ones did not. Now every search
+// asks the search provider to leave those hosts out and drops any result from
+// them that arrives anyway, whoever called. The list is config's
+// (discovery.yml forbidden_hosts), read once.
+let forbiddenHosts = null;
+async function forbidden() {
+  if (forbiddenHosts) return forbiddenHosts;
+  try {
+    const { loadConfig } = await import('../config.mjs');
+    forbiddenHosts = (loadConfig().forbidden_hosts ?? []).map((h) => (typeof h === 'string' ? h : h.host)).filter(Boolean);
+  } catch { forbiddenHosts = []; }
+  return forbiddenHosts;
+}
+const onHost = (url, hosts) => {
+  try { const h = new URL(url).hostname; return hosts.some((x) => h === x || h.endsWith(`.${x}`)); }
+  catch { return false; }
+};
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function pace() {
@@ -89,7 +111,9 @@ export async function searchNews(query, {
   // Sent as belt-and-braces only; the client-side filter below is what is trusted.
   if (sinceDate) body.start_date = String(sinceDate).slice(0, 10);
   if (includeDomains?.length) body.include_domains = includeDomains;
-  if (excludeDomains?.length) body.exclude_domains = excludeDomains;
+  const hosts = await forbidden();
+  const exclude = [...new Set([...(excludeDomains ?? []), ...hosts])];
+  if (exclude.length) body.exclude_domains = exclude;
 
   let raw = null;
   for (let attempt = 0; attempt < RETRIES; attempt++) {
@@ -126,6 +150,7 @@ export async function searchNews(query, {
   let undated = 0;
   const dated = [];
   for (const r of raw) {
+    if (onHost(r.url, hosts)) continue;
     const on = publishedOn(r);
     // A JOB POSTING CARRIES NO PUBLICATION DATE, and dropping undateable
     // results is right for every caller but that one. The drop is the whole

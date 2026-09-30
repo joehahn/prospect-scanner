@@ -1449,12 +1449,30 @@ function inferPattern(name, email) {
  *
  *   npm run lead -- emails --org capstreet [--example "Jane Doe:jdoe@firm.com"]
  */
-function emails(db, args) {
+async function emails(db, args) {
   const orgId = requireArg(args, 'org', 'emails');
   const org = db.prepare('SELECT * FROM orgs WHERE id = ?').get(orgId);
   if (!org) throw new Error(`no org "${orgId}"`);
   if (!org.domain) throw new Error(`${org.name} has no domain on file; add one with add-org --domain`);
-  const domain = String(org.domain).replace(/^www\./, '');
+  // THE WEBSITE IS NOT ALWAYS THE MAIL DOMAIN. On 2026-09-30 a note to an
+  // insurer's CIO went to its website's domain, which has no MX record and
+  // receives no mail at all; the firm's mail runs on a sibling domain its site
+  // publishes a contact address at. An example address names the real mail
+  // domain, so it wins over the website's.
+  const exampleDomain = args.example && args.example !== true
+    ? (String(args.example).split(':')[1] ?? '').trim().split('@')[1]?.toLowerCase() : null;
+  const domain = exampleDomain || String(org.domain).replace(/^www\./, '');
+  // A DOMAIN THAT RECEIVES NO MAIL gets no guesses: every one would fail to
+  // deliver, and a bounce reads as a dead prospect. A DNS lookup, nothing sent.
+  const { promises: dns } = await import('node:dns');
+  const mx = await dns.resolveMx(domain).catch(() => []);
+  if (!mx.length) {
+    console.log(heading(`${org.name} — ${domain} receives no email`));
+    console.log(`  It has no MX record, so any address there would fail to deliver.`);
+    console.log(dim('  Find the domain its mail really uses (a contact address on its own site usually names it),'));
+    console.log(dim(`  then:  npm run lead -- emails --org ${orgId} --example "Jane Doe:jdoe@<mail domain>"`));
+    return;
+  }
 
   const people = db.prepare('SELECT * FROM people WHERE org_id = ?').all(orgId);
   // VERIFIED ADDRESSES FIRST, ALWAYS. The first version took whichever person
@@ -1818,7 +1836,7 @@ async function addresses(db, cfg, args) {
     return;
   }
   console.log(dim('\nApplying it to everyone named at this firm...\n'));
-  emails(db, { org: orgId, example: `${ev.name}:${ev.addr}` });
+  await emails(db, { org: orgId, example: `${ev.name}:${ev.addr}` });
   console.log(dim(`\nSource for the pattern: ${ev.url}`));
 }
 
@@ -2079,7 +2097,7 @@ async function main() {
       case 'extract':    await reextract(db, cfg, args); break;
       case 'verdict':    verdict(db, args); break;
       case 'vet':        await vet(db, cfg, args); break;
-      case 'emails':     emails(db, args); break;
+      case 'emails':     await emails(db, args); break;
       case 'addresses': await addresses(db, cfg, args); break;
       case 'banks':     await banks(db, cfg, args); break;
       case 'domains':   await domains(db, cfg, args); break;

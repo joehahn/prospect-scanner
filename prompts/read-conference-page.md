@@ -1,4 +1,7 @@
-# read-conference-page — v1, 2026-09-30
+# read-conference-page — v2, 2026-09-30
+
+*v2: adds `country`, so events abroad can be left out; the first run returned
+European summits no target could use.*
 
 System prompt for `npm run conferences -- --find`, reading one search result.
 Versioned so results stay attributable.
@@ -17,6 +20,9 @@ their titles and firms.
 - `name`: the event's own name, with its year if the page gives one.
 - `organizer`: who runs it, as the page says.
 - `when`: the dates as the page states them, or '' if it states none.
+- `country`: the country the event takes place in, in English, as the page
+  states or plainly implies from its city; '' if it does not say; 'online' for
+  a virtual event.
 - `agenda_url`: the URL of the page that lists speakers or sessions, if this
   page is one (give this page's URL) or links to one (give that link, which must
   appear in the page). '' when neither.

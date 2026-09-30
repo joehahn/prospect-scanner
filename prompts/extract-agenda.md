@@ -1,4 +1,6 @@
-# extract-agenda — v1, 2026-09-30
+# extract-agenda — v2, 2026-09-30
+
+*v2: adds `event_country`, so an event abroad is not loaded.*
 
 System prompt for `npm run conferences -- --read`. Versioned so results stay
 attributable. A general reader for agenda and speaker pages whose layout nobody
@@ -17,6 +19,8 @@ You read one conference agenda or speaker page and list its speakers.
 - Skip moderators' introductions, sponsors' logos, organizers' staff and anyone
   listed without a firm.
 - `event_when`: the event's dates as the page states them, or ''.
+- `event_country`: the country the event takes place in, in English, from the
+  page's own words or its city; '' if it does not say; 'online' if virtual.
 - Copy names character for character. Every name you return is checked against
   the page text, and one that is not found there is discarded.
 - Only what the page says. If it is not an agenda or speaker page, return no

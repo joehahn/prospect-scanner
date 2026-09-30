@@ -6,7 +6,7 @@
 // have (case, accents, extra spacing, punctuation) without letting a near-miss
 // through.
 const R = decodeURIComponent(new URL('../', import.meta.url).pathname);
-const { verifiedSpeakers } = await import(R + 'src/conferences.mjs');
+const { verifiedSpeakers, allowedCountries, inOperatorCountries } = await import(R + 'src/conferences.mjs');
 
 let fail = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}`); if (!ok) fail++; };
@@ -23,6 +23,13 @@ check(verifiedSpeakers([s('Jane Doe', '')], page).length === 0, 'a speaker witho
 check(verifiedSpeakers([s('Jane Doe', 'Acme Freight', '')], page).length === 0, 'a speaker without a title is dropped');
 check(verifiedSpeakers([s('Jane Do')], 'Speakers: Jane Doerr, VP').length === 0,
   'a name that is only the start of another name is dropped');
+
+// Where the event is, against the business's countries plus any a target adds.
+const allowed = allowedCountries({ where: { countries: ['US'] }, targets: [{ where: { countries: ['Qatar'] } }] });
+check(inOperatorCountries('United States', allowed) && inOperatorCountries('USA', allowed), 'the home country passes by name or abbreviation');
+check(inOperatorCountries('Qatar', allowed), "a country one target adds passes");
+check(!inOperatorCountries('Germany', allowed), 'a country no one works in is left out');
+check(inOperatorCountries('', allowed) && inOperatorCountries('Online', allowed), 'unstated or online is let through');
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1); }
 console.log('\nall passed');

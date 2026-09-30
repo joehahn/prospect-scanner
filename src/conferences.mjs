@@ -55,9 +55,10 @@ const QUERIES_SCHEMA = {
 };
 const PAGE_SCHEMA = {
   type: 'object', additionalProperties: false,
-  required: ['is_conference', 'name', 'organizer', 'when', 'agenda_url', 'other_events'],
+  required: ['is_conference', 'name', 'organizer', 'when', 'country', 'agenda_url', 'other_events'],
   properties: {
     is_conference: { type: 'boolean' },
+    country: { type: 'string' },
     name: { type: 'string' }, organizer: { type: 'string' }, when: { type: 'string' },
     agenda_url: { type: 'string' },
     other_events: { type: 'array', items: { type: 'object', additionalProperties: false,
@@ -65,15 +66,36 @@ const PAGE_SCHEMA = {
   },
 };
 const AGENDA_SCHEMA = {
-  type: 'object', additionalProperties: false, required: ['speakers', 'event_when'],
+  type: 'object', additionalProperties: false, required: ['speakers', 'event_when', 'event_country'],
   properties: {
     event_when: { type: 'string' },
+    event_country: { type: 'string' },
     speakers: { type: 'array', items: { type: 'object', additionalProperties: false,
       required: ['name', 'title', 'firm', 'session'],
       properties: { name: { type: 'string' }, title: { type: 'string' }, firm: { type: 'string' },
         session: { type: 'string' } } } },
   },
 };
+
+// WHERE THE EVENT IS, against where the operator works: the business's own
+// countries plus any a target adds. Added 2026-09-30 after the first find
+// returned European summits whose speakers no target can use. A country the
+// page does not state, or an online event, is let through: missing is not out.
+const CODES = { US: 'united states', UK: 'united kingdom', GB: 'united kingdom', CA: 'canada',
+  AE: 'united arab emirates', SA: 'saudi arabia' };
+const ALIASES = { usa: 'united states', 'u s': 'united states', 'u s a': 'united states', us: 'united states',
+  america: 'united states', uae: 'united arab emirates', ksa: 'saudi arabia', uk: 'united kingdom',
+  england: 'united kingdom' };
+const countryName = (c) => { const n = norm(c); return CODES[String(c).trim().toUpperCase()] ?? ALIASES[n] ?? n; };
+export function allowedCountries(b) {
+  const list = [...(b.where?.countries ?? []), ...(b.targets ?? []).flatMap((t) => t.where?.countries ?? [])];
+  return new Set(list.map(countryName));
+}
+export function inOperatorCountries(country, allowed) {
+  const n = countryName(country ?? '');
+  if (!n || /online|virtual|global|worldwide/.test(n) || !allowed.size) return true;
+  return allowed.has(n);
+}
 
 function parseArgs(argv) {
   const a = {};
@@ -86,6 +108,7 @@ function parseArgs(argv) {
 }
 
 function ensureTable(db) {
+  const cols = () => db.prepare(`SELECT name FROM pragma_table_info('conferences')`).all().map((r) => r.name);
   db.exec(`CREATE TABLE IF NOT EXISTS conferences (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     key         TEXT NOT NULL UNIQUE,        -- slug of the event's name
@@ -98,8 +121,10 @@ function ensureTable(db) {
     status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused
     reason      TEXT,
     speakers    INTEGER,                     -- speakers read off the page and verified
+    country     TEXT,                        -- where the event is, as the page said
     found_at    TEXT NOT NULL,
     read_at     TEXT)`);
+  if (!cols().includes('country')) db.exec('ALTER TABLE conferences ADD COLUMN country TEXT');
 }
 
 const hostsOf = (cfg) => (cfg.forbidden_hosts ?? []).map((h) => (typeof h === 'string' ? h : h.host)).filter(Boolean);
@@ -160,7 +185,8 @@ async function find(db, cfg, b, args) {
   };
 
   const seen = new Set();
-  let added = 0;
+  const allowed = allowedCountries(b);
+  let added = 0; let abroad = 0;
   for (const s of searches) {
     const { results = [] } = await searchNews(s.query, { topic: 'general', requireDate: false,
       maxResults: 6, excludeDomains: hosts });
@@ -181,7 +207,9 @@ async function find(db, cfg, b, args) {
       // A URL the model gives must be this page or one it links to: never recalled.
       const onPage = (u) => u && (u === page.url || u === r.url || String(page.html).includes(u)
         || links.some((l) => l.url === u));
-      if (d.is_conference) {
+      if (d.is_conference && !inOperatorCountries(d.country, allowed)) {
+        abroad++;
+      } else if (d.is_conference) {
         const url = onPage(d.agenda_url) ? d.agenda_url : page.url;
         if (add(d.name, d.organizer, d.when, url, page.url, s.via)) { added++; fromThis++; }
       }
@@ -192,7 +220,8 @@ async function find(db, cfg, b, args) {
     console.log(dim(`  ${String(fromThis).padStart(2)} new  ${truncate(s.query, 90)}`));
   }
   finishRun(db, runId, { tavily_credits: creditsUsed() - c0 });
-  console.log(`\n${searches.length} searches · ${bold(String(added))} new conferences found, none read yet ` +
+  console.log(`\n${searches.length} searches · ${bold(String(added))} new conferences found, none read yet` +
+    (abroad ? `; ${abroad} outside the operator's countries left out ` : ' ') +
     '(npm run conferences -- --read)');
 }
 
@@ -217,10 +246,12 @@ async function speakersOn(db, cfg, runId, page) {
       content: `## Page: ${page.url}\n${page.title ?? ''}\n\n${page.text.slice(0, 60000)}` }] });
   const all = res.data?.speakers ?? [];
   const kept = verifiedSpeakers(all, page.text);
-  return { kept, dropped: all.length - kept.length, when: res.data?.event_when ?? '' };
+  return { kept, dropped: all.length - kept.length, when: res.data?.event_when ?? '',
+    country: res.data?.event_country ?? '' };
 }
 
-async function read(db, cfg, args) {
+async function read(db, cfg, b, args) {
+  const allowed = allowedCountries(b);
   const hosts = hostsOf(cfg);
   const limit = Number(args.limit ?? 3);
   const ids = args.ids && args.ids !== true ? String(args.ids).split(',').map(Number) : null;
@@ -250,6 +281,11 @@ async function read(db, cfg, args) {
         const g2 = await speakersOn(db, cfg, runId, p2);
         if (g2.kept.length) { page = p2; got = g2; break; }
       }
+    }
+    if (got.country && !inOperatorCountries(got.country, allowed)) {
+      done.run('refused', `outside the operator's countries (${got.country})`, 0, now, c.id);
+      console.log(`  ${dim('abroad')}  ${c.name} (${got.country})`);
+      continue;
     }
     if (!got.kept.length) {
       done.run('empty', 'no speakers with a title and firm found on the page or its agenda link', 0, now, c.id);
@@ -297,7 +333,7 @@ async function main() {
   ensureTable(db);
   if (args.show) return show(db);
   if (args.find) return find(db, cfg, b, args);
-  if (args.read) return read(db, cfg, args);
+  if (args.read) return read(db, cfg, b, args);
   console.log('Try: --find | --read [--limit N] [--dry] | --show');
 }
 
