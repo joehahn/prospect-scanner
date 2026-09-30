@@ -27,6 +27,7 @@
     "harvest": "node --env-file-if-exists=.env src/harvest.mjs",
     "moves": "node --env-file-if-exists=.env src/moves.mjs",
     "leaks": "node src/leaks.mjs",
+    "writeups": "node scripts/build-writeups.mjs",
     "judge": "node --env-file-if-exists=.env src/judge.mjs",
     "queries": "node --env-file-if-exists=.env src/queries.mjs",
     "daily": "node --env-file-if-exists=.env src/daily.mjs",

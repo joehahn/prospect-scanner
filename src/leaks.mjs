@@ -161,8 +161,9 @@ function bookFirms() {
 }
 
 // What is scanned: code, prompts, the public config templates (which CLAUDE.md
-// requires to stay generic), and the written docs and README.
-const SCOPE = /^(src\/.*\.mjs|test\/.*\.mjs|prompts\/.*\.md|config\/.*\.example\.yml|docs\/.*\.md|README\.md|CLAUDE\.md|config\/README\.md)$/;
+// requires to stay generic), the written docs and README, and the write-ups'
+// rendered pages, which are what a LinkedIn reader actually opens.
+const SCOPE = /^(src\/.*\.mjs|test\/.*\.mjs|scripts\/.*\.mjs|prompts\/.*\.md|config\/.*\.example\.yml|docs\/.*\.md|docs\/writeups\/.*\.(html|svg)|README\.md|CLAUDE\.md|config\/README\.md)$/;
 
 /** Files that would be published: tracked, plus untracked-but-not-ignored. */
 function publishedFiles() {
@@ -192,11 +193,12 @@ export function findLeaks({ withProspects = true } = {}) {
     rules.push(...f.domains.map((d) => ({ kind: 'address', term: `@${d}`,
       re: new RegExp(`[A-Za-z0-9._%+-]@${escRe(d)}([^A-Za-z0-9.-]|$)`, 'i') })));
   }
-  // AUTHORSHIP IS NOT A LEAK. The README and the lessons write-up carry the
+  // AUTHORSHIP IS NOT A LEAK. The README and the write-ups carry the
   // author's byline and site on purpose: this is a portfolio project, and credit
   // is not configuration. Identity terms are allowed there and nowhere else;
   // prices, ids and prospect names are not allowed there either.
-  const BYLINE_OK = /^(README\.md|docs\/lessons\.md)$/;
+  // The write-ups are signed articles, the page a post links to (2026-09-30).
+  const BYLINE_OK = /^(README\.md|docs\/lessons\.md|docs\/writeups\/[^/]+\.(md|html))$/;
   const hits = [];
   for (const f of publishedFiles()) {
     const lines = readFileSync(resolve(ROOT, f), 'utf8').split('\n');
