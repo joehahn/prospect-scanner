@@ -25,6 +25,7 @@
 //                                   finds; --save adds the finds to the book
 //   npm run queries -- --yield      each search's record
 
+import { exemplarText } from './exemplars.mjs';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -578,7 +579,12 @@ async function main() {
     '', 'Searches already on the list (do not repeat them):',
     ...funnel.filter((s) => s.status === 'active').map((s) => `- "${s.query}"`),
   ].join('\n');
-  const contentWithYield = content + yieldBlock;
+  // THE OPERATOR'S EXAMPLES, per target: people he wants more of, with what he
+  // said about them and what is on file. Searches are written to find their
+  // look-alikes (propose-queries v6).
+  const examples = b.targets.filter((t) => t.exemplars?.length)
+    .map((t) => `\n## Examples for "${t.name}": find more like these\n${exemplarText(db, t, { full: false })}`).join('\n');
+  const contentWithYield = content + examples + yieldBlock;
   const model = cfg.models?.default;
   const runId = startRun(db, 'queries', { model });
   const res = await complete(db, runId, {

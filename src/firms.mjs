@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify, purgeOrg, purgePeople } from './db.mjs';
 import { loadConfig } from './config.mjs';
 import { loadBusiness, inSeat } from './business.mjs';
+import { exemplarText, describedAs } from './exemplars.mjs';
 import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
 import { fetchPage } from './sources/web.mjs';
@@ -73,10 +74,6 @@ const SPECIALTY_SCHEMA = {
   properties: { fits: { type: 'boolean' }, why: { type: 'string' } },
 };
 
-/** What the firm's own site says it does, as enrich recorded it. */
-const describedAs = (db, orgId) => db.prepare(`SELECT claim FROM evidence WHERE org_id = ?
-  AND kind = 'firm_profile' ORDER BY id DESC LIMIT 1`).get(orgId)?.claim ?? null;
-
 const FIT_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['traits', 'matched', 'missing', 'fits', 'why'],
   properties: {
@@ -87,29 +84,6 @@ const FIT_SCHEMA = {
     why: { type: 'string' },
   },
 };
-
-/**
- * THE EXAMPLE, IN FULL. A target that names exemplars is defined by them: the
- * operator's reason for marking them, and everything he pasted about them, are
- * a better statement of fit than any sentence written for the config. Kept to
- * what is on file; a person with nothing on file contributes nothing.
- */
-function exemplarText(db, target) {
-  return (target.exemplars ?? []).map((id) => {
-    const p = db.prepare(`SELECT p.name, p.title, o.name org FROM people p JOIN orgs o ON o.id = p.org_id
-      WHERE p.id = ?`).get(id);
-    if (!p) return null;
-    const why = db.prepare(`SELECT reason FROM verdicts WHERE person_id = ? AND reason IS NOT NULL
-      ORDER BY id DESC LIMIT 1`).get(id)?.reason;
-    const firm = describedAs(db, db.prepare('SELECT org_id FROM people WHERE id = ?').get(id).org_id);
-    const pasted = db.prepare(`SELECT coalesce(body, claim) t FROM evidence WHERE person_id = ?
-      AND provenance = 'operator_supplied' ORDER BY id`).all(id).map((r) => r.t).join('\n\n');
-    return `### ${p.name}, ${p.title ?? ''}, ${p.org}\n` +
-      (why ? `What the operator said about them: "${why}"\n` : '') +
-      (firm ? `What their firm's own site says it does: ${firm}\n` : '') +
-      (pasted ? `\nWhat the operator pasted about them:\n${pasted.slice(0, 6000)}\n` : '');
-  }).filter(Boolean).join('\n');
-}
 
 /** What a firm's own site says about itself: its description and the facts read off it. */
 function candidateText(db, orgId) {

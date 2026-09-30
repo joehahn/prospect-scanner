@@ -1,4 +1,7 @@
-# propose-queries — v5, 2026-09-29
+# propose-queries — v6, 2026-09-30
+
+*v6: a target may come with examples, people the operator wants more of. v5 wrote
+from the target's prose alone.*
 
 System prompt for `npm run queries`. Versioned so results stay attributable.
 Search terms are generated from the operator's plain-prose targets and
@@ -54,6 +57,12 @@ Your searches are shown to the operator for approval before any of them runs.
   chosen or written-to prospects, write more in their shape (same kind of source,
   same kind of event, new wording and neighbouring kinds of firm), and fewer like
   the ones that found nothing. Never repeat a search already on the list.
+- **Find more like the examples.** A target may come with examples: people the
+  operator marked as ones he would write to, with his reason and the facts on
+  file. Read them for the dated, public signals that made them worth writing to
+  (what they built, announced, hired for or said), and write searches that find
+  other people showing those signals at the kind of firm the target wants. Never
+  search for the example people or their firms by name; they are already found.
 - **Short.** Under about twelve words. A search engine weights early words most;
   put the kind of firm and the event first.
 
