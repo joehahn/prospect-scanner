@@ -208,34 +208,44 @@ function vetCandidates(db, cfg, target, args) {
       tally.rejected++;
       console.log(`  ${dim('out')}  ${c.name.padEnd(34)} ${dim(reason)}`);
     };
-    lead(['add-org', '--name', c.name, '--id', c.key, ...(c.domain ? ['--domain', c.domain] : [])]);
-    let domain = c.domain;
-    if (!domain) {
-      lead(['domains', '--org', c.key]);
-      domain = db.prepare('SELECT domain FROM orgs WHERE id = ?').get(c.key)?.domain ?? null;
-      if (!domain) { reject('no website found that names the firm'); continue; }
-    }
-    lead(['vet', '--name', c.name, '--id', c.key, '--domain', domain]);
+    // A CRASH MID-CANDIDATE MUST NOT LEAVE A HALF-VETTED FIRM IN THE BOOK. On
+    // 2026-09-30 one did, and the next run would have read it as already there.
+    try {
+      (() => {
+        lead(['add-org', '--name', c.name, '--id', c.key, ...(c.domain ? ['--domain', c.domain] : [])]);
+        let domain = c.domain;
+        if (!domain) {
+          lead(['domains', '--org', c.key]);
+          domain = db.prepare('SELECT domain FROM orgs WHERE id = ?').get(c.key)?.domain ?? null;
+          if (!domain) { reject('no website found that names the firm'); return; }
+        }
+        lead(['vet', '--name', c.name, '--id', c.key, '--domain', domain]);
 
-    const org = db.prepare('SELECT * FROM orgs WHERE id = ?').get(c.key);
-    const kill = db.prepare(`SELECT gate_id, reason FROM gate_results WHERE org_id = ?
-      AND outcome LIKE 'kill%' LIMIT 1`).get(c.key);
-    const people = db.prepare('SELECT id, name, title FROM people WHERE org_id = ?').all(c.key);
-    const inSeat = people.filter((p) => inSeat(target, p.title));
-    if (!org?.kind) { reject('its own site did not settle what kind of firm it is'); continue; }
-    if (!target.where.kinds.includes(org.kind)) { reject(`its own site makes it ${org.kind}`); continue; }
-    if (kill) { reject(`gate ${kill.gate_id}: ${truncate(kill.reason ?? '', 90)}`); continue; }
-    if (!inSeat.length) {
-      reject(`its site names ${people.length ? `${people.length} people, none` : 'nobody'} in a seat worth writing to`);
-      continue;
+        const org = db.prepare('SELECT * FROM orgs WHERE id = ?').get(c.key);
+        const kill = db.prepare(`SELECT gate_id, reason FROM gate_results WHERE org_id = ?
+          AND outcome LIKE 'kill%' LIMIT 1`).get(c.key);
+        const people = db.prepare('SELECT id, name, title FROM people WHERE org_id = ?').all(c.key);
+        const seated = people.filter((p) => inSeat(target, p.title));
+        if (!org?.kind) { reject('its own site did not settle what kind of firm it is'); return; }
+        if (!target.where.kinds.includes(org.kind)) { reject(`its own site makes it ${org.kind}`); return; }
+        if (kill) { reject(`gate ${kill.gate_id}: ${truncate(kill.reason ?? '', 90)}`); return; }
+        if (!seated.length) {
+          reject(`its site names ${people.length ? `${people.length} people, none` : 'nobody'} in a seat worth writing to`);
+          return;
+        }
+        const dropped = people.filter((p) => !seated.includes(p));
+        purgePeople(db, dropped.map((p) => p.id));
+        done.run('admitted', `${seated.length} in a seat` +
+          (dropped.length ? `; ${dropped.length} others not kept` : ''), c.key, now, c.id);
+        tally.admitted++;
+        console.log(`  ${bold('in')}   ${c.name.padEnd(34)} ${seated.map((p) => `${p.name} (${p.title})`).slice(0, 3).join(', ')}`
+          + (seated.length > 3 ? dim(` +${seated.length - 3}`) : ''));
+      })();
+    } catch (err) {
+      // Taken back out but left pending: an error says nothing about the firm.
+      purgeOrg(db, c.key);
+      console.log(`  ${dim('err')}  ${c.name.padEnd(34)} ${dim(`nothing kept, still pending: ${truncate(err.message, 70)}`)}`);
     }
-    const dropped = people.filter((p) => !inSeat.includes(p));
-    purgePeople(db, dropped.map((p) => p.id));
-    done.run('admitted', `${inSeat.length} in a seat` +
-      (dropped.length ? `; ${dropped.length} others not kept` : ''), c.key, now, c.id);
-    tally.admitted++;
-    console.log(`  ${bold('in')}   ${c.name.padEnd(34)} ${inSeat.map((p) => `${p.name} (${p.title})`).slice(0, 3).join(', ')}`
-      + (inSeat.length > 3 ? dim(` +${inSeat.length - 3}`) : ''));
   }
   console.log(`\n${bold(String(tally.admitted))} admitted · ${tally.rejected} taken back out, reasons kept ` +
     '(npm run firms -- --show)');
