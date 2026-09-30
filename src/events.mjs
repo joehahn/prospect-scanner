@@ -260,6 +260,134 @@ const JUDGE_SCHEMA = { type: 'object', additionalProperties: false,
     why: { type: 'string' },
   } };
 
+/**
+ * SPEAKERS INTO THE BOOK, whichever agenda they came from: size each firm, drop
+ * vendors and firms out of band, write the rest with their session as dated
+ * evidence, and judge each session for a named difficulty. Split out of main()
+ * on 2026-09-30 so `conferences` (organizers found rather than configured) goes
+ * through the same judgment as the configured ones, not a second copy of it.
+ *
+ * `all` rows: { name, title, firm, session, event, event_name, url, when }.
+ * Returns what the model calls cost.
+ */
+export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  let spent = 0;
+  const firms = [...new Set(all.map((r) => r.firm))];
+
+  // ---- size and vendor-classify, in batches -------------------------------
+  const sized = new Map();
+  for (let i = 0; i < firms.length; i += 90) {
+    const res = await complete(db, runId, { model, maxTokens: 14000, schema: SIZE_SCHEMA,
+      system: promptBody('prompts/size-speaker-firms.md'),
+      messages: [{ role: 'user', content: firms.slice(i, i + 90).join('\n') }] });
+    spent += res.cost_usd ?? 0;
+    for (const f of res.data?.firms ?? []) sized.set(f.firm, f);
+  }
+  // THE BOOK ALREADY KNOWS SOME OF THESE FIRMS, and this threw that away. The
+  // sizing above asks a model to recall every employer fresh, and a firm it
+  // cannot place comes back 0 — "unknown" — which inBand treats as out. On the
+  // 2026-09-23 re-harvest that dropped a 50-person biotech whose headcount was
+  // RETRIEVED FROM ITS OWN SITE by `vet` and sat in orgs.headcount_est the whole
+  // time, taking two speakers with it. 29 firms came back unknown that run.
+  //
+  // A figure somebody looked up beats a figure a model half-remembers, so the
+  // database wins wherever it has one. Same precedence recordSize keeps.
+  const onFile = new Map(db.prepare(`SELECT name, headcount_est hc, kind,
+      COALESCE(sells_ai_delivery,0) + COALESCE(sells_ai_advisory,0) sells
+    FROM orgs WHERE headcount_est IS NOT NULL`).all().map((o) => [o.name.toLowerCase(), o]));
+  let rescued = 0;
+  for (const f of firms) {
+    const o = onFile.get(String(f).toLowerCase());
+    if (!o) continue;
+    const guess = sized.get(f);
+    if (guess && guess.employees > 0) continue;          // the model knew it; leave it
+    sized.set(f, { firm: f, employees: o.hc,
+      sells_to_this_market: o.kind === 'delivery_firm' || o.sells > 0 });
+    rescued++;
+  }
+  if (rescued) console.log(dim(`  ${rescued} firm(s) sized from the book rather than from recall`));
+
+  const ceiling = 5000;
+  const inBand = (f) => { const s = sized.get(f); return s && !s.sells_to_this_market && s.employees > 0 && s.employees <= ceiling; };
+  const hits = all.filter((r) => inBand(r.firm));
+  console.log(`  vendors ${[...sized.values()].filter((x) => x.sells_to_this_market).length}` +
+    ` · over ${ceiling}: ${[...sized.values()].filter((x) => !x.sells_to_this_market && x.employees > ceiling).length}` +
+    ` · unknown ${[...sized.values()].filter((x) => !x.sells_to_this_market && !x.employees).length}` +
+    ` · ${bold(`in band ${[...new Set(hits.map((h) => h.firm))].length}`)}`);
+
+  // ---- write ---------------------------------------------------------------
+  const org = db.prepare(`INSERT INTO orgs (id,name,domain,headcount_est,headcount_source,kind,first_seen,source)
+    VALUES (@id,@name,NULL,@hc,'recalled','end_client',@today,@source)
+    ON CONFLICT(id) DO UPDATE SET headcount_est = COALESCE(orgs.headcount_est, excluded.headcount_est)`);
+  const per = db.prepare(`INSERT OR IGNORE INTO people (id,org_id,name,title) VALUES (@id,@org,@name,@title)`);
+  // IDEMPOTENT, because a harvest gets re-run. The first re-run after the parser
+  // was fixed died on the UNIQUE index against its own previous rows, AFTER
+  // writing part of the batch — so the run half-succeeded and the judging pass
+  // never happened. A speaker record that already exists is not an error; the
+  // claim is the same claim.
+  const ev = db.prepare(`INSERT INTO evidence (org_id,person_id,kind,claim,source_url,retrieved_at,provenance,body)
+    VALUES (@org,@person,'announcement',@claim,@url,@now,'retrieved',@body)
+    ON CONFLICT (org_id, kind, source_url, claim) DO UPDATE SET body = excluded.body`);
+  let people = 0;
+  for (const r of hits) {
+    const oid = slug(r.firm); const pid = slug(r.name);
+    org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today, source });
+    per.run({ id: pid, org: oid, name: r.name, title: r.title });
+    ev.run({ org: oid, person: pid, url: r.url, now: new Date().toISOString(),
+      claim: `${r.name} ${r.when && r.when.starts_on > today ? 'is speaking at' : 'spoke at'} `
+        + `${r.event_name}${r.when ? ` (${r.when.text})` : ''} on: `
+        + `${r.session || '(no session title published)'}`.slice(0, 300),
+      body: `SPEAKER RECORD — ${r.event_name}, agenda retrieved ${today}.\n\n`
+        + (r.when
+          ? `EVENT DATE: ${r.when.text} — starts ${r.when.starts_on}, which is `
+            + `${r.when.starts_on > today ? 'STILL TO COME' : 'IN THE PAST'} as of ${today}.\n`
+            + `Write about this talk in that tense. A note that puts a future talk in the past\n`
+            + `is checkable by the recipient in one second.\n\n`
+          : `EVENT DATE: NOT PUBLISHED on the event page. The tense of this talk is UNKNOWN —\n`
+            + `do not assert that it has happened or is coming. Check the agenda before writing.\n\n`)
+        + `${r.name} — ${r.title}, ${r.firm}\n\nSESSION: ${r.session || '(none published)'}\n\n`
+        + `Discovered through a conference agenda rather than a firm leadership page: the session is the\n`
+        + `dated reason to write and the seat is the operator layer leadership pages do not list.\n`
+        + `Headcount ${sized.get(r.firm).employees} is RECALLED, not retrieved.\n` });
+    people++;
+  }
+  console.log(`  wrote ${people} people`);
+
+  // ---- judge the sessions --------------------------------------------------
+  if (judge) {
+    const prompt = readFileSync(resolve(ROOT, JUDGE_PROMPT), 'utf8');
+    const sig = db.prepare(`INSERT INTO signals (org_id,trigger_id,detected_at,decays_at,weight,evidence_id)
+      SELECT @org,'practitioner_aired_ai_difficulty',@today,date(@today,'+180 days'),4,@ev
+       WHERE NOT EXISTS (SELECT 1 FROM signals x WHERE x.org_id=@org
+         AND x.trigger_id='practitioner_aired_ai_difficulty' AND x.retracted_at IS NULL)`);
+    // ONE PLACEHOLDER PER VALUE, which this did not have. It built the IN list
+    // from `new Set(hits.map(() => '?'))` -- a set of identical strings, which
+    // collapses to exactly ONE '?' however many events ran -- and then bound
+    // every distinct url against it. With a handful of events it merely bound
+    // the wrong ones; with seventeen it threw "Too many parameter values were
+    // provided" and took the whole judging pass down AFTER the harvest had been
+    // written, so the run looked half-successful and the signals never fired.
+    const urls = [...new Set(hits.map((h) => h.url))];
+    const rows = db.prepare(`SELECT e.id ev, e.org_id, e.body, p.name, p.title, o.name firm
+      FROM evidence e JOIN people p ON p.id=e.person_id JOIN orgs o ON o.id=e.org_id
+     WHERE e.source_url IN (${urls.map(() => '?').join(',') || "''"})`).all(...urls);
+    let fired = 0;
+    for (const r of rows) {
+      const res = await complete(db, runId, { model, maxTokens: 3000, schema: JUDGE_SCHEMA, system: prompt,
+        messages: [{ role: 'user', content: `Speaker: ${r.name} — ${r.title}, ${r.firm}\n\n${r.body}` }] });
+      spent += res.cost_usd ?? 0;
+      if (res.data?.verdict === 'fires') {
+        fired++; sig.run({ org: r.org_id, ev: r.ev, today });
+        console.log(`  ${bold('FIRES')} ${r.name} @ ${r.firm} — ${res.data.difficulty}`);
+      }
+    }
+    console.log(`\n  ${fired} of ${rows.length} sessions named a difficulty`);
+  }
+
+  return spent;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = openDb();
@@ -330,120 +458,9 @@ async function main() {
       url: k.url, when: k.when })));
   }
 
-  const firms = [...new Set(all.map((r) => r.firm))];
-  console.log(heading(`${all.length} speakers, ${firms.length} firms`));
+  console.log(heading(`${all.length} speakers, ${[...new Set(all.map((r) => r.firm))].length} firms`));
   if (args.dry) { console.log(dim('--dry: nothing sized, judged or written.')); finishRun(db, runId, {}); db.close(); return; }
-
-  // ---- size and vendor-classify, in batches -------------------------------
-  const sized = new Map();
-  for (let i = 0; i < firms.length; i += 90) {
-    const res = await complete(db, runId, { model, maxTokens: 14000, schema: SIZE_SCHEMA,
-      system: promptBody('prompts/size-speaker-firms.md'),
-      messages: [{ role: 'user', content: firms.slice(i, i + 90).join('\n') }] });
-    spent += res.cost_usd ?? 0;
-    for (const f of res.data?.firms ?? []) sized.set(f.firm, f);
-  }
-  // THE BOOK ALREADY KNOWS SOME OF THESE FIRMS, and this threw that away. The
-  // sizing above asks a model to recall every employer fresh, and a firm it
-  // cannot place comes back 0 — "unknown" — which inBand treats as out. On the
-  // 2026-09-23 re-harvest that dropped a 50-person biotech whose headcount was
-  // RETRIEVED FROM ITS OWN SITE by `vet` and sat in orgs.headcount_est the whole
-  // time, taking two speakers with it. 29 firms came back unknown that run.
-  //
-  // A figure somebody looked up beats a figure a model half-remembers, so the
-  // database wins wherever it has one. Same precedence recordSize keeps.
-  const onFile = new Map(db.prepare(`SELECT name, headcount_est hc, kind,
-      COALESCE(sells_ai_delivery,0) + COALESCE(sells_ai_advisory,0) sells
-    FROM orgs WHERE headcount_est IS NOT NULL`).all().map((o) => [o.name.toLowerCase(), o]));
-  let rescued = 0;
-  for (const f of firms) {
-    const o = onFile.get(String(f).toLowerCase());
-    if (!o) continue;
-    const guess = sized.get(f);
-    if (guess && guess.employees > 0) continue;          // the model knew it; leave it
-    sized.set(f, { firm: f, employees: o.hc,
-      sells_to_this_market: o.kind === 'delivery_firm' || o.sells > 0 });
-    rescued++;
-  }
-  if (rescued) console.log(dim(`  ${rescued} firm(s) sized from the book rather than from recall`));
-
-  const ceiling = 5000;
-  const inBand = (f) => { const s = sized.get(f); return s && !s.sells_to_this_market && s.employees > 0 && s.employees <= ceiling; };
-  const hits = all.filter((r) => inBand(r.firm));
-  console.log(`  vendors ${[...sized.values()].filter((x) => x.sells_to_this_market).length}` +
-    ` · over ${ceiling}: ${[...sized.values()].filter((x) => !x.sells_to_this_market && x.employees > ceiling).length}` +
-    ` · unknown ${[...sized.values()].filter((x) => !x.sells_to_this_market && !x.employees).length}` +
-    ` · ${bold(`in band ${[...new Set(hits.map((h) => h.firm))].length}`)}`);
-
-  // ---- write ---------------------------------------------------------------
-  const org = db.prepare(`INSERT INTO orgs (id,name,domain,headcount_est,headcount_source,kind,first_seen,source)
-    VALUES (@id,@name,NULL,@hc,'recalled','end_client',@today,'conference_agendas')
-    ON CONFLICT(id) DO UPDATE SET headcount_est = COALESCE(orgs.headcount_est, excluded.headcount_est)`);
-  const per = db.prepare(`INSERT OR IGNORE INTO people (id,org_id,name,title) VALUES (@id,@org,@name,@title)`);
-  // IDEMPOTENT, because a harvest gets re-run. The first re-run after the parser
-  // was fixed died on the UNIQUE index against its own previous rows, AFTER
-  // writing part of the batch — so the run half-succeeded and the judging pass
-  // never happened. A speaker record that already exists is not an error; the
-  // claim is the same claim.
-  const ev = db.prepare(`INSERT INTO evidence (org_id,person_id,kind,claim,source_url,retrieved_at,provenance,body)
-    VALUES (@org,@person,'announcement',@claim,@url,@now,'retrieved',@body)
-    ON CONFLICT (org_id, kind, source_url, claim) DO UPDATE SET body = excluded.body`);
-  let people = 0;
-  for (const r of hits) {
-    const oid = slug(r.firm); const pid = slug(r.name);
-    org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today });
-    per.run({ id: pid, org: oid, name: r.name, title: r.title });
-    ev.run({ org: oid, person: pid, url: r.url, now: new Date().toISOString(),
-      claim: `${r.name} ${r.when && r.when.starts_on > today ? 'is speaking at' : 'spoke at'} `
-        + `${r.event_name}${r.when ? ` (${r.when.text})` : ''} on: `
-        + `${r.session || '(no session title published)'}`.slice(0, 300),
-      body: `SPEAKER RECORD — ${r.event_name}, agenda retrieved ${today}.\n\n`
-        + (r.when
-          ? `EVENT DATE: ${r.when.text} — starts ${r.when.starts_on}, which is `
-            + `${r.when.starts_on > today ? 'STILL TO COME' : 'IN THE PAST'} as of ${today}.\n`
-            + `Write about this talk in that tense. A note that puts a future talk in the past\n`
-            + `is checkable by the recipient in one second.\n\n`
-          : `EVENT DATE: NOT PUBLISHED on the event page. The tense of this talk is UNKNOWN —\n`
-            + `do not assert that it has happened or is coming. Check the agenda before writing.\n\n`)
-        + `${r.name} — ${r.title}, ${r.firm}\n\nSESSION: ${r.session || '(none published)'}\n\n`
-        + `Discovered through a conference agenda rather than a firm leadership page: the session is the\n`
-        + `dated reason to write and the seat is the operator layer leadership pages do not list.\n`
-        + `Headcount ${sized.get(r.firm).employees} is RECALLED, not retrieved.\n` });
-    people++;
-  }
-  console.log(`  wrote ${people} people`);
-
-  // ---- judge the sessions --------------------------------------------------
-  if (!args['no-judge']) {
-    const prompt = readFileSync(resolve(ROOT, JUDGE_PROMPT), 'utf8');
-    const sig = db.prepare(`INSERT INTO signals (org_id,trigger_id,detected_at,decays_at,weight,evidence_id)
-      SELECT @org,'practitioner_aired_ai_difficulty',@today,date(@today,'+180 days'),4,@ev
-       WHERE NOT EXISTS (SELECT 1 FROM signals x WHERE x.org_id=@org
-         AND x.trigger_id='practitioner_aired_ai_difficulty' AND x.retracted_at IS NULL)`);
-    // ONE PLACEHOLDER PER VALUE, which this did not have. It built the IN list
-    // from `new Set(hits.map(() => '?'))` -- a set of identical strings, which
-    // collapses to exactly ONE '?' however many events ran -- and then bound
-    // every distinct url against it. With a handful of events it merely bound
-    // the wrong ones; with seventeen it threw "Too many parameter values were
-    // provided" and took the whole judging pass down AFTER the harvest had been
-    // written, so the run looked half-successful and the signals never fired.
-    const urls = [...new Set(hits.map((h) => h.url))];
-    const rows = db.prepare(`SELECT e.id ev, e.org_id, e.body, p.name, p.title, o.name firm
-      FROM evidence e JOIN people p ON p.id=e.person_id JOIN orgs o ON o.id=e.org_id
-     WHERE e.source_url IN (${urls.map(() => '?').join(',') || "''"})`).all(...urls);
-    let fired = 0;
-    for (const r of rows) {
-      const res = await complete(db, runId, { model, maxTokens: 3000, schema: JUDGE_SCHEMA, system: prompt,
-        messages: [{ role: 'user', content: `Speaker: ${r.name} — ${r.title}, ${r.firm}\n\n${r.body}` }] });
-      spent += res.cost_usd ?? 0;
-      if (res.data?.verdict === 'fires') {
-        fired++; sig.run({ org: r.org_id, ev: r.ev, today });
-        console.log(`  ${bold('FIRES')} ${r.name} @ ${r.firm} — ${res.data.difficulty}`);
-      }
-    }
-    console.log(`\n  ${fired} of ${rows.length} sessions named a difficulty`);
-  }
-
+  spent += await loadSpeakers(db, runId, all, { model, judge: !args['no-judge'], source: 'conference_agendas' });
   console.log(dim(`\n  $${spent.toFixed(4)} · next: npm run gate && npm run rank`));
   finishRun(db, runId, {});
   db.close();

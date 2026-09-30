@@ -18,6 +18,7 @@
     "snapshot": "node scripts/snapshot.mjs",
     "unblock": "node --env-file-if-exists=.env src/unblock.mjs",
     "events": "node --env-file-if-exists=.env src/events.mjs",
+    "conferences": "node --env-file-if-exists=.env src/conferences.mjs",
     "glean": "node --env-file-if-exists=.env src/glean.mjs",
     "read": "node --env-file-if-exists=.env src/read.mjs",
     "size": "node --env-file-if-exists=.env src/size.mjs",

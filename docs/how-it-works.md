@@ -58,14 +58,18 @@ a fund raised, a conference talk about a problem the operator solves. Five sourc
   talks, podcasts) rather than news, and its searches then cover the whole web.
 - **Appointment columns** in trade press, for newly named data and AI leaders.
 - **Conference agendas,** read from the organiser's own pages: a speaker and the
-  session they are giving arrive together.
+  session they are giving arrive together. New conferences are found where the
+  operator's example prospects speak and through searches written from the
+  targets, then read with a general reader that keeps only speakers the page
+  itself names.
 - **The operator's pastes** of a profile they read themselves, stored with a
   provenance marker so they are never mistaken for something retrieved.
 - **Firm lists,** for a target limited to one kind of firm that publishes no events,
   such as small recruiting firms that place contractors. Rankings and directories are
   found and read for firm names; each firm waits outside the book until its own site
-  has been checked. It is admitted only if the site makes it the target's kind, no
-  gate kills it, and it names someone in one of the target's seats. Everyone else at
+  has been checked. It is admitted only if the site makes it the target's kind,
+  looks like the firm of an example prospect the operator named for that target,
+  no gate kills it, and it names someone in one of the target's seats. Everyone else at
   an admitted firm is dropped, and every firm turned away keeps its reason.
 
 Every stored event keeps what its source actually said, not just an event label, and
@@ -178,6 +182,7 @@ daily run strings the routine ones together.
 | Searches | `npm run queries` | propose, run, measure and retire searches | default / cheap |
 | Appointments | `npm run moves` | new data and AI leaders from trade columns | cheap |
 | Agendas | `npm run events` | speakers and sessions from conference sites | default |
+| Conferences | `npm run conferences` | find new conferences, then read their agendas into the book | cheap |
 | Firm lists | `npm run firms` | a target's firms from rankings and directories, each checked on its own site before it is kept | cheap |
 | Vet | `npm run lead -- vet` | the firm's own site, then the gates | cheap |
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
