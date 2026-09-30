@@ -249,6 +249,17 @@ function vetCandidates(db, cfg, target, args) {
   }
   console.log(`\n${bold(String(tally.admitted))} admitted · ${tally.rejected} taken back out, reasons kept ` +
     '(npm run firms -- --show)');
+  // The dashboard shows only scored people, so an admitted firm is invisible
+  // until the formula has run. Both are code, no model calls.
+  if (tally.admitted) {
+    for (const stage of ['rank', 'dash']) {
+      try {
+        execFileSync('node', ['--env-file-if-exists=.env', `src/${stage}.mjs`],
+          { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] });
+      } catch (err) { console.log(dim(`  ${stage} failed: ${truncate(String(err.stderr ?? err.message), 120)}`)); }
+    }
+    console.log(dim('  re-ranked and rebuilt the dashboard, so the admitted firms show there now'));
+  }
 }
 
 /** The seat rule, applied to firms of the target's kinds already in the book. */
