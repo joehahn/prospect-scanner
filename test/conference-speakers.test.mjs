@@ -30,6 +30,8 @@ check(inOperatorCountries('United States', allowed) && inOperatorCountries('USA'
 check(inOperatorCountries('Qatar', allowed), "a country one target adds passes");
 check(!inOperatorCountries('Germany', allowed), 'a country no one works in is left out');
 check(inOperatorCountries('', allowed) && inOperatorCountries('Online', allowed), 'unstated or online is let through');
+check(inOperatorCountries('United States and United Kingdom', allowed), 'an event in several countries passes if one is ours');
+check(!inOperatorCountries('Germany, Austria', allowed), 'an event only in others does not');
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1); }
 console.log('\nall passed');

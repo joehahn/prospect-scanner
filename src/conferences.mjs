@@ -94,7 +94,9 @@ export function allowedCountries(b) {
 export function inOperatorCountries(country, allowed) {
   const n = countryName(country ?? '');
   if (!n || /online|virtual|global|worldwide/.test(n) || !allowed.size) return true;
-  return allowed.has(n);
+  // An event in several countries, "United States and United Kingdom", counts if
+  // any of them is one the operator works in.
+  return String(country).split(/\s*(?:,|;|\/|&|\band\b)\s*/i).map(countryName).some((c) => allowed.has(c));
 }
 
 function parseArgs(argv) {
