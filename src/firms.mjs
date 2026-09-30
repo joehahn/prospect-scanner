@@ -13,8 +13,10 @@
 // firm's own site has been read (the same `vet` as everywhere else). A firm is
 // admitted only when all three hold:
 //   1. its own site makes it a kind the target names (`where.kinds`);
-//   2. no gate kills it;
-//   3. its site names someone in one of the target's `seats`, so there is a
+//   2. its own site's description shows the target's `specialty`, where it
+//      names one (a cheap model reads the sentence, prompts/check-specialty.md);
+//   3. no gate kills it;
+//   4. its site names someone in one of the target's `seats`, so there is a
 //      person to write to. A firm large enough not to name its recruiters is
 //      also one the target does not want.
 // Anything else is taken back out of the book, every row the vet wrote, and the
@@ -27,6 +29,9 @@
 //                    --dry finds and lists candidates, vets nothing
 //   npm run firms -- --vet [--target ...] [--limit 10]   vet candidates already found
 //   npm run firms -- --show                              the candidate list and outcomes
+//   npm run firms -- --recheck [--apply]                 the specialty check on firms already
+//                                                        admitted; --apply takes out the ones
+//                                                        that fail
 //   npm run firms -- --prune [--target ...]              apply the seat rule to firms
 //                                                        of the target's kinds already
 //                                                        in the book
@@ -45,6 +50,7 @@ import { heading, bold, dim, truncate } from './report.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LISTS_FILE = 'prompts/find-firm-lists.md';
 const EXTRACT_FILE = 'prompts/extract-firm-list.md';
+const SPECIALTY_FILE = 'prompts/check-specialty.md';
 
 const QUERIES_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['queries'],
@@ -60,6 +66,26 @@ const EXTRACT_SCHEMA = {
     } },
   },
 };
+
+const SPECIALTY_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['fits', 'why'],
+  properties: { fits: { type: 'boolean' }, why: { type: 'string' } },
+};
+
+/** What the firm's own site says it does, as enrich recorded it. */
+const describedAs = (db, orgId) => db.prepare(`SELECT claim FROM evidence WHERE org_id = ?
+  AND kind = 'firm_profile' ORDER BY id DESC LIMIT 1`).get(orgId)?.claim ?? null;
+
+/** Whether a firm's own description shows the target's specialty. Null when it names none. */
+async function hasSpecialty(db, cfg, runId, target, orgId) {
+  if (!target.specialty) return null;
+  const said = describedAs(db, orgId);
+  if (!said) return { fits: false, why: 'its site gave no description of what it does' };
+  const r = await complete(db, runId, { model: cfg.models?.cheap, system: promptBody(SPECIALTY_FILE),
+    schema: SPECIALTY_SCHEMA, effort: 'low', thinking: false, maxTokens: 400, messages: [{ role: 'user',
+      content: `## Specialty\n${target.specialty}\n\n## What the firm's own site says it does\n${said}` }] });
+  return r.data ?? { fits: false, why: 'the check returned nothing' };
+}
 
 function parseArgs(argv) {
   const a = {};
@@ -127,6 +153,7 @@ async function find(db, cfg, b, target, args) {
   const q = await complete(db, runId, { model, system: promptBody(LISTS_FILE), schema: QUERIES_SCHEMA,
     effort: 'low', thinking: false, maxTokens: 1000, messages: [{ role: 'user', content:
       `## Target\n${target.name}: ${target.description}\n\nFirm kinds: ${target.where.kinds.join(', ')}\n` +
+      `${target.specialty ? `Specialty: ${target.specialty}\n` : ''}` +
       `${place ? `Place: ${place}\n` : 'Place: anywhere in the operator\'s countries\n'}` +
       `\nWrite ${n} searches.` }] });
   const queries = (q.data?.queries ?? []).slice(0, n);
@@ -186,7 +213,7 @@ function lead(args) {
 }
 
 /** Step three: each candidate's own site, then admit or take it back out. */
-function vetCandidates(db, cfg, target, args) {
+async function vetCandidates(db, cfg, target, args) {
   const limit = Number(args.limit ?? 10);
   const rows = db.prepare(`SELECT * FROM firm_candidates WHERE status = 'pending' AND target = ?
     ORDER BY (domain IS NULL), id LIMIT ?`).all(target.name, limit);
@@ -194,6 +221,7 @@ function vetCandidates(db, cfg, target, args) {
   const done = db.prepare(`UPDATE firm_candidates SET status = ?, reason = ?, org_id = ?, checked_at = ?
     WHERE id = ?`);
   const tally = { admitted: 0, rejected: 0 };
+  const runId = startRun(db, 'firms-vet', { model: cfg.models?.cheap });
 
   console.log(heading(`Vetting ${rows.length} candidate(s) for "${target.name}"`));
   for (const c of rows) {
@@ -211,7 +239,7 @@ function vetCandidates(db, cfg, target, args) {
     // A CRASH MID-CANDIDATE MUST NOT LEAVE A HALF-VETTED FIRM IN THE BOOK. On
     // 2026-09-30 one did, and the next run would have read it as already there.
     try {
-      (() => {
+      await (async () => {
         lead(['add-org', '--name', c.name, '--id', c.key, ...(c.domain ? ['--domain', c.domain] : [])]);
         let domain = c.domain;
         if (!domain) {
@@ -228,6 +256,8 @@ function vetCandidates(db, cfg, target, args) {
         const seated = people.filter((p) => inSeat(target, p.title));
         if (!org?.kind) { reject('its own site did not settle what kind of firm it is'); return; }
         if (!target.where.kinds.includes(org.kind)) { reject(`its own site makes it ${org.kind}`); return; }
+        const spec = await hasSpecialty(db, cfg, runId, target, c.key);
+        if (spec && !spec.fits) { reject(`not the specialty: ${truncate(spec.why, 100)}`); return; }
         if (kill) { reject(`gate ${kill.gate_id}: ${truncate(kill.reason ?? '', 90)}`); return; }
         if (!seated.length) {
           reject(`its site names ${people.length ? `${people.length} people, none` : 'nobody'} in a seat worth writing to`);
@@ -247,6 +277,7 @@ function vetCandidates(db, cfg, target, args) {
       console.log(`  ${dim('err')}  ${c.name.padEnd(34)} ${dim(`nothing kept, still pending: ${truncate(err.message, 70)}`)}`);
     }
   }
+  finishRun(db, runId);
   console.log(`\n${bold(String(tally.admitted))} admitted · ${tally.rejected} taken back out, reasons kept ` +
     '(npm run firms -- --show)');
   // The dashboard shows only scored people, so an admitted firm is invisible
@@ -279,6 +310,32 @@ function prune(db, target) {
   }
 }
 
+/** The specialty check on firms of the target's kinds already in the book. */
+async function recheck(db, cfg, target, { apply = false } = {}) {
+  if (!target.specialty) throw new Error(`"${target.name}" names no specialty to check`);
+  const runId = startRun(db, 'firms-recheck', { model: cfg.models?.cheap });
+  const kinds = target.where.kinds;
+  const orgs = db.prepare(`SELECT id, name FROM orgs WHERE kind IN (${kinds.map(() => '?').join(',')})`).all(...kinds);
+  for (const o of orgs) {
+    const spec = await hasSpecialty(db, cfg, runId, target, o.id);
+    // Never a firm the operator is in touch with, or has made a call on.
+    const touched = db.prepare(`SELECT 1 FROM people p WHERE p.org_id = ? AND (
+      EXISTS (SELECT 1 FROM outreach x WHERE x.person_id = p.id)
+      OR EXISTS (SELECT 1 FROM verdicts v WHERE v.person_id = p.id))`).get(o.id);
+    const out = !spec.fits && !touched;
+    if (out && apply) {
+      purgeOrg(db, o.id);
+      db.prepare(`UPDATE firm_candidates SET status = 'rejected', reason = ?, org_id = NULL,
+        checked_at = ? WHERE key = ?`).run(`not the specialty: ${spec.why}`, new Date().toISOString(), o.id);
+    }
+    console.log(`  ${spec.fits ? bold('fits') : out ? (apply ? 'out ' : 'fail') : dim('kept')}  ` +
+      `${o.name.padEnd(28)} ${dim(truncate(spec.why, 110))}` +
+      (!spec.fits && touched ? dim(' (kept: you are in touch or made a call)') : ''));
+  }
+  finishRun(db, runId);
+  if (!apply) console.log(dim('\n  nothing removed; --apply takes out the ones marked fail'));
+}
+
 function show(db) {
   const rows = db.prepare(`SELECT name, status, reason, source_url FROM firm_candidates
     ORDER BY status, name`).all();
@@ -300,11 +357,12 @@ async function main() {
   if (args.show) return show(db);
   const target = pickTarget(b, args.target && args.target !== true ? args.target : null);
   if (args.prune) return prune(db, target);
+  if (args.recheck) return recheck(db, cfg, target, { apply: Boolean(args.apply) });
   if (!args.vet) {
     const added = await find(db, cfg, b, target, args);
     if (args.dry || !added) return;
   }
-  vetCandidates(db, cfg, target, args);
+  await vetCandidates(db, cfg, target, args);
 }
 
 main().catch((err) => { console.error(err.message); process.exit(1); });

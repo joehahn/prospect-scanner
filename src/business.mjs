@@ -21,6 +21,7 @@
 //   where.kinds: firm kinds (staffing, investor, ...) a target is limited to; a
 //               firm of that kind is filed under it and gets its size band
 //   seats:      titles worth writing to at the target's firms (npm run firms)
+//   specialty:  what a firm's own site must say it does to be admitted (npm run firms)
 //
 // Nothing about any particular operator is written here; see CLAUDE.md.
 
