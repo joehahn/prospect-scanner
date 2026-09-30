@@ -95,6 +95,24 @@ if (args.includes('--events') || evAge >= 6) {
   console.log(`\n${bold('1b. conference agendas')} ${dim(`skipped: last run ${evAge.toFixed(1)} days ago, weekly (--events to force)`)}`);
 }
 
+// 1c. conferences nobody configured (added 2026-09-30): find new ones weekly,
+// read two waiting agendas every weekday so the list moves without anyone
+// asking. Speakers arrive through the same path as 1b, so gate runs after.
+const lastFind = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'conferences-find'`)[0]?.t;
+const findAge = lastFind ? (Date.now() - Date.parse(lastFind)) / 86_400_000 : Infinity;
+if (args.includes('--conferences') || findAge >= 6) {
+  const out = run('1c. find conferences', ['conferences', '--', '--find']);
+  const m = out.match(/(\d+) new conferences found/);
+  if (m) console.log(`  ${m[1]} new conferences found`);
+} else {
+  console.log(`\n${bold('1c. find conferences')} ${dim(`skipped: last run ${findAge.toFixed(1)} days ago, weekly (--conferences to force)`)}`);
+}
+{
+  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '2']);
+  const w = out.match(/wrote (\d+) people/);
+  if (w) { agendas = true; console.log(`  ${w[1]} people from new agendas`); }
+}
+
 // 2. vet what the searches added
 const unvetted = () => q(`SELECT id, name, domain FROM orgs WHERE source LIKE 'intake search:%' AND kind IS NULL`);
 // A website that could not be confirmed is retried for three days, not forever.
