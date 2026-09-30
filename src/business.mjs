@@ -22,6 +22,8 @@
 //               firm of that kind is filed under it and gets its size band
 //   seats:      titles worth writing to at the target's firms (npm run firms)
 //   specialty:  what a firm's own site must say it does to be admitted (npm run firms)
+//   exemplars:  person ids the operator wants more of; when named, admission compares
+//               each firm's site with theirs instead of testing `specialty`
 //
 // Nothing about any particular operator is written here; see CLAUDE.md.
 

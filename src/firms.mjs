@@ -51,6 +51,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LISTS_FILE = 'prompts/find-firm-lists.md';
 const EXTRACT_FILE = 'prompts/extract-firm-list.md';
 const SPECIALTY_FILE = 'prompts/check-specialty.md';
+const FIT_FILE = 'prompts/check-fit.md';
 
 const QUERIES_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['queries'],
@@ -75,6 +76,64 @@ const SPECIALTY_SCHEMA = {
 /** What the firm's own site says it does, as enrich recorded it. */
 const describedAs = (db, orgId) => db.prepare(`SELECT claim FROM evidence WHERE org_id = ?
   AND kind = 'firm_profile' ORDER BY id DESC LIMIT 1`).get(orgId)?.claim ?? null;
+
+const FIT_SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['traits', 'matched', 'missing', 'fits', 'why'],
+  properties: {
+    traits: { type: 'array', items: { type: 'string' } },
+    matched: { type: 'array', items: { type: 'string' } },
+    missing: { type: 'array', items: { type: 'string' } },
+    fits: { type: 'boolean' },
+    why: { type: 'string' },
+  },
+};
+
+/**
+ * THE EXAMPLE, IN FULL. A target that names exemplars is defined by them: the
+ * operator's reason for marking them, and everything he pasted about them, are
+ * a better statement of fit than any sentence written for the config. Kept to
+ * what is on file; a person with nothing on file contributes nothing.
+ */
+function exemplarText(db, target) {
+  return (target.exemplars ?? []).map((id) => {
+    const p = db.prepare(`SELECT p.name, p.title, o.name org FROM people p JOIN orgs o ON o.id = p.org_id
+      WHERE p.id = ?`).get(id);
+    if (!p) return null;
+    const why = db.prepare(`SELECT reason FROM verdicts WHERE person_id = ? AND reason IS NOT NULL
+      ORDER BY id DESC LIMIT 1`).get(id)?.reason;
+    const firm = describedAs(db, db.prepare('SELECT org_id FROM people WHERE id = ?').get(id).org_id);
+    const pasted = db.prepare(`SELECT coalesce(body, claim) t FROM evidence WHERE person_id = ?
+      AND provenance = 'operator_supplied' ORDER BY id`).all(id).map((r) => r.t).join('\n\n');
+    return `### ${p.name}, ${p.title ?? ''}, ${p.org}\n` +
+      (why ? `What the operator said about them: "${why}"\n` : '') +
+      (firm ? `What their firm's own site says it does: ${firm}\n` : '') +
+      (pasted ? `\nWhat the operator pasted about them:\n${pasted.slice(0, 6000)}\n` : '');
+  }).filter(Boolean).join('\n');
+}
+
+/** What a firm's own site says about itself: its description and the facts read off it. */
+function candidateText(db, orgId) {
+  const lines = db.prepare(`SELECT claim FROM evidence WHERE org_id = ? AND person_id IS NULL
+    AND provenance = 'retrieved' ORDER BY (kind = 'firm_profile') DESC, id LIMIT 40`).all(orgId).map((r) => `- ${r.claim}`);
+  return lines.join('\n').slice(0, 6000);
+}
+
+/**
+ * Whether a firm fits the target: against its exemplars when it names any,
+ * otherwise against its one-line specialty. Null when it names neither.
+ */
+async function checkFit(db, cfg, runId, target, orgId) {
+  const example = exemplarText(db, target);
+  if (!example) return hasSpecialty(db, cfg, runId, target, orgId);
+  const said = candidateText(db, orgId);
+  if (!said) return { fits: false, why: 'its site gave nothing about what it does' };
+  const r = await complete(db, runId, { model: cfg.models?.cheap, system: promptBody(FIT_FILE),
+    schema: FIT_SCHEMA, effort: 'low', thinking: false, maxTokens: 1200, messages: [{ role: 'user',
+      content: `## The example\n${example}\n\n## The candidate firm's own website says\n${said}` }] });
+  const d = r.data;
+  if (!d) return { fits: false, why: 'the check returned nothing' };
+  return { fits: d.fits, why: d.why + (d.missing?.length ? ` Missing: ${d.missing.join('; ')}.` : '') };
+}
 
 /** Whether a firm's own description shows the target's specialty. Null when it names none. */
 async function hasSpecialty(db, cfg, runId, target, orgId) {
@@ -266,8 +325,8 @@ async function vetCandidates(db, cfg, target, args) {
         const seated = people.filter((p) => inSeat(target, p.title));
         if (!org?.kind) { reject('its own site did not settle what kind of firm it is'); return; }
         if (!target.where.kinds.includes(org.kind)) { reject(`its own site makes it ${org.kind}`); return; }
-        const spec = await hasSpecialty(db, cfg, runId, target, c.key);
-        if (spec && !spec.fits) { reject(`not the specialty: ${truncate(spec.why, 100)}`); return; }
+        const spec = await checkFit(db, cfg, runId, target, c.key);
+        if (spec && !spec.fits) { reject(`not a fit: ${truncate(spec.why, 140)}`); return; }
         if (kill) { reject(`gate ${kill.gate_id}: ${truncate(kill.reason ?? '', 90)}`); return; }
         if (!seated.length) {
           reject(`its site names ${people.length ? `${people.length} people, none` : 'nobody'} in a seat worth writing to`);
@@ -322,12 +381,12 @@ function prune(db, target) {
 
 /** The specialty check on firms of the target's kinds already in the book. */
 async function recheck(db, cfg, target, { apply = false } = {}) {
-  if (!target.specialty) throw new Error(`"${target.name}" names no specialty to check`);
+  if (!target.specialty && !target.exemplars?.length) throw new Error(`"${target.name}" names no exemplars or specialty to check`);
   const runId = startRun(db, 'firms-recheck', { model: cfg.models?.cheap });
   const kinds = target.where.kinds;
   const orgs = db.prepare(`SELECT id, name FROM orgs WHERE kind IN (${kinds.map(() => '?').join(',')})`).all(...kinds);
   for (const o of orgs) {
-    const spec = await hasSpecialty(db, cfg, runId, target, o.id);
+    const spec = await checkFit(db, cfg, runId, target, o.id);
     // Never a firm the operator is in touch with, or has made a call on.
     const touched = db.prepare(`SELECT 1 FROM people p WHERE p.org_id = ? AND (
       EXISTS (SELECT 1 FROM outreach x WHERE x.person_id = p.id)
@@ -336,10 +395,10 @@ async function recheck(db, cfg, target, { apply = false } = {}) {
     if (out && apply) {
       purgeOrg(db, o.id);
       db.prepare(`UPDATE firm_candidates SET status = 'rejected', reason = ?, org_id = NULL,
-        checked_at = ? WHERE key = ?`).run(`not the specialty: ${spec.why}`, new Date().toISOString(), o.id);
+        checked_at = ? WHERE key = ?`).run(`not a fit: ${spec.why}`, new Date().toISOString(), o.id);
     }
     console.log(`  ${spec.fits ? bold('fits') : out ? (apply ? 'out ' : 'fail') : dim('kept')}  ` +
-      `${o.name.padEnd(28)} ${dim(truncate(spec.why, 110))}` +
+      `${o.name.padEnd(28)} ${dim(truncate(spec.why, 170))}` +
       (!spec.fits && touched ? dim(' (kept: you are in touch or made a call)') : ''));
   }
   finishRun(db, runId);
