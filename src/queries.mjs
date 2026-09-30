@@ -20,6 +20,9 @@
 //                                   found and the current proposal's untested ones
 //   npm run queries -- --adopt --events "a,b"   only the proposal's searches for those events
 //                                   (--run takes --events too)
+//   npm run queries -- --adopt --target "Teams already"   only that target's searches
+//                                   (--run takes --target too)
+//   npm run queries -- --run --ids "88,89"   only those searches
 //   npm run queries -- --run [--save]   run the active list, record each search's
 //                                   yield, retire a search after two runs with no
 //                                   finds; --save adds the finds to the book
@@ -262,13 +265,13 @@ function ensureTables(db) {
 const RETIRE_AFTER = 2;   // consecutive runs with nothing qualifying
 
 /** The list: what found something in the comparison, plus the current proposal's untested searches. */
-function adopt(db, { events = null } = {}) {
+function adopt(db, { events = null, target = null } = {}) {
   ensureTables(db);
   const now = new Date().toISOString();
   const ins = db.prepare(`INSERT OR IGNORE INTO searches (query, target, event, origin, created_at) VALUES (?, ?, ?, ?, ?)`);
   const top = (xs) => Object.entries(xs.reduce((a, x) => ((a[x] = (a[x] ?? 0) + 1), a), {})).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   let n = 0;
-  if (existsSync(CMP) && !events) {
+  if (existsSync(CMP) && !events && !target) {
     const c = JSON.parse(readFileSync(CMP, 'utf8'));
     for (const [origin, set] of [['proposed', c.new], ['legacy', c.old]]) {
       for (const r of set.rows.filter((x) => x.hits.length)) {
@@ -280,20 +283,25 @@ function adopt(db, { events = null } = {}) {
     const p = JSON.parse(readFileSync(OUT, 'utf8'));
     const tried = new Set(existsSync(CMP) ? JSON.parse(readFileSync(CMP, 'utf8')).new.rows.map((r) => r.query) : []);
     const wanted = (q) => !events || events.includes(String(q.event).toLowerCase());
-    for (const t of p.targets) for (const q of t.searches) {
+    for (const t of p.targets.filter((x) => onTarget(x.target, target))) for (const q of t.searches) {
       if (!tried.has(q.query) && wanted(q)) n += ins.run(q.query, t.target, q.event, 'proposed', now).changes;
     }
   }
   return n;
 }
 
+/** Whether a target name matches a --target filter, which is the start of a name. */
+const onTarget = (name, filter) => !filter || String(name ?? '').toLowerCase().startsWith(filter.toLowerCase());
+
 /** Run the active list once, record each search's yield, retire what keeps finding nothing. */
-async function runList(cfg, b, { save = false, events = null, wires = false } = {}) {
+async function runList(cfg, b, { save = false, events = null, wires = false, target = null, ids = null } = {}) {
   const db = openDb();
   ensureTables(db);
   const list = db.prepare(`SELECT * FROM searches WHERE status = 'active' ORDER BY id`).all()
     .filter((x) => !events || events.includes(String(x.event).toLowerCase()))
-    .filter((x) => !wires || x.searched_in === 'wires');
+    .filter((x) => !wires || x.searched_in === 'wires')
+    .filter((x) => onTarget(x.target, target))
+    .filter((x) => !ids || ids.includes(x.id));
   if (!list.length) { db.close(); throw new Error('No active searches. Run npm run queries -- --adopt.'); }
   const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
   const orgs = db.prepare('SELECT id, name FROM orgs').all();
@@ -503,12 +511,18 @@ async function main() {
   // with --run, only the active searches for them.
   const ei = process.argv.indexOf('--events');
   const events = ei > 0 ? process.argv[ei + 1].split(',').map((x) => x.trim().toLowerCase()) : null;
+  // --target "<start of a name>": with --adopt or --run, only that target's searches.
+  const ti = process.argv.indexOf('--target');
+  const target = ti > 0 ? process.argv[ti + 1] : null;
+  // --ids "88,89": with --run, only those searches (a new batch, off its weekly turn).
+  const ii = process.argv.indexOf('--ids');
+  const ids = ii > 0 ? process.argv[ii + 1].split(',').map(Number) : null;
   const cfg = loadConfig();
   const targeting = loadTargeting(cfg);
   if (process.argv.includes('--yield')) { yieldReport(); return; }
   if (process.argv.includes('--release-people')) { await releasePeople(cfg); return; }
   if (process.argv.includes('--adopt')) {
-    const db = openDb(); const n = adopt(db, { events });
+    const db = openDb(); const n = adopt(db, { events, target });
     const t = db.prepare(`SELECT origin, COUNT(*) c FROM searches WHERE status = 'active' GROUP BY origin`).all();
     db.close();
     console.log(`adopted ${n} search(es); active now: ${t.map((x) => `${x.c} ${x.origin}`).join(', ')}`);
@@ -517,7 +531,7 @@ async function main() {
   if (process.argv.includes('--run')) {
     const b = loadBusiness(cfg, targeting);
     const r = await runList(cfg, b, { save: process.argv.includes('--save'), events,
-      wires: process.argv.includes('--wires') });
+      wires: process.argv.includes('--wires'), target, ids });
     const hits = r.report.flatMap((x) => x.fresh);
     console.log(heading(`Ran ${r.report.length} searches · ${r.credits} credits · ${hits.length} new finds`
       + `${r.saved ? ` · ${r.saved} added to the book` : ' · nothing added (pass --save)'}`));
