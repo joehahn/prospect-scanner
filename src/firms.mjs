@@ -223,6 +223,16 @@ async function vetCandidates(db, cfg, target, args) {
   const tally = { admitted: 0, rejected: 0 };
   const runId = startRun(db, 'firms-vet', { model: cfg.models?.cheap });
 
+  // A RUN STOPPED FROM OUTSIDE CANNOT CLEAN UP AFTER ITSELF. On 2026-09-30 one
+  // hit its time limit mid-vet and left a firm in the book, still pending. A
+  // pending candidate with an org row can only be that, because a firm already
+  // in the book is marked in_book when it is found, so take it back out first.
+  for (const c of db.prepare(`SELECT c.key, c.name FROM firm_candidates c WHERE c.status = 'pending'
+      AND EXISTS (SELECT 1 FROM orgs o WHERE o.id = c.key)`).all()) {
+    purgeOrg(db, c.key);
+    console.log(dim(`  swept  ${c.name}: left half-vetted by an interrupted run, taken back out, still pending`));
+  }
+
   console.log(heading(`Vetting ${rows.length} candidate(s) for "${target.name}"`));
   for (const c of rows) {
     const now = new Date().toISOString();
