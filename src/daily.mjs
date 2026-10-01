@@ -20,6 +20,8 @@
 //                 one per firm, so the morning starts with notes to edit, not
 //                 cards to draft from. Email where an address is confirmed,
 //                 otherwise a LinkedIn connection note. Nothing is sent.
+//   4c. grade     those drafts, by a model other than the drafter; a failing
+//                 one is flagged on its card with the words that failed
 //   5. dash       rebuild the pages
 //
 // Every stage records its own cost in `runs`; the summary at the end adds them
@@ -241,6 +243,11 @@ if (draftN > 0) {
       ['draft', '--', '--person', p.person_id, '--channel', p.channel, '--no-dash'])));
   }
 }
+
+// 4c. grade this morning's drafts with a model other than the drafter, so a
+// note that recites the reader's own post, or points at something it never
+// named, is flagged on the card before the operator edits it.
+if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--since', started]);
 
 // 5. pages
 run('5. dash', ['dash']);

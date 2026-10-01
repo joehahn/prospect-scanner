@@ -727,8 +727,10 @@ async function main() {
        WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) ORDER BY id`).all(personId, org.id)
       .map((e) => `- [id ${e.id}] ${e.claim}`
         + (e.body && String(e.body).trim().length > 80
-          ? `\n${String(e.body).trim().slice(0, 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
+          ? `\n${String(e.body).trim().slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
       .join('\n');
+    // A pasted profile goes in whole; cut at 2,200 characters, a post far down
+    // the page could neither support a claim nor be seen to be recited.
     // What the operator said counts as evidence for the check: he knows it
     // first-hand, and a note may rest on it (never attribute it to him).
     const said = operatorSaidLines(db, personId);

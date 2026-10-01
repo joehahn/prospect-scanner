@@ -258,6 +258,8 @@ CREATE TABLE IF NOT EXISTS draft_grades (
   never_claim_items   TEXT,
   channel_rules       INTEGER,
   channel_rules_items TEXT,
+  clarity             INTEGER,           -- every reference lands; the sentences connect
+  clarity_items       TEXT,
   fits_channel        INTEGER,           -- code, not model: length limits
   clean               INTEGER,           -- every dimension above passed
   cost_usd            REAL,
@@ -762,8 +764,19 @@ export function openDb(path = DB_PATH, { quiet = true } = {}) {
   addSizeProvenance(db);
   addNextStep(db);
   addVerdicts(db);
+  addGradeClarity(db);
   if (applied.length && !quiet) console.error(`migrated: ${applied.join(', ')}`);
   return db;
+}
+
+// CLARITY, added 2026-10-01 with grade-draft v2: two drafts in one evening
+// pointed at "those intelligent tools" and "those point agents" that nothing
+// before them named, and four content checks passed both.
+function addGradeClarity(db) {
+  const cols = db.prepare('PRAGMA table_info(draft_grades)').all().map((c) => c.name);
+  if (!cols.length) return;
+  if (!cols.includes('clarity')) db.exec('ALTER TABLE draft_grades ADD COLUMN clarity INTEGER');
+  if (!cols.includes('clarity_items')) db.exec('ALTER TABLE draft_grades ADD COLUMN clarity_items TEXT');
 }
 
 /** Open a run row. Every stage records one, LLM or not, so cost is never retrofitted. */

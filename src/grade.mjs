@@ -12,6 +12,7 @@
 //   recital        the note does not hand them their own facts back
 //   never_claim    nothing on operator.never_claim, literally or paraphrased
 //   channel_rules  the operator's own rules, where one note can break them
+//   clarity        every reference lands ("those tools" names something)
 //   fits_channel   a connect note fits LinkedIn's limit (code)
 //
 // CLASSIFIERS ARE NONDETERMINISTIC. The same note can pass on one call and fail
@@ -27,6 +28,7 @@
 //   npm run grade                          ungraded latest drafts, 10 of them
 //   npm run grade -- --limit 40 | --all
 //   npm run grade -- --draft <id> | --person <id>
+//   npm run grade -- --since <ISO time>    every latest draft written since then (the daily run)
 //   npm run grade -- --sent                grade what the operator SENT instead
 //   npm run grade -- --repeat 3            three passes per note, for agreement
 //   npm run grade -- --report              summary only, no API calls
@@ -44,7 +46,7 @@ import { table, heading, bold, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/grade-draft.md';
-const DIMENSIONS = ['claims', 'recital', 'never_claim', 'channel_rules'];
+const DIMENSIONS = ['claims', 'recital', 'never_claim', 'channel_rules', 'clarity'];
 
 const ITEMS = {
   type: 'array',
@@ -87,13 +89,17 @@ function parseArgs(argv) {
 const promptVersion = () =>
   (readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8').match(/—\s*(v\d+)/) ?? [])[1] ?? null;
 
-/** The evidence the drafter's own check sees: this person's and the firm's, never a colleague's. */
+/**
+ * The evidence the drafter's own check sees: this person's and the firm's, never a colleague's.
+ * A profile the operator pasted is given whole: cut at 2,200 characters, a post
+ * 180 lines down was invisible, and a note quoting it was graded "not on file".
+ */
 function evidenceFor(db, d) {
-  return db.prepare(`SELECT id, claim, body FROM evidence
+  return db.prepare(`SELECT id, kind, claim, body FROM evidence
      WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) ORDER BY id`).all(d.person_id, d.org_id)
     .map((e) => `- [id ${e.id}] ${e.claim}`
       + (e.body && String(e.body).trim().length > 80
-        ? `\n${String(e.body).trim().slice(0, 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
+        ? `\n${String(e.body).trim().slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
     .join('\n');
 }
 
@@ -103,20 +109,22 @@ function pick(db, args, model, version, which) {
     return db.prepare(`SELECT * FROM drafts WHERE id = ? AND ${col} IS NOT NULL`).all(Number(args.draft));
   }
   const byPerson = args.person && args.person !== true;
+  const since = args.since && args.since !== true ? String(args.since) : null;
   // The latest version per person and channel: earlier versions were rewritten,
   // and grading them measures a note nobody would send.
   const rows = db.prepare(`
     SELECT d.* FROM drafts d
      WHERE d.${col} IS NOT NULL AND TRIM(d.${col}) <> ''
        ${byPerson ? 'AND d.person_id = @person' : ''}
+       ${since ? 'AND d.created_at >= @since' : ''}
        AND d.version = (SELECT MAX(version) FROM drafts x
                          WHERE x.person_id IS d.person_id AND x.channel = d.channel)
        AND NOT EXISTS (SELECT 1 FROM draft_grades g WHERE g.draft_id = d.id
                          AND g.grader_model = @model AND g.prompt_version IS @version
                          AND g.graded_text = @which)
      ORDER BY d.created_at DESC`)
-    .all({ model, version, which, ...(byPerson ? { person: String(args.person) } : {}) });
-  if (args.all || byPerson) return rows;
+    .all({ model, version, which, ...(byPerson ? { person: String(args.person) } : {}), ...(since ? { since } : {}) });
+  if (args.all || byPerson || since) return rows;
   return rows.slice(0, Number(args.limit && args.limit !== true ? args.limit : 10));
 }
 
@@ -147,13 +155,14 @@ function report(db) {
     recital: fails(rs, 'recital'),
     never: fails(rs, 'never_claim'),
     rules: fails(rs, 'channel_rules'),
+    clear: fails(rs, 'clarity'),
     length: fails(rs, 'fits_channel'),
   })), [
     { key: 'grader', label: 'GRADER' }, { key: 'drafter', label: 'DRAFTER' },
     { key: 'text', label: 'TEXT' }, { key: 'notes', label: 'NOTES' }, { key: 'passes', label: 'PASSES' },
     { key: 'clean', label: 'CLEAN' }, { key: 'claims', label: 'CLAIMS✘' },
     { key: 'recital', label: 'RECITAL✘' }, { key: 'never', label: 'NEVER✘' },
-    { key: 'rules', label: 'RULES✘' }, { key: 'length', label: 'LENGTH✘' },
+    { key: 'rules', label: 'RULES✘' }, { key: 'clear', label: 'CLEAR✘' }, { key: 'length', label: 'LENGTH✘' },
   ]));
   console.log(dim('  ✘ columns count failing passes, not notes.'));
 
@@ -210,8 +219,8 @@ async function main() {
   const names = new Map(db.prepare('SELECT id, name FROM people').all().map((p) => [p.id, p.name]));
   const ins = db.prepare(`INSERT INTO draft_grades (draft_id, graded_text, grader_model, prompt_file,
       prompt_version, claims, claims_items, recital, recital_items, never_claim, never_claim_items,
-      channel_rules, channel_rules_items, fits_channel, clean, cost_usd, run_id, graded_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      channel_rules, channel_rules_items, clarity, clarity_items, fits_channel, clean, cost_usd, run_id, graded_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
 
   let cost = 0;
   let done = 0;
@@ -245,17 +254,18 @@ async function main() {
         recital: g.recital.verdict === 'pass' ? 1 : 0,
         never_claim: g.never_claim.verdict === 'pass' && !literal.length ? 1 : 0,
         channel_rules: g.channel_rules.verdict === 'pass' ? 1 : 0,
+        clarity: g.clarity.verdict === 'pass' ? 1 : 0,
       };
       const clean = Object.values(v).every(Boolean) && fits ? 1 : 0;
       ins.run(d.id, which, model, PROMPT_FILE, version,
         v.claims, JSON.stringify(g.claims.items), v.recital, JSON.stringify(g.recital.items),
         v.never_claim, JSON.stringify(never), v.channel_rules, JSON.stringify(g.channel_rules.items),
-        fits, clean, res.cost_usd ?? null, runId, new Date().toISOString());
+        v.clarity, JSON.stringify(g.clarity.items), fits, clean, res.cost_usd ?? null, runId, new Date().toISOString());
       const mark = (ok) => (ok ? '✔' : '✘');
       lines.push(`    ${clean ? '✔ clean' : '✘'}  claims ${mark(v.claims)} recital ${mark(v.recital)} ` +
-        `never ${mark(v.never_claim)} rules ${mark(v.channel_rules)} length ${mark(fits)}`);
+        `never ${mark(v.never_claim)} rules ${mark(v.channel_rules)} clear ${mark(v.clarity)} length ${mark(fits)}`);
       for (const [dimName, items] of [['claims', g.claims.items], ['recital', g.recital.items],
-        ['never', never], ['rules', g.channel_rules.items]]) {
+        ['never', never], ['rules', g.channel_rules.items], ['clarity', g.clarity.items]]) {
         for (const it of items) lines.push(dim(`      ${dimName}: "${it.quote}" — ${it.why}`));
       }
     }

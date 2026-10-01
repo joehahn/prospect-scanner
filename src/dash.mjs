@@ -400,11 +400,19 @@ function collect(db, cfg, targeting) {
   // InMail v2 outranked a new connection-note v1 and the box showed the wrong
   // draft after Draft was pressed.
   for (const d of db.prepare(
-    `SELECT person_id, version, channel, body, sent_text, revise_note, created_at,
+    `SELECT id, person_id, version, channel, body, sent_text, revise_note, created_at,
             package_id, model, cost_usd, subject
        FROM drafts WHERE person_id IS NOT NULL ORDER BY id DESC`).all()) {
     if (!draftsByPerson.has(d.person_id)) draftsByPerson.set(d.person_id, []);
     draftsByPerson.get(d.person_id).push(d);
+  }
+
+  // The grader's latest pass on each draft, shown on the card's note box.
+  GRADES.clear();
+  if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'draft_grades'`).get()) {
+    for (const g of db.prepare(`SELECT * FROM draft_grades WHERE graded_text = 'draft' ORDER BY id DESC`).all()) {
+      if (!GRADES.has(g.draft_id)) GRADES.set(g.draft_id, g);
+    }
   }
 
   // His own call on each person, latest first. See verdictBox().
@@ -742,6 +750,9 @@ form.verdict input[type=text] { font-size:12.5px; padding:2px 6px; }
 form.verdict button { font-size:12px; padding:2px 8px; }
 form.verdict .vd.write { color:#2a7a2a; font-weight:600; }
 form.verdict .vd.skip { color:#a33; font-weight:600; }
+.gradefail { color:#a33; }
+.gradebox { border-left:3px solid #a33; padding:4px 10px; margin:6px 0; font-size:.92em; }
+.gradebox ul { margin:4px 0 0 18px; padding:0; }
 button.copy { font:inherit; font-size:11.5px; padding:2px 8px; cursor:pointer;
   border:1px solid var(--line); border-radius:5px; background:transparent;
   color:var(--text2); }
@@ -1931,6 +1942,32 @@ function pasteBox(p) {
 //             the gap between what was drafted and what he actually sent is
 //             what the design calls the highest-value signal in the book, and it
 //             only exists if the thing recorded is his text and not the model's.
+// THE GRADER'S VERDICT ON THE DRAFT IN THE BOX, added 2026-10-01 when the
+// daily run began drafting ten notes a morning. The drafter's own check asks
+// only whether each fact is on file, and a note can be all true and still
+// hand the reader his own post back, or point at "those tools" it never
+// named. `npm run grade` reads for that; this puts its answer where the
+// operator edits, quoting the words that failed.
+const GRADES = new Map();
+const GRADE_DIMS = [['claims', 'claim not on file'], ['recital', 'recites their own facts'],
+  ['never_claim', 'never-claim'], ['channel_rules', 'channel rule'], ['clarity', 'unclear'], ['fits_channel', 'too long']];
+function gradeLine(draft) {
+  const g = draft?.id ? GRADES.get(draft.id) : null;
+  if (!g) return { mark: '', html: '' };
+  if (g.clean === 1) return { mark: ' <span class="dim">· checked ✔</span>', html: '' };
+  const items = [];
+  for (const [dim, label] of GRADE_DIMS) {
+    if (g[dim] !== 0) continue;
+    let list = [];
+    try { list = JSON.parse(g[`${dim}_items`] ?? '[]'); } catch { /* stored by an older pass */ }
+    if (!list.length) items.push(`<li><b>${esc(label)}</b></li>`);
+    for (const it of list) items.push(`<li><b>${esc(label)}:</b> &ldquo;${esc(it.quote)}&rdquo; <span class="dim">— ${esc(it.why)}</span></li>`);
+  }
+  return { mark: ' <b class="gradefail">· check ✘</b>',
+    html: `<div class="gradebox"><b>The grader flagged this draft</b> <span class="dim">(${esc(g.grader_model)}, ${
+      esc(String(g.graded_at).slice(0, 10))})</span><ul>${items.join('')}</ul></div>` };
+}
+
 function noteBox(p, draft, { channel: preferred = null, email = null, guess = null } = {}) {
   const id = esc(p.person_id);
   // THE SENDABLE NOTE ONLY. The stored body is the model's whole reply — DRAFT,
@@ -1962,7 +1999,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
       : '<span class="dim">no address on file; paste the profile if it lists one</span>';
   return `<details class="notebox"><summary><b>Note</b>${draft
     ? (declined ? ` <b class="dim">— the stage declined to draft one</b>`
-      : ` <span class="dim">v${esc(draft.version)}, ${esc(String(draft.created_at).slice(0, 10))}</span>`)
+      : ` <span class="dim">v${esc(draft.version)}, ${esc(String(draft.created_at).slice(0, 10))}</span>${declined ? '' : gradeLine(draft).mark}`)
     : ' <span class="dim">— none yet</span>'}</summary>
     ${declined ? `<div class="nbdecl"><b>No note was written, and the reason is below.</b>
       A rule in the pitch definition or the channel rules stopped it. Read it before
@@ -1977,6 +2014,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
         <input name="subject" placeholder="subject" value="${subject}">
       </div>
       <p class="nbto"${ch === 'email' ? '' : ' hidden'}>To: ${to}</p>
+      ${declined ? '' : gradeLine(draft).html}
       <textarea name="body" rows="12" placeholder="No draft yet. Press Draft.">${body}</textarea>
       <p class="nbcount dim" data-max="${CONNECT_NOTE_MAX}"${ch === 'linkedin_connect_note' ? '' : ' hidden'}></p>
       ${draft?.body && (declined || noteOnly(draft.body) !== String(draft.body).trim())
