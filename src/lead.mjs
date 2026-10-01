@@ -1752,7 +1752,21 @@ async function addresses(db, cfg, args) {
   // one, and suppressed the press search that would have found a real address.
   // The test is whether a pattern can actually be DERIVED from it — that is the
   // only thing the address is wanted for, and role addresses cannot be enumerated.
-  const named = () => hits.some((h) => h.name && inferPattern(h.name, h.addr));
+  //
+  // A KNOWN PERSON, not merely a name-shaped label. Added 2026-10-01: the same
+  // failure as ClaimSolutions@, one level up. A contact page listing
+  // "Auto Phone ... auto@" and "Claims Phone ... claims@" read as two people
+  // called Auto and Claims, voted "first", and wrote russell@ and bryan@ onto
+  // twelve executives. A blog's "Lender Support <lendersupport@>" voted
+  // "firstlast" the same way. Every one of those guesses was made up, and a made-up address
+  // bounces in silence. A label can generate its own address under SOME pattern
+  // by construction, so the only test a label cannot pass is whether the name
+  // belongs to someone already on file at this firm. Anyone else is printed
+  // for the operator to confirm with --example, never applied automatically.
+  const knownHere = new Set(db.prepare('SELECT name FROM people WHERE org_id = ?').all(orgId)
+    .map((p) => nameParts(p.name)).filter(Boolean).map((p) => `${p.first} ${p.last}`));
+  const isKnown = (name) => { const p = nameParts(name); return Boolean(p) && knownHere.has(`${p.first} ${p.last}`); };
+  const named = () => hits.some((h) => h.name && isKnown(h.name) && inferPattern(h.name, h.addr));
   if (!named() && !args['no-press']) {
     const { searchNews, creditsUsed } = await import('./sources/tavily.mjs');
     const q = `"${org.name}" "media contact" OR "press contact" "@${domain}"`;
@@ -1793,8 +1807,10 @@ async function addresses(db, cfg, args) {
   // A pattern needs a NAME beside an address. Vote across every pair found.
   const votes = new Map();
   const evidence = [];
+  const unconfirmed = [];
   for (const h of personal) {
     if (!h.name) continue;
+    if (!isKnown(h.name)) { if (inferPattern(h.name, h.addr)) unconfirmed.push(h); continue; }
     const id = inferPattern(h.name, h.addr);
     if (!id) continue;
     votes.set(id, (votes.get(id) ?? 0) + 1);
@@ -1809,9 +1825,18 @@ async function addresses(db, cfg, args) {
     }
   }
 
+  if (unconfirmed.length) {
+    console.log(`\n${bold('Named, but not anyone on file here')} ${dim('— may be a label, not a person; not applied')}`);
+    for (const h of unconfirmed) {
+      console.log(`  ${h.addr.padEnd(34)} ${String(h.name).replace(/\s+/g, ' ').padEnd(24)} ${dim(truncate(h.url, 52))}`);
+    }
+    console.log(dim('  If one of these IS a person at the firm, confirm it and the pattern follows:\n' +
+      `    npm run lead -- emails --org ${orgId} --example "${String(unconfirmed[0].name).replace(/\s+/g, ' ')}:${unconfirmed[0].addr}"`));
+  }
+
   if (!evidence.length) {
-    console.log(`\n${bold('No pattern could be inferred.')} An address needs a NAME beside it ` +
-      'before it says how this firm builds addresses.');
+    console.log(`\n${bold('No pattern could be inferred.')} An address needs the NAME of someone ` +
+      'on file at this firm beside it before it says how the firm builds addresses.');
     if (personal.length) {
       console.log(dim('  If you can name one of the above, that is enough:\n' +
         `    npm run lead -- emails --org ${orgId} --example "Their Name:${personal[0].addr}"`));
