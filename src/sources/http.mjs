@@ -86,6 +86,11 @@ function allowedByRobots({ rules }, path) {
   return best ? best.allow : true;
 }
 
+/** The crawl delay a site's robots.txt asks of us, in ms, or null when it states none. */
+export async function crawlDelayFor(url) {
+  return (await robotsFor(new URL(url).origin)).crawlDelayMs;
+}
+
 /**
  * GET a URL, honouring robots.txt and a per-host crawl delay.
  * Returns {ok, status, json, skipped} — a robots disallow is `skipped`, not an

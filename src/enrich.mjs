@@ -25,6 +25,7 @@ import { openDb, startRun, finishRun, slugify, recordSize} from './db.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { complete } from './models.mjs';
 import { fetchPage, discoverLinks, CANDIDATE_PATHS } from './sources/web.mjs';
+import { crawlDelayFor } from './sources/http.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -157,6 +158,10 @@ const sameSite = (u, domain) => {
   return Boolean(h && d) && (h === d || h.endsWith(`.${d}`) || d.endsWith(`.${h}`));
 };
 
+// How long one firm may spend waiting out a site's crawl delay. Leaves room
+// inside daily's ten-minute step for the model call and a browser fallback.
+const PAGE_WAIT_BUDGET_MS = 4 * 60_000;
+
 /** Fetch a firm's own pages: homepage, then whatever it links to that looks like a team page. */
 async function fetchFirmPages(domain, maxPages, log) {
   const base = `https://${String(domain).replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
@@ -173,6 +178,18 @@ async function fetchFirmPages(domain, maxPages, log) {
   } else {
     if (!sameSite(home.url, domain)) return { pages, error: `redirected off-site, to ${hostOf(home.url)}` };
     pages.push(home); seen.add(home.url);
+  }
+
+  // A CRAWL DELAY THE PAGE BUDGET CANNOT AFFORD. Added 2026-10-01: a hospital
+  // district's robots.txt asks for 120s between requests, so twelve pages is
+  // twenty-four minutes, and `daily` kills a step at ten. The vet died, left
+  // the firm unvetted, and was picked again the next morning to die the same
+  // way. The delay is obeyed in full; what shrinks is how many pages we ask for.
+  const delayMs = await crawlDelayFor(pages[0].url);
+  const affordable = delayMs ? 1 + Math.floor(PAGE_WAIT_BUDGET_MS / delayMs) : maxPages;
+  if (affordable < maxPages) {
+    log(`    robots.txt asks ${delayMs / 1000}s between pages: reading ${affordable} of up to ${maxPages}`);
+    maxPages = affordable;
   }
 
   const linked = discoverLinks(pages[0].html, pages[0].url).map((l) => l.url);
