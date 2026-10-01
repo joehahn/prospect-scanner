@@ -75,7 +75,8 @@ that can be computed uses no AI at all.
 |---|---|
 | **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and extracts what a firm does, who decides, and whose boards a partner sits on. Finding a firm's own website uses Claude with Anthropic's web search tool. Pages vary endlessly; a fixed schema keeps the output checkable. |
 | **LLM judgment**<br/>Claude Sonnet | Rates each prospect 1-5 from your own Write first / Wouldn't clicks, and works out what the person is after and which offer fits. Your taste is learned from examples, not written as rules. |
-| **LLM writing**<br/>Claude Opus | Drafts the note and revises it on request, then a separate call checks every claim against its source. The most capable model for the one output a stranger reads, and the writer never grades its own work. |
+| **LLM writing**<br/>Claude Opus | Drafts the note and revises it on request, then a separate call checks every claim against its source before the note is saved. The most capable model for the one output a stranger reads. |
+| **LLM grading**<br/>Claude Fable | `npm run grade` scores saved notes with a different model from the writer, so no model grades its own work: are the claims on file, does the note recite the reader's own facts back, does it claim anything the operator never claims, does it break a channel rule. Every grade is stored, so a defect rate can be traced to the model and prompt that wrote the note. |
 | **AI agent**<br/>Claude Code | Runs any step when you ask in plain English. Open-ended requests need an agent that can use tools. |
 | **No AI**<br/>deterministic code | News and event search (Tavily's search API), fetching, robots.txt, the gates, the baseline score, storage, the dashboard and cost tracking. Anything that can be computed is computed, and tested. |
 
