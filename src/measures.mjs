@@ -140,14 +140,31 @@ export function spend(db, { topStages = 12 } = {}) {
       FROM runs GROUP BY 1 ORDER BY 1`).all();
   let run = 0;
   const cumulative = daily.map((d) => ({ day: d.day, usd: Math.round((run += d.usd) * 100) / 100 }));
-  const stages = db.prepare(`SELECT stage, COUNT(*) runs, ROUND(SUM(cost_usd), 2) usd, SUM(n_in) n_in, SUM(n_out) n_out
-      FROM runs GROUP BY stage ORDER BY SUM(cost_usd) DESC`).all();
+  // TOKENS FROM THE PER-CALL LEDGER (llm_calls, from 2026-10-01). runs.n_in and
+  // n_out are item counts for most stages, and were summed here as tokens.
+  const hasLedger = Boolean(db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'llm_calls'`).get());
+  const tok = (by) => new Map(hasLedger ? db.prepare(`SELECT ${by} k, SUM(input_tokens + cache_read_tokens + cache_write_tokens) n_in,
+      SUM(output_tokens) n_out FROM llm_calls GROUP BY 1`).all().map((r) => [r.k, r]) : []);
+  const stageTok = tok('stage');
+  const stages = db.prepare(`SELECT stage, COUNT(*) runs, ROUND(SUM(cost_usd), 2) usd
+      FROM runs GROUP BY stage ORDER BY SUM(cost_usd) DESC`).all()
+    .map((r) => ({ ...r, n_in: stageTok.get(r.stage)?.n_in ?? null, n_out: stageTok.get(r.stage)?.n_out ?? null }));
   const top = stages.slice(0, topStages);
   const rest = stages.slice(topStages);
   if (rest.length) top.push({ stage: `other (${rest.length} stages)`, runs: rest.reduce((a, s) => a + s.runs, 0),
     usd: Math.round(rest.reduce((a, s) => a + s.usd, 0) * 100) / 100 });
-  const models = db.prepare(`SELECT COALESCE(model, '(no model: a stage that calls none)') model, COUNT(*) runs,
-      ROUND(SUM(cost_usd), 2) usd, SUM(n_in) n_in, SUM(n_out) n_out FROM runs GROUP BY 1 ORDER BY SUM(cost_usd) DESC`).all();
+  // BY MODEL: per call where the ledger has the run, so a run that used two
+  // models splits correctly; whole runs before the ledger existed.
+  const models = db.prepare(hasLedger ? `SELECT model, COUNT(DISTINCT run) runs, ROUND(SUM(usd), 2) usd FROM (
+        SELECT model, run_id run, cost_usd usd FROM llm_calls
+        UNION ALL SELECT COALESCE(model, '(no model: a stage that calls none)'), id, cost_usd FROM runs
+         WHERE id NOT IN (SELECT run_id FROM llm_calls WHERE run_id IS NOT NULL))
+      GROUP BY 1 ORDER BY SUM(usd) DESC`
+    : `SELECT COALESCE(model, '(no model: a stage that calls none)') model, COUNT(*) runs,
+      ROUND(SUM(cost_usd), 2) usd FROM runs GROUP BY 1 ORDER BY SUM(cost_usd) DESC`).all()
+    .map((r) => ({ ...r, n_in: null, n_out: null }));
+  const modelTok = tok('model');
+  for (const r of models) { r.n_in = modelTok.get(r.model)?.n_in ?? null; r.n_out = modelTok.get(r.model)?.n_out ?? null; }
   return { total: tot.usd ?? 0, credits: tot.credits ?? 0, since: String(tot.since ?? '').slice(0, 10), runs: tot.runs,
     month: { label: month, usd: m.usd ?? 0, credits: m.credits ?? 0 }, week: w.usd ?? 0,
     today: { usd: t.usd ?? 0, credits: t.credits ?? 0, runs: t.runs ?? 0,

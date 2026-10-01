@@ -1817,6 +1817,7 @@ Averages ${usd(perDay)} over ${s.daily.length} days with any spend.</p></section
 <section class="panel"><h2>Cumulative spend</h2><div id="c-cum" style="height:280px"></div></section>
 <section class="panel"><h2>Spend per day</h2><div id="c-day" style="height:240px"></div></section>
 <section class="panel"><h2>Where it goes, by stage</h2><div id="c-stage" style="height:${60 + 26 * s.byStage.length}px"></div>
+<p class="dim">Tokens are counted per call from 2026-10-01; cost covers every run since the start.</p>
 <table><thead><tr><th>stage</th><th class="num">runs</th><th class="num">tokens in</th><th class="num">tokens out</th><th class="num">cost</th></tr></thead>
 <tbody>${s.stages.map((r) => `<tr><td><code>${esc(r.stage)}</code></td><td class="num">${r.runs}</td><td class="num">${k(r.n_in)}</td>
 <td class="num">${k(r.n_out)}</td><td class="num">${usd(r.usd)}</td></tr>`).join('')}</tbody></table></section>

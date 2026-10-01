@@ -306,6 +306,27 @@ CREATE TABLE IF NOT EXISTS runs (
   notes      TEXT
 );
 
+-- ONE ROW PER MODEL CALL, added 2026-10-01. The runs table holds one model and one
+-- running cost per stage run, which cannot split a run that used two models,
+-- and its n_in/n_out held tokens for some stages and item counts for others
+-- (the stage's own totals overwrote the tokens at finish). This ledger is
+-- written inside complete(), which every call goes through, and nothing else
+-- writes to it. Tokens and per-model cost are read from here.
+CREATE TABLE IF NOT EXISTS llm_calls (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id             INTEGER REFERENCES runs(id),
+  stage              TEXT,
+  model              TEXT NOT NULL,
+  at                 TEXT NOT NULL,
+  input_tokens       INTEGER,
+  output_tokens      INTEGER,
+  cache_read_tokens  INTEGER,
+  cache_write_tokens INTEGER,
+  web_searches       INTEGER,
+  cost_usd           REAL,                   -- NULL when the model has no price on file
+  stop_reason        TEXT
+);
+
 -- ---- suppression, not in §6 ------------------------------------------------
 
 -- Hard suppression. A row here means never surface as a prospect again,
@@ -947,13 +968,17 @@ export function finishRun(db, runId,
   // silently, and a line printed to a terminal that is gone tomorrow does not
   // answer "which firms required it" next week.
   const note = notes ?? browserNote();
-  db.prepare(`UPDATE runs SET ended_at = ?,
-                cost_usd = COALESCE(?, cost_usd),
-                n_in  = COALESCE(?, n_in),
-                n_out = COALESCE(?, n_out),
-                tavily_credits = COALESCE(?, tavily_credits),
-                notes = COALESCE(?, notes) WHERE id = ?`)
-    .run(new Date().toISOString(), cost_usd, n_in, n_out, tavily_credits, note, runId);
+  // A STAGE'S OWN TOTAL CAN ONLY RAISE THE RECORDED COST, never lower it.
+  // complete() adds every call's cost as it happens; a stage that finished with
+  // cost_usd: 0, or a tally that missed a call, used to overwrite that.
+  db.prepare(`UPDATE runs SET ended_at = @ended,
+                cost_usd = CASE WHEN @cost IS NULL THEN cost_usd ELSE MAX(COALESCE(cost_usd, 0), @cost) END,
+                n_in  = COALESCE(@n_in, n_in),
+                n_out = COALESCE(@n_out, n_out),
+                tavily_credits = COALESCE(@credits, tavily_credits),
+                notes = COALESCE(@note, notes) WHERE id = @id`)
+    .run({ ended: new Date().toISOString(), cost: cost_usd, n_in, n_out, credits: tavily_credits,
+      note: note ?? null, id: runId });
   if (note && !notes) {
     // SAID OUT LOUD, not only filed. The rule is that a browser fetch does not
     // pass silently; a row nobody looks at would still be silent.

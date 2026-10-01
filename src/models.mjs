@@ -195,13 +195,18 @@ export async function complete(db, runId, {
   // $0.00. CLAUDE.md makes this a hard guardrail — every LLM call records model,
   // tokens and cost, and the cost study cannot be retrofitted — and the one call
   // shape guaranteed to be expensive and produce nothing was the one exempt.
-  db.prepare(`UPDATE runs SET
-      model    = COALESCE(model, ?),
-      cost_usd = COALESCE(cost_usd, 0) + ?,
-      n_in     = COALESCE(n_in, 0) + ?,
-      n_out    = COALESCE(n_out, 0) + ?
-    WHERE id = ?`)
-    .run(model, cost ?? 0, res.usage.input_tokens ?? 0, res.usage.output_tokens ?? 0, runId);
+  // The run's running cost, and one ledger row for this call. n_in/n_out on
+  // the run are the stage's item counts; tokens live in llm_calls, per call,
+  // with the model that actually answered.
+  db.prepare(`UPDATE runs SET model = COALESCE(model, ?), cost_usd = COALESCE(cost_usd, 0) + ? WHERE id = ?`)
+    .run(model, cost ?? 0, runId);
+  db.prepare(`INSERT INTO llm_calls (run_id, stage, model, at, input_tokens, output_tokens,
+      cache_read_tokens, cache_write_tokens, web_searches, cost_usd, stop_reason)
+    VALUES (?, (SELECT stage FROM runs WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(runId, runId, model, new Date().toISOString(), res.usage?.input_tokens ?? 0,
+      res.usage?.output_tokens ?? 0, res.usage?.cache_read_input_tokens ?? 0,
+      res.usage?.cache_creation_input_tokens ?? 0, searches,
+      priceOf(model, res.usage) === null ? null : cost, res.stop_reason ?? null);
 
   if (!text && res.stop_reason === 'max_tokens') {
     throw new Error(

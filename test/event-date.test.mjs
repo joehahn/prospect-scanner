@@ -5,7 +5,7 @@
 // write" while carrying only the date the agenda was fetched, so the angle
 // writer guessed the tense and guessed it differently each time.
 const R = decodeURIComponent(new URL('../src/', import.meta.url).pathname);
-const { eventDateFrom, tenseFor, dateForAgenda } = await import(R+'events.mjs');
+const { eventDateFrom, tenseFor, dateForAgenda, markAgendaDays } = await import(R+'events.mjs');
 
 const CASES = [
   // --- THE REAL ONE. Biomanufacturing World Summit, from its own landing page.
@@ -71,6 +71,33 @@ for (const [when, yr, wantNull, why] of [
   const isNull = got === null;
   if (isNull !== wantNull) { fail++; console.log(`  FAIL  dateForAgenda — ${why}`); }
   else pass++;
+}
+
+// A RANGE ACROSS A MONTH. A three-day insurance event ran September 29 to
+// October 1; read as its last day, every session became "today" on the 1st.
+for (const [text, start, end] of [
+  ['September 29–October 1, 2026', '2026-09-29', '2026-10-01'],
+  ['<b>March 30 - April 2, 2027</b>', '2027-03-30', '2027-04-02'],
+  ['November 9-11, 2026', '2026-11-09', '2026-11-11'],
+]) {
+  const got = eventDateFrom(text);
+  if (got?.starts_on !== start || got?.ends_on !== end) {
+    fail++; console.log(`  FAIL  ${text} -> ${got?.starts_on}..${got?.ends_on}, want ${start}..${end}`);
+  } else pass++;
+}
+
+// A TABBED AGENDA: day labels sit together at the top, each day's sessions in a
+// block tied to its label only by a date-shaped id. Each block must say its day.
+{
+  const html = '<ul><li>Tuesday 29</li><li>Wednesday 30</li></ul>'
+    + '<div class="wrap" id="29-sep-2026"><p>Session A</p></div>'
+    + '<div class="wrap" id="30-sep-2026"><p>Session B</p></div><div id="main"><p>x</p></div>';
+  const out = markAgendaDays(html);
+  const a = out.indexOf('Session A'); const b = out.indexOf('Session B');
+  const dayA = out.lastIndexOf('[DAY 2026-09-29]', a); const dayB = out.lastIndexOf('[DAY 2026-09-30]', b);
+  if (dayA < 0 || dayB < 0 || dayB < a || /\[DAY [^\]]*\]\s*<p>x/.test(out)) {
+    fail++; console.log('  FAIL  markAgendaDays did not label each day block, or labelled a non-date id');
+  } else pass++;
 }
 
 console.log(`\n  ${pass} pass, ${fail} fail`);
