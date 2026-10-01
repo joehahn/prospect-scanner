@@ -30,6 +30,7 @@
 //
 // Usage:
 //   npm run judge -- --person <id> [--runs 3]
+//   npm run judge -- --ids a,b,c [--jobs 4]    these people, four at a time
 //   npm run judge -- --queue [--limit 15]     the people the ranker would put up first,
 //                                             skipping anyone judged in the last 7 days
 //                                             unless --redo; they fill the Ready page
@@ -398,6 +399,7 @@ async function main() {
   const decisions = pastDecisions(db);
   let ids;
   if (args.person) ids = [String(args.person)];
+  else if (args.ids && args.ids !== true) ids = [...new Set(String(args.ids).split(',').map((x) => x.trim()).filter(Boolean))];
   else if (args.queue) {
     // A judgment keeps for a week unless asked. The Ready page is rebuilt often
     // and each judgment costs three model calls; a person whose record has not
@@ -421,14 +423,23 @@ async function main() {
   const runId = startRun(db, 'judge', { model });
   const done = [];
   let cost = 0;
-  for (const id of ids) {
-    try {
-      const j = await judgeOne(db, cfg, targeting, id, { runs, model, runId, decisions });
-      cost += j.cost;
-      done.push(j);
-      console.log(line(j));
-    } catch (e) { console.log(`  FAILED ${id}: ${e.message}`); }
-  }
+  // SEVERAL PEOPLE IN FLIGHT, added 2026-10-01 when the daily run went from
+  // three people to everyone new. One at a time, 150 people is twenty minutes
+  // against a ten-minute step limit. Each person's runs already go in parallel;
+  // better-sqlite3 is synchronous, so the writes serialise in this process.
+  const jobs = Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 4) || 4);
+  let cursor = 0;
+  const worker = async () => {
+    for (let i = cursor++; i < ids.length; i = cursor++) {
+      try {
+        const j = await judgeOne(db, cfg, targeting, ids[i], { runs, model, runId, decisions });
+        cost += j.cost;
+        done.push(j);
+        console.log(line(j));
+      } catch (e) { console.log(`  FAILED ${ids[i]}: ${e.message}`); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(jobs, ids.length) }, worker));
   finishRun(db, runId, {});
 
   if (args.eval) {
