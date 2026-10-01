@@ -89,10 +89,23 @@ const MONTHS = 'January|February|March|April|May|June|July|August|September|Octo
 const MONTH_N = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
   august: 8, september: 9, october: 10, november: 11, december: 12 };
 
-/** "November 9-11, 2026" -> { text, starts_on: '2026-11-09' }. Null when the page says nothing. */
+/** "November 9-11, 2026" -> { text, starts_on: '2026-11-09', ends_on: '2026-11-11' }. Null when the page says nothing. */
 export function eventDateFrom(html) {
   if (!html) return null;
   const plain = String(html).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ');
+  const iso = (yr, mo, d) => `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const mon = (x) => MONTH_N[String(x).toLowerCase()];
+  // A RANGE ACROSS A MONTH FIRST ("September 29-October 1, 2026"). Added
+  // 2026-10-01: without it the same-month pattern below found nothing, the
+  // single-day pattern took "October 1, 2026", and a three-day event was
+  // stamped with its LAST day. Fifty-one speakers who spoke on the 29th and
+  // 30th were then written to as speaking "today".
+  const cross = plain.match(new RegExp(`(${MONTHS})\\s+(\\d{1,2})\\s*[-\u2013\u2014]\\s*(${MONTHS})\\s+(\\d{1,2}),?\\s*(20\\d\\d)`, 'i'));
+  if (cross && mon(cross[1]) && mon(cross[3])) {
+    const yr = Number(cross[5]);
+    return { text: cross[0].replace(/\s+/g, ' ').trim(), starts_on: iso(yr, mon(cross[1]), Number(cross[2])),
+      ends_on: iso(yr, mon(cross[3]), Number(cross[4])) };
+  }
   // A range first ("November 9-11, 2026"), then a single day. Ranges are what
   // these operators publish, and taking the single-day pattern first would
   // match the range's opening day and silently drop the end.
@@ -101,12 +114,42 @@ export function eventDateFrom(html) {
     : plain.match(new RegExp(`(${MONTHS})\\s+(\\d{1,2}),?\\s*(20\\d\\d)`, 'i'));
   const m = range ?? single;
   if (!m) return null;
-  const month = MONTH_N[m[1].toLowerCase()];
+  const month = mon(m[1]);
   const day = Number(m[2]);
   const yr = Number(range ? m[4] : m[3]);
   if (!month || !day || day > 31) return null;
-  const iso = `${yr}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  return { text: m[0].replace(/\s+/g, ' ').trim(), starts_on: iso };
+  return { text: m[0].replace(/\s+/g, ' ').trim(), starts_on: iso(yr, month, day),
+    ends_on: range ? iso(yr, month, Number(m[3])) : iso(yr, month, day) };
+}
+
+const MON3 = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+
+/**
+ * Mark the day blocks of a multi-day agenda in its HTML, so the text a model
+ * reads says which day each session sits under.
+ *
+ * Tabbed agendas print all their day labels together at the top and then one
+ * block per day whose only tie to its label is an id or data attribute
+ * ("29-sep-2026"). Flattened to text, every session looks like it belongs to
+ * whichever label came last. An element whose id or data-date/data-day/data-id
+ * IS a date gets "[DAY 2026-09-29]" inserted as its first text.
+ */
+export function markAgendaDays(html) {
+  const asIso = (v) => {
+    const x = String(v).toLowerCase();
+    let m = x.match(/^(\d{1,2})[-_ ]([a-z]{3})[a-z]*[-_ ](20\d\d)$/);
+    if (m && MON3[m[2]]) return `${m[3]}-${String(MON3[m[2]]).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+    m = x.match(/^([a-z]{3})[a-z]*[-_ ](\d{1,2})[-_ ](20\d\d)$/);
+    if (m && MON3[m[1]]) return `${m[3]}-${String(MON3[m[1]]).padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+    m = x.match(/^(?:day[-_])?(20\d\d)-(\d{2})-(\d{2})$/);
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+  };
+  return String(html ?? '').replace(
+    /<(div|section|article|ul|ol|li|table|tbody)\b([^>]*?)\b(id|data-date|data-day)="([^"]+)"([^>]*)>/gi,
+    (tag, el, pre, attr, val, post) => {
+      const d = asIso(val);
+      return d ? `${tag}\n[DAY ${d}]\n` : tag;
+    });
 }
 
 // THE LANDING PAGE ADVERTISES THE NEXT EDITION, NOT THE ONE YOU SCRAPED, and
@@ -270,6 +313,48 @@ const JUDGE_SCHEMA = { type: 'object', additionalProperties: false,
  * `all` rows: { name, title, firm, session, event, event_name, url, when }.
  * Returns what the model calls cost.
  */
+// ---- when a speaker speaks ------------------------------------------------
+// THE SESSION'S DAY, NOT THE EVENT'S. Added 2026-10-01: a three-day event was
+// stamped with one date for every session, and notes told people who spoke two
+// days earlier that their talk was "today". A session's own day is used where
+// the page placed it on one; otherwise a multi-day event says plainly that the
+// day is unknown, so no note can name one.
+const isoDay = (x) => (/^20\d\d-\d\d-\d\d$/.test(String(x ?? '')) ? String(x) : null);
+const longDay = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US',
+  { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+const multiDay = (r) => Boolean(r.when?.ends_on && r.when.ends_on !== r.when.starts_on);
+const dateLabel = (r) => (isoDay(r.session_date) ? longDay(r.session_date) : r.when?.text ?? '');
+function speakingVerb(r, today) {
+  const sd = isoDay(r.session_date);
+  if (sd) return sd > today ? 'is speaking at' : sd === today ? 'is speaking today at' : 'spoke at';
+  if (!r.when) return 'is on the agenda at';
+  if (r.when.starts_on > today) return 'is speaking at';
+  if ((r.when.ends_on ?? r.when.starts_on) < today) return 'spoke at';
+  return 'is on the agenda at';
+}
+function dateBlock(r, today) {
+  const sd = isoDay(r.session_date);
+  const tenseRule = `Write about this talk in that tense. A note that puts a future talk in the past\n`
+    + `is checkable by the recipient in one second.\n\n`;
+  if (sd) {
+    return `SESSION DATE: ${longDay(sd)} — which is `
+      + `${sd > today ? 'STILL TO COME' : sd === today ? 'TODAY' : 'IN THE PAST'} as of ${today}.\n` + tenseRule;
+  }
+  if (r.when && multiDay(r)) {
+    const state = r.when.starts_on > today ? 'STILL TO COME'
+      : r.when.ends_on < today ? 'IN THE PAST' : 'UNDER WAY';
+    return `EVENT DATES: ${r.when.text} (${r.when.starts_on} to ${r.when.ends_on}), ${state} as of ${today}.\n`
+      + `THE SESSION'S OWN DAY IS NOT PUBLISHED. Name the event without a day: never "today",\n`
+      + `"tomorrow" or "yesterday", and never a date for this session.\n\n`;
+  }
+  if (r.when) {
+    return `EVENT DATE: ${r.when.text} — starts ${r.when.starts_on}, which is `
+      + `${r.when.starts_on > today ? 'STILL TO COME' : 'IN THE PAST'} as of ${today}.\n` + tenseRule;
+  }
+  return `EVENT DATE: NOT PUBLISHED on the event page. The tense of this talk is UNKNOWN —\n`
+    + `do not assert that it has happened or is coming. Check the agenda before writing.\n\n`;
+}
+
 export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
   const today = new Date().toISOString().slice(0, 10);
   let spent = 0;
@@ -335,17 +420,10 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
     org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today, source });
     per.run({ id: pid, org: oid, name: r.name, title: r.title });
     ev.run({ org: oid, person: pid, url: r.url, now: new Date().toISOString(),
-      claim: `${r.name} ${r.when && r.when.starts_on > today ? 'is speaking at' : 'spoke at'} `
-        + `${r.event_name}${r.when ? ` (${r.when.text})` : ''} on: `
+      claim: `${r.name} ${speakingVerb(r, today)} ${r.event_name}${dateLabel(r) ? ` (${dateLabel(r)})` : ''} on: `
         + `${r.session || '(no session title published)'}`.slice(0, 300),
       body: `SPEAKER RECORD — ${r.event_name}, agenda retrieved ${today}.\n\n`
-        + (r.when
-          ? `EVENT DATE: ${r.when.text} — starts ${r.when.starts_on}, which is `
-            + `${r.when.starts_on > today ? 'STILL TO COME' : 'IN THE PAST'} as of ${today}.\n`
-            + `Write about this talk in that tense. A note that puts a future talk in the past\n`
-            + `is checkable by the recipient in one second.\n\n`
-          : `EVENT DATE: NOT PUBLISHED on the event page. The tense of this talk is UNKNOWN —\n`
-            + `do not assert that it has happened or is coming. Check the agenda before writing.\n\n`)
+        + dateBlock(r, today)
         + `${r.name} — ${r.title}, ${r.firm}\n\nSESSION: ${r.session || '(none published)'}\n\n`
         + `Discovered through a conference agenda rather than a firm leadership page: the session is the\n`
         + `dated reason to write and the seat is the operator layer leadership pages do not list.\n`

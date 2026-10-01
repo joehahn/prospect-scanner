@@ -40,9 +40,9 @@ import { loadConfig } from './config.mjs';
 import { loadBusiness } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
-import { fetchPage } from './sources/web.mjs';
+import { fetchPage, extractText } from './sources/web.mjs';
 import { exemplarText } from './exemplars.mjs';
-import { loadSpeakers, eventDateFrom } from './events.mjs';
+import { loadSpeakers, eventDateFrom, markAgendaDays } from './events.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 
 const FIND_FILE = 'prompts/find-conferences.md';
@@ -71,9 +71,10 @@ const AGENDA_SCHEMA = {
     event_when: { type: 'string' },
     event_country: { type: 'string' },
     speakers: { type: 'array', items: { type: 'object', additionalProperties: false,
-      required: ['name', 'title', 'firm', 'session'],
+      required: ['name', 'title', 'firm', 'session', 'session_date'],
       properties: { name: { type: 'string' }, title: { type: 'string' }, firm: { type: 'string' },
-        session: { type: 'string' } } } },
+        session: { type: 'string' },
+        session_date: { type: 'string', description: 'YYYY-MM-DD of the day the page puts this session on, or empty.' } } } },
   },
 };
 
@@ -241,11 +242,20 @@ export function verifiedSpeakers(speakers, pageText) {
     && plain.includes(` ${norm(s.name)} `));
 }
 
+// The page as the model reads it: the plain text, with each day block of a
+// tabbed multi-day agenda labelled "[DAY yyyy-mm-dd]" so a session can be
+// dated. Falls back to the plain text when the page marks no days.
+const dayText = (page) => {
+  if (!page.html) return page.text;
+  const marked = markAgendaDays(page.html);
+  return marked === page.html ? page.text : extractText(marked);
+};
+
 /** Speakers off one page, each name checked against the page's own text. */
 async function speakersOn(db, cfg, runId, page) {
   const res = await complete(db, runId, { model: cfg.models?.cheap, system: promptBody(AGENDA_FILE),
     schema: AGENDA_SCHEMA, effort: 'low', thinking: false, maxTokens: 16000, messages: [{ role: 'user',
-      content: `## Page: ${page.url}\n${page.title ?? ''}\n\n${page.text.slice(0, 60000)}` }] });
+      content: `## Page: ${page.url}\n${page.title ?? ''}\n\n${dayText(page).slice(0, 60000)}` }] });
   const all = res.data?.speakers ?? [];
   const kept = verifiedSpeakers(all, page.text);
   return { kept, dropped: all.length - kept.length, when: res.data?.event_when ?? '',
