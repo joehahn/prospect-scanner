@@ -239,6 +239,32 @@ CREATE TABLE IF NOT EXISTS drafts (
   run_id       INTEGER REFERENCES runs(id)
 );
 
+-- One row per grading pass over one draft, by a model other than the drafter.
+-- Rows are never updated: a repeat pass is a new row, so agreement between
+-- passes on the same draft is measurable (classifiers are nondeterministic).
+-- Each dimension is 1 pass / 0 fail; its *_items hold the failing quotes as JSON.
+CREATE TABLE IF NOT EXISTS draft_grades (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  draft_id            INTEGER NOT NULL REFERENCES drafts(id),
+  graded_text         TEXT NOT NULL,     -- 'draft' (the body) or 'sent' (sent_text)
+  grader_model        TEXT NOT NULL,
+  prompt_file         TEXT NOT NULL,
+  prompt_version      TEXT,
+  claims              INTEGER,
+  claims_items        TEXT,
+  recital             INTEGER,
+  recital_items       TEXT,
+  never_claim         INTEGER,           -- model's reading AND the literal screen
+  never_claim_items   TEXT,
+  channel_rules       INTEGER,
+  channel_rules_items TEXT,
+  fits_channel        INTEGER,           -- code, not model: length limits
+  clean               INTEGER,           -- every dimension above passed
+  cost_usd            REAL,
+  run_id              INTEGER REFERENCES runs(id),
+  graded_at           TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS outreach (
   id                   INTEGER PRIMARY KEY AUTOINCREMENT,
   org_id               TEXT NOT NULL REFERENCES orgs(id),
