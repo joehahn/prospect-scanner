@@ -1590,6 +1590,20 @@ ${balanceForm}</section>`;
       WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) AND kind NOT IN ('operator_profile', 'web_page')
       ORDER BY (person_id = ?) DESC, (kind = 'news_event') DESC, (provenance = 'operator_supplied') DESC, id DESC
       LIMIT 10`);
+  // THE JUDGE CITES BY ID ("[e16422]") and the card printed the id, so checking
+  // a claim meant a trip to the database. Each id now opens its source. A pasted
+  // fact has no page to open (and its URL is LinkedIn, which no card links to
+  // beyond the one search exception), so it says where it came from instead.
+  const citeQ = db.prepare('SELECT source_url, provenance FROM evidence WHERE id = ?');
+  const cited = (text) => esc(text ?? '').replace(/\[e(\d+)\]/g, (m, id) => {
+    const r = citeQ.get(Number(id));
+    if (!r) return m;
+    if (r.provenance === 'operator_supplied' || !/^https?:/.test(r.source_url ?? '')
+      || /(^|\.)linkedin\.com$/i.test(new URL(r.source_url).hostname)) {
+      return `<span class="dim" title="you pasted this">[e${id}]</span>`;
+    }
+    return `<a href="${esc(r.source_url)}" target="_blank" rel="noopener">[e${id}]</a>`;
+  });
   // Each event with the evidence behind it. The name alone ("ai coe
   // announcement") hid that the article said something else entirely.
   const sigQ = db.prepare(`SELECT s.trigger_id, s.detected_at, e.claim, e.source_url FROM signals s
@@ -1694,14 +1708,14 @@ ${balanceForm}</section>`;
     <span class="title">${esc(p.title ?? '')}</span></h3></header>
   <p class="meta">${esc(p.org_name ?? '')} · ${esc(ranker)} ${match}</p>
   ${whatTheyDo(p)}
-  <p><b>${esc(pick.reason ?? '')}</b></p>
+  <p><b>${cited(pick.reason)}</b></p>
   <p class="meta">Need <b>${esc(pick.need)}</b> · Owner <b>${esc(pick.owner)}</b>${
       pick.better_recipient ? ` (→ ${esc(pick.better_recipient)})` : ''} · Value <b>${esc(pick.value)}</b> ·
     ${facts(pick)}</p>
   <details><summary>Why, in full</summary><ul>
-    <li>Need: ${esc(pick.need_why ?? '')}</li><li>Owner: ${esc(pick.owner_why ?? '')}</li>
-    <li>Value: ${esc(pick.value_why ?? '')}</li>${pick.against_example
-      ? `<li>Against the examples: ${esc(pick.against_example)}</li>` : ''}</ul></details>
+    <li>Need: ${cited(pick.need_why)}</li><li>Owner: ${cited(pick.owner_why)}</li>
+    <li>Value: ${cited(pick.value_why)}</li>${pick.against_example
+      ? `<li>Against the examples: ${cited(pick.against_example)}</li>` : ''}</ul></details>
   <p class="lookup">${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</p>
   ${reachLine(pFull(p), d)}
   ${pastedQ.get(p.person_id)?.at ? pasteBox(p).replace('<b>Paste a profile</b>', '<b>Paste again</b>') : pasteBox(p)}
