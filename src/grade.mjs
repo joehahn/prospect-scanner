@@ -43,6 +43,7 @@ import { operatorSaidLines } from './operator-said.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { noteOnly } from './note-text.mjs';
 import { table, heading, bold, dim } from './report.mjs';
+import { retense } from './events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/grade-draft.md';
@@ -97,9 +98,9 @@ const promptVersion = () =>
 function evidenceFor(db, d) {
   return db.prepare(`SELECT id, kind, claim, body FROM evidence
      WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) ORDER BY id`).all(d.person_id, d.org_id)
-    .map((e) => `- [id ${e.id}] ${e.claim}`
+    .map((e) => `- [id ${e.id}] ${retense(e.claim)}`
       + (e.body && String(e.body).trim().length > 80
-        ? `\n${String(e.body).trim().slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
+        ? `\n${retense(String(e.body).trim()).slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
     .join('\n');
 }
 

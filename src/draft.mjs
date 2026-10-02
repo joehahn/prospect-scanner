@@ -34,6 +34,7 @@ import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { heading, bold, dim } from './report.mjs';
+import { retense } from './events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-cold-note.md';
@@ -171,7 +172,7 @@ function buildDossier(db, cfg, targeting, person, org, service, line, offerNote 
   const recentLines = [...new Set(recent)].slice(0, 10);
 
   const fmtEv = (e) => {
-    const head = `- [${e.provenance}${e.kind ? `/${e.kind}` : ''}] ${e.claim}\n  SOURCE: ${e.source_url}`;
+    const head = `- [${e.provenance}${e.kind ? `/${e.kind}` : ''}] ${retense(e.claim)}\n  SOURCE: ${e.source_url}`;
     // Pasted profile text is the richest evidence there is; include it whole.
     return e.provenance === 'operator_supplied' && e.body
       ? `${head}\n  FULL TEXT:\n${e.body.split('\n').map((l) => `    ${l}`).join('\n')}`
@@ -725,9 +726,9 @@ async function main() {
     const checkPrompt = readFileSync(resolve(ROOT, 'prompts/check-claims.md'), 'utf8');
     const ev = db.prepare(`SELECT id, kind, claim, body FROM evidence
        WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) ORDER BY id`).all(personId, org.id)
-      .map((e) => `- [id ${e.id}] ${e.claim}`
+      .map((e) => `- [id ${e.id}] ${retense(e.claim)}`
         + (e.body && String(e.body).trim().length > 80
-          ? `\n${String(e.body).trim().slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
+          ? `\n${retense(String(e.body).trim()).slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
       .join('\n');
     // A pasted profile goes in whole; cut at 2,200 characters, a post far down
     // the page could neither support a claim nor be seen to be recited.

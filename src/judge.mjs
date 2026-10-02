@@ -50,6 +50,7 @@ import { loadBusiness, describeForJudge } from './business.mjs';
 import { scoreboard } from './measures.mjs';
 import { complete } from './models.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
+import { retense } from './events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/judge.md';
@@ -222,7 +223,7 @@ function candidateBlock(db, f, t, r) {
         ? `\n- the read thought the note belongs with: ${read.better_recipient || read.recipient}` : '')
       : '\nNo prior read.',
     '\nOn file:',
-    ...ev.map((e) => `- [e${e.id}] ${truncate(String(e.claim).replace(/\s+/g, ' '), 260)}`
+    ...ev.map((e) => `- [e${e.id}] ${truncate(retense(String(e.claim)).replace(/\s+/g, ' '), 260)}`
       + (e.provenance === 'operator_supplied' ? ' (from the operator)' : '')),
   ].filter(Boolean).join('\n');
 }

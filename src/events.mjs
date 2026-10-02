@@ -355,6 +355,40 @@ function dateBlock(r, today) {
     + `do not assert that it has happened or is coming. Check the agenda before writing.\n\n`;
 }
 
+// THE TENSE IS THE READER'S DAY, NOT THE AGENDA'S. Added 2026-10-02. A speaker
+// record is written once, when the agenda is read, and its verb ("is speaking
+// at" / "spoke at") and its "STILL TO COME as of <day>" line were frozen at that
+// day. A note drafted a week later was told a finished talk was still to come.
+// Every stage that hands evidence to a model passes it through here first, so
+// the tense is worked out from the stored date on the day it is read. The
+// stored row is never rewritten: its claim is part of its key.
+const localDay = () => new Date().toLocaleDateString('en-CA');
+const stateOf = (from, to, today) => (from > today ? 'STILL TO COME'
+  : (to ?? from) < today ? 'IN THE PAST' : from === (to ?? from) ? 'TODAY' : 'UNDER WAY');
+export function retense(text, today = localDay()) {
+  if (!text || !/ as of 20\d\d-|(?:is speaking(?: today)? at|spoke at|is on the agenda at) .+\(/.test(text)) return text;
+  return String(text)
+    .replace(/\b(is speaking today at|is speaking at|spoke at|is on the agenda at) (.+?) \(([^()]+)\) on:/g, (m, verb, ev, when) => {
+      const d = eventDateFrom(when);
+      if (!d) return m;
+      const st = stateOf(d.starts_on, d.ends_on, today);
+      const v = st === 'STILL TO COME' ? 'is speaking at' : st === 'IN THE PAST' ? 'spoke at'
+        : st === 'TODAY' ? 'is speaking today at' : 'is on the agenda at';
+      return `${v} ${ev} (${when}) on:`;
+    })
+    .split('\n').map((line) => {
+      const asOf = line.match(/\b(STILL TO COME|TODAY|IN THE PAST|UNDER WAY) as of (20\d\d-\d\d-\d\d)/);
+      if (!asOf) return line;
+      const range = line.match(/\((20\d\d-\d\d-\d\d) to (20\d\d-\d\d-\d\d)\)/);
+      const starts = line.match(/starts (20\d\d-\d\d-\d\d)/);
+      const session = /^SESSION DATE:/.test(line.trim()) ? eventDateFrom(line) : null;
+      const st = range ? stateOf(range[1], range[2], today)
+        : starts ? (starts[1] > today ? 'STILL TO COME' : 'IN THE PAST')
+        : session ? stateOf(session.starts_on, session.starts_on, today) : null;
+      return st ? line.replace(asOf[0], `${st} as of ${today}`) : line;
+    }).join('\n');
+}
+
 export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
   const today = new Date().toISOString().slice(0, 10);
   let spent = 0;

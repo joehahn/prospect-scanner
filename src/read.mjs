@@ -42,6 +42,7 @@ import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
 import { complete } from './models.mjs';
 import { heading, bold, dim } from './report.mjs';
+import { retense } from './events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/read-the-person.md';
@@ -197,9 +198,9 @@ function contextFor(db, person) {
   // -- a session abstract, a pasted profile -- is in the body, and a thesis built
   // on summaries is how you get a thesis that could apply to anyone.
   const fmt = (e) => `- [id ${e.id}] (${e.kind}${e.provenance === 'operator_supplied' ? ', operator-supplied' : ''}) `
-    + `${e.claim}${e.source_url ? `  <${e.source_url}>` : ''}`
+    + `${retense(e.claim)}${e.source_url ? `  <${e.source_url}>` : ''}`
     + (e.body && String(e.body).trim().length > 80
-      ? `\n${String(e.body).trim().slice(0, 3000).split('\n').map((l) => `    ${l}`).join('\n')}` : '');
+      ? `\n${retense(String(e.body).trim()).slice(0, 3000).split('\n').map((l) => `    ${l}`).join('\n')}` : '');
 
   return [
     `## The person`,
