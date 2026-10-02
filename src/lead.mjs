@@ -79,6 +79,7 @@ import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { complete } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
+import { hiringQuote, capabilityTerms } from './hiring.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EXTRACT_PROMPT = 'prompts/extract-profile.md';
@@ -635,14 +636,16 @@ function verdict(db, args) {
  * Read a profile ALREADY PASTED, without pasting it again. Added 2026-09-25:
  * the paste box ran without --extract for three days, and re-pasting would add
  * a second copy of each page. `--missing` takes every person whose latest
- * pasted profile has no extracted facts yet.
+ * pasted profile has no extracted facts yet. `--all` takes every pasted
+ * profile, and `--only hiring` writes hiring_for_capability and nothing else.
  */
 async function reextract(db, cfg, args) {
   const latest = `SELECT e.person_id, e.body, e.source_url FROM evidence e
      WHERE e.kind = 'operator_profile' AND e.body IS NOT NULL AND trim(e.body) <> ''
        AND e.id = (SELECT max(id) FROM evidence x WHERE x.person_id = e.person_id
                     AND x.kind = 'operator_profile' AND x.body IS NOT NULL)`;
-  const rows = args.missing
+  const rows = args.all ? db.prepare(latest).all()
+    : args.missing
     ? db.prepare(`${latest} AND NOT EXISTS (SELECT 1 FROM evidence f
         WHERE f.person_id = e.person_id AND f.kind = 'profile_fact')`).all()
     : db.prepare(`${latest} AND e.person_id = ?`).all(requireArg(args, 'person', 'extract'));
@@ -709,6 +712,21 @@ async function extractProfile(db, cfg, person, body, url, args) {
   const d = Object.fromEntries(
     Object.entries(res.data ?? {}).map(([k, v]) => [k, blank(v)]));
 
+  // ONE FIELD, FOR A BACKFILL. Added 2026-10-02: the UPDATE below left out
+  // hiring_for_capability, so the extractor's answer was dropped for every
+  // paste and rank's never_when_hiring block saw it on one person of 4,092.
+  // Re-reading every profile in full to recover it would also let a
+  // nondeterministic model rewrite decision_role, authority and the rest, and
+  // move rankings nobody asked to move. `--only hiring` writes that column
+  // alone, and only where the page shows a search.
+  if (args.only === 'hiring') {
+    const quote = hiringQuote(d.hiring_for_capability, body, capabilityTerms(capabilityTitles(cfg)));
+    if (quote) db.prepare('UPDATE people SET hiring_for_capability = ? WHERE id = ?').run(quote, person.id);
+    console.log(quote ? `  hiring: "${truncate(quote, 160)}"` : dim('  not hiring for it'));
+    finishRun(db, runId, { cost_usd: res.cost_usd ?? 0 });
+    return;
+  }
+
   const set = {
     title: d.title ?? person.title,
     role_confirmed: d.role_confirmed,
@@ -723,7 +741,7 @@ async function extractProfile(db, cfg, person, body, url, args) {
     // the resolution everything downstream reads.
     in_seat_since: /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d.in_seat_since ?? '').trim())
       ? String(d.in_seat_since).trim().slice(0, 7) : person.in_seat_since,
-    hiring_for_capability: d.hiring_for_capability ?? person.hiring_for_capability,
+    hiring_for_capability: hiringQuote(d.hiring_for_capability, body, capabilityTerms(capabilityTitles(cfg))) ?? person.hiring_for_capability,
     degree: d.degree ?? person.degree,
     // AN ADDRESS OR NOTHING. `email` is the VERIFIED column -- rank scores a
     // value here above an email_guess, and draft addresses the note to it --
@@ -746,7 +764,8 @@ async function extractProfile(db, cfg, person, body, url, args) {
       platform_activity=@platform_activity, followers=@followers,
       decision_role=@decision_role, referral_value=@referral_value,
       capability_authority=@capability_authority,
-      builds_in_house=@builds_in_house, buyer_remit=@buyer_remit
+      builds_in_house=@builds_in_house, buyer_remit=@buyer_remit,
+      hiring_for_capability=@hiring_for_capability
     WHERE id=@id`).run({ ...set, id: person.id });
 
   const insEv = db.prepare(`

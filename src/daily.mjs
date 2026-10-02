@@ -99,9 +99,9 @@ const runAsync = (label, cmd) => {
  * Who gets a first draft this morning: the judge's 3+ ratings (the middle of
  * each person's runs, as the Ready page reads them), one per firm, nobody the
  * operator marked "wouldn't", nobody already written to, no firm written to in
- * the last 14 days, nobody drafted in the last 14 days, and no firm rank found
- * no offer for. Ordered as the Ready page orders: rating, then value, then how
- * soon the trigger is.
+ * the last 14 days, nobody drafted in the last 14 days, no firm rank found no
+ * offer for, and nobody rank blocks for recruiting the skill sold. Ordered as
+ * the Ready page orders: rating, then value, then how soon the trigger is.
  */
 function draftPicks(n) {
   const rows = q(`SELECT j.person_id, j.compelling, j.value, j.timing_days, p.name, p.org_id, p.email
@@ -114,6 +114,11 @@ function draftPicks(n) {
        -- A firm rank left without an offer: draft refuses it ("no OFFER under it
        -- does"), and with no draft stored it came back every morning for a slot.
        AND EXISTS (SELECT 1 FROM scores s WHERE s.org_id = p.org_id AND s.package_id IS NOT NULL)
+       -- Someone publicly recruiting for the skill the offer sells: rank blocks
+       -- them (never_when_hiring, src/rank.mjs, whose wording this matches), and
+       -- the morning run drafted for them anyway, because it reads the judge.
+       AND NOT EXISTS (SELECT 1 FROM person_scores ps WHERE ps.person_id = p.id
+                        AND ps.blockers LIKE '%publicly recruiting for this%')
        AND p.id NOT IN (SELECT person_id FROM drafts WHERE created_at >= datetime('now', '-14 days')
                          AND person_id IS NOT NULL)
        AND p.id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
