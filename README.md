@@ -83,7 +83,9 @@ that can be computed uses no AI at all.
 | **No AI**<br/>deterministic code | News and event search (Tavily's search API), fetching, robots.txt, the gates, the baseline score, storage, the dashboard and cost tracking. Anything that can be computed is computed, and tested. |
 
 Each step's model is set in config, and every call's cost is recorded, so moving a step
-to a cheaper model is a measured decision.
+to a cheaper model is a measured decision. The morning run's screening, judging and
+grading go through the Batches API at half price, since nobody reads them until later,
+and the part of the judge's prompt that is the same for every person is cached.
 
 ## How it's used
 

@@ -36,6 +36,14 @@ replied, and set against the operator's two daily goals from config. A second ta
 counts the same stages by where each person was first found, so a source that finds
 many people and rates few can be seen. The Funnel page; no model, no cost.
 
+**Which model drafts, and which grades.** A model change for a step is tested on the
+same people before it is made. Drafting: ten people drafted on each of two models and
+graded by the grader without knowing which wrote which; the newer model passed 2 of 10
+against 1, with fewer recitals and no unsourced claim, at 7% less per draft, and it now
+drafts. Grading: a model at a sixth of the grader's cost agreed on every pass/fail
+verdict over 20 drafts but missed the one unsourced claim the grader caught, so the
+grader stayed.
+
 **What each search is worth.** Each weekly search records what it returned, what
 qualified, and what each find became: vetted, rated 4 or 5, written to, replied. A
 search that finds nothing twice retires itself, with the reason.
