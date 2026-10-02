@@ -24,6 +24,7 @@ import { scoreboard, searchFunnel, spend } from './measures.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly } from './note-text.mjs';
+import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = resolve(ROOT, 'data/dash');
@@ -1779,7 +1780,7 @@ ${balanceForm}</section>`;
     return card(c) + (rest.length ? `<p class="meta" style="margin:-6px 0 14px 12px">Also at ${esc(c.p.org_name ?? '')}: ${
       rest.map((x) => `${esc(x.p.name)} (judge ${x.rating}/5)`).join(', ')}</p>` : '');
   };
-  return intro
+  return intro + pastePanel(db)
     + `<section class="panel"><h2>${open.length} to decide${BLIND ? ', blind' : ', best first'}</h2>
 <p class="lead">${BLIND ? 'The judge has rated these 1 to 5; its rating stays hidden until you click, and the order here is neutral, so your answer is yours.'
   : 'Ordered by the judge: its 1-to-5 rating, then value, then how fresh the reason is. People at one firm are kept together, best first.'}
@@ -1870,6 +1871,58 @@ Plotly.newPlot('c-stage', [{ type:'bar', orientation:'h', y:${JSON.stringify(byS
 
 // SCOREBOARD: the judge against the old ranker (measures.mjs, shared with
 // `judge --scoreboard`).
+// PASTE THESE TODAY, added 2026-10-02. A draft now waits for a pasted profile,
+// so pasting is the operator's part of the morning, and it goes only to the
+// strongest people a note could go to (funnel.mjs pasteQueue). Each links to
+// its card below, where the paste box and the profile search are.
+function pastePanel(db) {
+  const q = pasteQueue(db, 20);
+  if (!q.length) {
+    return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
+      + 'whom a note could go to has a profile on file; tomorrow\'s run drafts for them.</p></section>';
+  }
+  return `<section class="panel"><h2>Profiles to paste today: ${q.length}</h2>
+<p class="lead">Rated 3+ by the judge, writable, and no profile on file. A draft waits for the
+profile; the next morning's run writes it.</p>
+<ol>${q.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> · ${p.rating}/5 ·
+  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}</li>`).join('')}</ol></section>`;
+}
+
+// THE FUNNEL, added 2026-10-02: the operator's two daily goals as numbers.
+// Counts come from funnel.mjs, computed from the book with no model.
+function funnelPage(db, cfg) {
+  const goals = cfg.daily_goals ?? {};
+  const days = funnelDays(db, 14);
+  const week = days.slice(0, 7);
+  const avg = (k) => (week.reduce((a, d) => a + d[k], 0) / week.length).toFixed(1);
+  const goal = (v, g) => (g ? `${v} <span class="dim">of ${g}</span>` : String(v));
+  const cols = [['found', 'found'], ['screened', 'screened'], ['judged', 'judged'], ['strong', 'rated 3+'],
+    ['writable', 'writable now'], ['pasted', 'profile pasted'], ['drafted', 'drafted'],
+    ['clean', 'draft passed grading'], ['sent', 'sent'], ['replied', 'replied']];
+  const src = sourceYield(db, 30);
+  return `<section class="panel"><h2>The two daily goals</h2>
+<table><thead><tr><th></th><th>today</th><th>7-day average</th><th>goal</th></tr></thead><tbody>
+<tr><td>People judged that day and rated 3+</td><td>${days[0].strong}</td><td>${avg('strong')}</td><td>${goals.strong_prospects ?? '—'}</td></tr>
+<tr><td>Notes sent</td><td>${days[0].sent}</td><td>${avg('sent')}</td><td>${goals.notes_sent ?? '—'}</td></tr>
+</tbody></table>
+<p class="dim">Goals are <code>daily_goals</code> in config/me.yml.</p></section>
+<section class="panel"><h2>Each stage, by day</h2>
+<p class="lead">How many people reached each stage on each day. <b>Rated 3+</b> and <b>writable now</b>
+count the people judged that day by where they stand today: writable means a note could still go to
+them (not written to, an offer fits, not recruiting for the skill sold).</p>
+<table><thead><tr><th>day</th>${cols.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>
+${days.map((d) => `<tr><td>${esc(d.day)}</td>${cols.map(([k]) => `<td>${
+    k === 'strong' ? goal(d[k], goals.strong_prospects) : k === 'sent' ? goal(d[k], goals.notes_sent) : d[k]}</td>`).join('')}</tr>`).join('')}
+</tbody></table></section>
+<section class="panel"><h2>What each source yields</h2>
+<p class="lead">People first found in the last 30 days, by where they were first found, and how far
+each source's people got. A source that finds many and rates few is costing judging time.</p>
+<table><thead><tr><th>source</th><th>found</th><th>judged</th><th>rated 3+</th><th>writable now</th><th>sent</th><th>replied</th></tr></thead><tbody>
+${src.map((r) => `<tr><td>${esc(r.source)}</td><td>${r.found}</td><td>${r.judged}</td><td>${r.strong}</td>
+  <td>${r.writable}</td><td>${r.sent}</td><td>${r.replied}</td></tr>`).join('')}
+</tbody></table></section>`;
+}
+
 function scoreboardPage(db) {
   const has = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judgments'`).get();
   if (!has) return '<section class="panel"><p class="callout">Nothing judged yet.</p></section>';
@@ -2509,6 +2562,7 @@ function buildAll(db, cfg, targeting) {
     // profile, leaving out the ones he would not write to. The profile filter did
     // this already, but a reminder has to be in sight to remind.
     { id: 'topaste', file: 'ready.html#call=first,write,none&pasted=no', label: 'To paste', shortcut: true },
+    { id: 'funnel', file: 'funnel.html', label: 'Funnel' },
     { id: 'outreach', file: 'outreach.html', label: 'Sent' },
     { id: 'searches', file: 'searches.html', label: 'Searches' },
     { id: 'scoreboard', file: 'scoreboard.html', label: 'Scoreboard' },
@@ -2693,6 +2747,7 @@ function buildAll(db, cfg, targeting) {
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('searches'), 'Searches', searchesPage(db));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
+  write(pageOf('funnel'), 'Funnel', funnelPage(db, cfg));
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }
 
   // ---- 1. index: everyone, in the judge's order ------------------------------

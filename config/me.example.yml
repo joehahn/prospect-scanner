@@ -41,6 +41,12 @@ outreach_budget_per_month:
   linkedin_inmail: 15
   email: 50
 
+# What a good day looks like. The Funnel page measures each day against these:
+# people judged that day whom the judge rates 3+, and notes sent.
+daily_goals:
+  strong_prospects: 20
+  notes_sent: 3
+
 operator:
   strengths:
     - "LLM evaluation and model right-sizing"

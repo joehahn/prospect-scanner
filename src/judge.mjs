@@ -37,6 +37,17 @@
 //   npm run judge -- --eval [--limit 20]      judge people he has already decided
 //                                             about and score agreement with him
 //   npm run judge -- --show <id>              the latest judgment, in full
+//   npm run judge -- --screen --backlog [--limit 600]
+//                                             one cheap pass over people never judged or
+//                                             screened, so the full judge spends three runs
+//                                             only on the ones worth it (table `screens`)
+//   npm run judge -- --screen --ids a,b,c     screen these people
+//   npm run judge -- --screen --eval [--limit 60]
+//                                             screen people the full judge has rated and
+//                                             report how well the screen predicts it
+//   npm run judge -- --passed [--min 3] [--limit 150]
+//                                             judge, in full, the best screened people
+//                                             not yet judged
 //   npm run judge -- --scoreboard             judge vs ranker on his forward calls, blind apart
 //                                  [--since <ISO time>]  one round only
 
@@ -305,6 +316,73 @@ async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, deci
   return { person: f.person, verdict, rating, spread, agree, of: outs.length, pick, t, r, cost, examples: ex.length };
 }
 
+// ---- the screen -----------------------------------------------------------
+// THE SAME QUESTION, ONCE, ON THE CHEAP MODEL. Added 2026-10-02. The full judge
+// is three runs on the default model at about 3.5 cents a person, which held the
+// morning to 150 people while 3,700 sat unjudged. The screen asks the identical
+// question with the identical prompt and evidence, once, on cfg.models.cheap,
+// and the full judge then runs only on the people it passes. Kept in its own
+// table so nothing that reads `judgments` -- the Ready page, the draft picks,
+// the Scoreboard -- ever mistakes a screen for a judgment. Whether it is good
+// enough to stand in front of the judge is measured, not assumed: --screen --eval.
+function ensureScreens(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS screens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id TEXT NOT NULL REFERENCES people(id),
+    org_id TEXT NOT NULL REFERENCES orgs(id),
+    compelling INTEGER, target TEXT, reason TEXT,
+    model TEXT, prompt_file TEXT, cost_usd REAL, run_id INTEGER REFERENCES runs(id),
+    created_at TEXT NOT NULL)`);
+  db.exec('CREATE INDEX IF NOT EXISTS idx_screens_person ON screens(person_id)');
+}
+
+async function screenOne(db, cfg, targeting, personId, { model, runId, decisions }) {
+  const f = features(db, personId);
+  if (!f) throw new Error(`no person "${personId}"`);
+  const t = timing(db, f);
+  const r = reach(f.person);
+  const content = [operatorBlock(cfg, targeting), '', candidateBlock(db, f, t, r), '',
+    examplesBlock(examplesFor(db, f, decisions))].join('\n');
+  const res = await complete(db, runId, { model, system: readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8'),
+    schema: SCHEMA, effort: 'low', maxTokens: 2000, messages: [{ role: 'user', content }] });
+  const c = Number(res.data?.compelling);
+  db.prepare(`INSERT INTO screens (person_id, org_id, compelling, target, reason, model, prompt_file, cost_usd, run_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(personId, f.person.org_id, Number.isFinite(c) ? c : null,
+    res.data?.target ?? null, res.data?.reason ?? null, res.model ?? model, PROMPT_FILE, res.cost_usd ?? 0, runId,
+    new Date().toISOString());
+  return { person: f.person, rating: Number.isFinite(c) ? c : null, reason: res.data?.reason ?? '', cost: res.cost_usd ?? 0 };
+}
+
+/** People never judged and never screened, at live firms, one per firm, ranker's order. */
+function backlogIds(db, limit) {
+  return db.prepare(`
+    WITH latest AS (SELECT * FROM person_scores s
+                     WHERE id = (SELECT MAX(id) FROM person_scores x WHERE x.person_id = s.person_id))
+    SELECT l.person_id FROM latest l JOIN people p ON p.id = l.person_id
+     WHERE l.person_id = (SELECT l2.person_id FROM latest l2 WHERE l2.org_id = l.org_id
+             AND l2.person_id NOT IN (SELECT person_id FROM judgments)
+             AND l2.person_id NOT IN (SELECT person_id FROM screens)
+             ORDER BY l2.total DESC LIMIT 1)
+       AND l.org_id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')
+       AND l.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
+       AND l.org_id NOT IN (SELECT org_id FROM do_not_contact WHERE org_id IS NOT NULL)
+       AND l.person_id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
+       AND COALESCE((SELECT v.verdict FROM verdicts v WHERE v.person_id = l.person_id
+             ORDER BY v.id DESC LIMIT 1), '') <> 'skip'
+     -- New people first: the week a trigger is newest is the week it is worth most.
+     ORDER BY (SELECT MIN(retrieved_at) FROM evidence e WHERE e.person_id = l.person_id)
+                >= datetime('now', '-7 days') DESC, l.total DESC LIMIT ?`).all(limit).map((r) => r.person_id);
+}
+
+/** The best screened people the full judge has not seen, highest screen first. */
+function passedIds(db, min, limit) {
+  return db.prepare(`SELECT s.person_id FROM screens s
+     WHERE s.id = (SELECT MAX(id) FROM screens x WHERE x.person_id = s.person_id)
+       AND s.compelling >= ? AND s.person_id NOT IN (SELECT person_id FROM judgments)
+       AND s.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
+     ORDER BY s.compelling DESC, s.id LIMIT ?`).all(min, limit).map((r) => r.person_id);
+}
+
 function line(j) {
   const flag = j.spread >= 2 ? bold(` spread ${j.spread}`) : '';
   return `  ${bold(`${j.rating}/5`)}${flag}  ${String(j.person.name).padEnd(24)} `
@@ -397,10 +475,67 @@ async function main() {
     db.close(); return;
   }
 
+  if (args.screen) {
+    ensureScreens(db);
+    const decisions = pastDecisions(db);
+    const cheap = cfg.models?.cheap;
+    if (!cheap) throw new Error('no models.cheap in config/runtime.yml');
+    let sids;
+    let truth = null;
+    if (args.eval) {
+      // People the full judge has rated, most recent first, with its middle rating.
+      truth = new Map(db.prepare(`SELECT person_id, compelling FROM judgments j
+          WHERE batch = (SELECT MAX(batch) FROM judgments x WHERE x.person_id = j.person_id)
+          ORDER BY created_at DESC`).all().reduce((m, r) => {
+        (m.get(r.person_id) ?? m.set(r.person_id, []).get(r.person_id)).push(r.compelling); return m;
+      }, new Map()).entries().map(([k, v]) => [k, v.sort((a, b) => a - b)[Math.floor(v.length / 2)]]));
+      sids = [...truth.keys()].slice(0, Number(args.limit ?? 60) || 60);
+    } else if (args.ids && args.ids !== true) sids = String(args.ids).split(',').map((x) => x.trim()).filter(Boolean);
+    else if (args.backlog) sids = backlogIds(db, Number(args.limit ?? 600) || 600);
+    else { console.log('Pass --backlog, --ids or --eval with --screen.'); db.close(); return; }
+    console.log(heading(`screen · ${sids.length} person(s) × 1 run · ${cheap}`));
+    const runId = startRun(db, 'screen', { model: cheap });
+    const got = [];
+    let scost = 0;
+    let cur = 0;
+    const jobs = Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 8) || 8);
+    const work = async () => {
+      for (let i = cur++; i < sids.length; i = cur++) {
+        try { const x = await screenOne(db, cfg, targeting, sids[i], { model: cheap, runId, decisions }); scost += x.cost; got.push(x); }
+        catch (e) { console.log(`  FAILED ${sids[i]}: ${e.message}`); }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(jobs, sids.length) }, work));
+    finishRun(db, runId, { n_in: sids.length, n_out: got.length });
+    const dist = [1, 2, 3, 4, 5].map((k) => `${k}: ${got.filter((x) => x.rating === k).length}`).join(' · ');
+    console.log(`  screened ${got.length} · ${dist}`);
+    if (truth) {
+      // HOW MUCH OF WHAT THE JUDGE RATES 3+ DOES EACH THRESHOLD KEEP, and how
+      // much does it let through. Recall is the number that matters: a person the
+      // screen drops is never seen by the judge again.
+      const scored = got.filter((x) => truth.get(x.person.id) != null && x.rating != null);
+      const strong = scored.filter((x) => truth.get(x.person.id) >= 3);
+      for (const th of [2, 3]) {
+        const pass = scored.filter((x) => x.rating >= th);
+        const kept = strong.filter((x) => x.rating >= th).length;
+        console.log(`  pass at ${th}+: ${pass.length} of ${scored.length} go on to the judge · `
+          + `keeps ${kept} of ${strong.length} the judge rates 3+`);
+      }
+      const exact = scored.filter((x) => x.rating === truth.get(x.person.id)).length;
+      console.log(dim(`  same rating as the judge: ${exact} of ${scored.length}`));
+    }
+    console.log(dim(`\n$${scost.toFixed(3)} · $${(scost / Math.max(1, got.length)).toFixed(4)} a person`));
+    db.close(); return;
+  }
+
   const decisions = pastDecisions(db);
   let ids;
   if (args.person) ids = [String(args.person)];
   else if (args.ids && args.ids !== true) ids = [...new Set(String(args.ids).split(',').map((x) => x.trim()).filter(Boolean))];
+  else if (args.passed) {
+    ensureScreens(db);
+    ids = passedIds(db, Number(args.min ?? 3) || 3, limit);
+  }
   else if (args.queue) {
     // A judgment keeps for a week unless asked. The Ready page is rebuilt often
     // and each judgment costs three model calls; a person whose record has not

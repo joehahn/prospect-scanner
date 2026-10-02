@@ -14,8 +14,10 @@
 //                 website, then vet the ones that have one
 //   3. rank       still needed: it supplies the order in which the judge meets
 //                 people it has not seen
-//   4. judge      everyone new this week (one per firm), then the ranker's list
-//                 up to --judge in all, four people at a time
+//   4. screen     one pass on the cheap model over people never judged, up to
+//                 --screen (new people first), so the full judge's three runs go
+//                 to the ones worth it
+//   4. judge      in full, the best screened people, up to --judge
 //   4b. draft     a first draft for the top --drafts people the judge rated 3+,
 //                 one per firm, so the morning starts with notes to edit, not
 //                 cards to draft from. Email where an address is confirmed,
@@ -31,7 +33,8 @@
 //   npm run daily                 the day's run
 //   npm run daily -- --searches   run the searches even if they ran this week
 //   npm run daily -- --events     run the conference agendas even if they ran this week
-//   npm run daily -- --judge N    how many people to judge in all (default 150)
+//   npm run daily -- --screen N   how many people to screen (default 600)
+//   npm run daily -- --judge N    how many screened people to judge in full (default 150)
 //   npm run daily -- --drafts N   how many first drafts to write (default 10)
 //   npm run daily -- --dry        say what would run, run nothing
 
@@ -40,6 +43,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
+import { strongWritable, pasteQueue } from './funnel.mjs';
 import { heading, bold, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -52,6 +56,12 @@ const dry = args.includes('--dry');
 // the ranker's list only fills what is left.
 const argN = (flag, dflt) => { const i = args.indexOf(flag); const n = i >= 0 ? Number(args[i + 1]) : NaN; return Number.isFinite(n) && n >= 0 ? n : dflt; };
 const judgeN = argN('--judge', 150);
+// THE SCREEN, added 2026-10-02 (judge.mjs --screen). Measured on 80 people the
+// full judge had rated: passing those the screen rates 2+ kept all 10 the judge
+// rated 3+ and sent 52 of 80 on, at $0.006 a person against $0.036. Small n; the
+// threshold is re-checked with `npm run judge -- --screen --eval`.
+const screenN = argN('--screen', 600);
+const SCREEN_PASS = 2;
 const draftN = argN('--drafts', 10);
 const started = new Date().toISOString();
 
@@ -96,42 +106,24 @@ const runAsync = (label, cmd) => {
 };
 
 /**
- * Who gets a first draft this morning: the judge's 3+ ratings (the middle of
- * each person's runs, as the Ready page reads them), one per firm, nobody the
- * operator marked "wouldn't", nobody already written to, no firm written to in
- * the last 14 days, nobody drafted in the last 14 days, no firm rank found no
- * offer for, and nobody rank blocks for recruiting the skill sold. Ordered as
- * the Ready page orders: rating, then value, then how soon the trigger is.
+ * Who gets a first draft this morning: the judge's 3+ ratings who are writable
+ * (funnel.mjs) and have a pasted profile, nobody drafted in the last 14 days,
+ * one per firm. Ordered as the Ready page orders: rating, then value, then how
+ * soon the trigger is.
  */
 function draftPicks(n) {
-  const rows = q(`SELECT j.person_id, j.compelling, j.value, j.timing_days, p.name, p.org_id, p.email
-      FROM judgments j JOIN people p ON p.id = j.person_id
-      JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l
-        ON l.person_id = j.person_id AND l.b = j.batch
-     WHERE j.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
-       AND p.org_id NOT IN (SELECT org_id FROM outreach WHERE sent_at >= date('now', '-14 days'))
-       AND p.org_id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')
-       -- A firm rank left without an offer: draft refuses it ("no OFFER under it
-       -- does"), and with no draft stored it came back every morning for a slot.
-       AND EXISTS (SELECT 1 FROM scores s WHERE s.org_id = p.org_id AND s.package_id IS NOT NULL)
-       -- Someone publicly recruiting for the skill the offer sells: rank blocks
-       -- them (never_when_hiring, src/rank.mjs, whose wording this matches), and
-       -- the morning run drafted for them anyway, because it reads the judge.
-       AND NOT EXISTS (SELECT 1 FROM person_scores ps WHERE ps.person_id = p.id
-                        AND ps.blockers LIKE '%publicly recruiting for this%')
-       AND p.id NOT IN (SELECT person_id FROM drafts WHERE created_at >= datetime('now', '-14 days')
-                         AND person_id IS NOT NULL)
-       AND p.id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
-       AND p.org_id NOT IN (SELECT org_id FROM do_not_contact WHERE org_id IS NOT NULL)
-       AND COALESCE((SELECT v.verdict FROM verdicts v WHERE v.person_id = p.id ORDER BY v.id DESC LIMIT 1), '') <> 'skip'`);
-  const by = new Map();
-  for (const r of rows) { if (!by.has(r.person_id)) by.set(r.person_id, []); by.get(r.person_id).push(r); }
-  const people = [...by.values()].map((rs) => {
-    const c = rs.map((r) => r.compelling ?? 0).sort((a, b) => a - b);
-    return { ...rs[0], rating: c[Math.floor(c.length / 2)], value: Math.max(...rs.map((r) => Number(r.value) || 0)),
-      timing: Math.min(...rs.map((r) => r.timing_days ?? 9e9)) };
-  }).filter((p) => p.rating >= 3)
-    .sort((a, b) => b.rating - a.rating || b.value - a.value || a.timing - b.timing);
+  // WRITABLE IS DEFINED ONCE, in funnel.mjs, so the paste list and the picks
+  // cannot drift apart. A DRAFT WAITS FOR A PASTED PROFILE (2026-10-02): the
+  // profile is where a note's substance comes from, and drafting without it
+  // wrote three notes that morning that the profiles pasted an hour later
+  // overturned. Those without one go on the paste list instead.
+  const db = openDb();
+  let people;
+  try {
+    const recentDraft = new Set(db.prepare(`SELECT person_id FROM drafts WHERE created_at >= datetime('now', '-14 days')
+        AND person_id IS NOT NULL`).all().map((r) => r.person_id));
+    people = strongWritable(db).filter((p) => p.has_profile && !recentDraft.has(p.person_id));
+  } finally { db.close(); }
   // ONE FIRM CAN BE ON FILE TWICE: speaker harvests name a firm as the agenda
   // prints it, so "Acme" and "Acme Holdings" are two orgs, and a firm written
   // to this morning under one name came up for a draft under the other. Names
@@ -193,15 +185,18 @@ if (args.includes('--events') || evAge >= 6) {
 // asking. Speakers arrive through the same path as 1b, so gate runs after.
 const lastFind = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'conferences-find'`)[0]?.t;
 const findAge = lastFind ? (Date.now() - Date.parse(lastFind)) / 86_400_000 : Infinity;
-if (args.includes('--conferences') || findAge >= 6) {
+// DAILY since 2026-10-02 (it was weekly): new people arrived in bursts --
+// 160, 99, then 12, 15, 13 a day -- and the goal is a daily one. Eight search
+// credits and about fifteen cents a run.
+if (args.includes('--conferences') || findAge >= 0.5) {
   const out = run('1c. find conferences', ['conferences', '--', '--find']);
   const m = out.match(/(\d+) new conferences found/);
   if (m) console.log(`  ${m[1]} new conferences found`);
 } else {
-  console.log(`\n${bold('1c. find conferences')} ${dim(`skipped: last run ${findAge.toFixed(1)} days ago, weekly (--conferences to force)`)}`);
+  console.log(`\n${bold('1c. find conferences')} ${dim(`skipped: last run ${findAge.toFixed(1)} days ago, daily (--conferences to force)`)}`);
 }
 {
-  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '2']);
+  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '4']);
   const w = out.match(/wrote (\d+) people/);
   if (w) { agendas = true; console.log(`  ${w[1]} people from new agendas`); }
 }
@@ -229,29 +224,20 @@ run('3. rank', ['rank']);
 const alive = vetted.length ? q(`SELECT id FROM orgs WHERE id IN (${vetted.map(() => '?').join(',')})
     AND kind IS NOT NULL AND id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')`, ...vetted).map((r) => r.id) : [];
 
-// 4. judge: everyone new this week, one per firm, then the ranker's list.
-// Fresh means first seen in the last seven days, the window a trigger is newest.
-const fresh = q(`WITH latest AS (SELECT * FROM person_scores s
-      WHERE id = (SELECT MAX(id) FROM person_scores x WHERE x.person_id = s.person_id)),
-    seen AS (SELECT person_id, MIN(retrieved_at) first FROM evidence WHERE person_id IS NOT NULL GROUP BY person_id)
-  SELECT person_id FROM (SELECT l.person_id, ROW_NUMBER() OVER (PARTITION BY l.org_id ORDER BY l.total DESC) rn
-      FROM latest l JOIN seen ON seen.person_id = l.person_id
-     WHERE seen.first >= datetime('now', '-7 days')
-       AND l.person_id NOT IN (SELECT person_id FROM judgments)
-       AND l.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
-       AND l.org_id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')
-       AND l.org_id NOT IN (SELECT org_id FROM do_not_contact WHERE org_id IS NOT NULL)
-       AND l.person_id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
-       -- The operator's own "wouldn't" settles it; judging them again buys nothing.
-       AND COALESCE((SELECT v.verdict FROM verdicts v WHERE v.person_id = l.person_id
-             ORDER BY v.id DESC LIMIT 1), '') <> 'skip')
-  WHERE rn = 1`).map((r) => r.person_id).slice(0, judgeN);
-for (let i = 0; i < fresh.length; i += 40) {
-  run(`4. judge · ${Math.min(i + 40, fresh.length)} of ${fresh.length} new this week`,
-    ['judge', '--', '--ids', fresh.slice(i, i + 40).join(',')]);
+// 4. screen, then judge. Every person not yet judged or screened gets one cheap
+// pass, new people first (the window a trigger is newest), in steps of 150 so
+// no step nears the time limit; the full judge then takes the best screened.
+for (let done = 0; done < screenN; done += 150) {
+  const n = Math.min(150, screenN - done);
+  const out = run(`4. screen · ${done + n} of up to ${screenN}`, ['judge', '--', '--screen', '--backlog', '--limit', String(n)]);
+  if (/screened 0\b/.test(out)) break;
 }
-const rest = judgeN - fresh.length;
-if (rest > 0) run(`4. judge · next ${rest} from the ranker's list`, ['judge', '--', '--queue', '--limit', String(rest)]);
+for (let done = 0; done < judgeN; done += 40) {
+  const n = Math.min(40, judgeN - done);
+  const out = run(`4. judge · screened ${SCREEN_PASS}+, ${done + n} of up to ${judgeN}`,
+    ['judge', '--', '--passed', '--min', String(SCREEN_PASS), '--limit', String(n)]);
+  if (/judge · 0 person/.test(out)) break;
+}
 
 // 4b. first drafts for the strongest, so the operator edits rather than drafts.
 if (draftN > 0) {
@@ -285,5 +271,14 @@ if (!dry) {
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
     + `${judged} judged, ${strong} rated 3+ · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
+  // THE OPERATOR'S PART OF THE MORNING: the strongest writable people with no
+  // profile on file. A draft waits for one; tomorrow's run writes it.
+  const db = openDb();
+  try {
+    const screened = db.prepare('SELECT COUNT(DISTINCT person_id) n FROM screens WHERE created_at >= ?').get(started)?.n ?? 0;
+    const paste = pasteQueue(db, 20);
+    console.log(`  ${screened} screened · ${paste.length} profile(s) to paste today${paste.length ? ':' : ''}`);
+    for (const p of paste) console.log(`    ${p.rating}/5  ${p.name} — ${p.title ?? ''}, ${p.org_name ?? p.org_id}`);
+  } catch { /* screens table not created yet */ } finally { db.close(); }
   console.log(dim('  open http://127.0.0.1:8787/ready.html'));
 }
