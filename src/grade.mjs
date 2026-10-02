@@ -27,7 +27,7 @@
 // Usage:
 //   npm run grade                          ungraded latest drafts, 10 of them
 //   npm run grade -- --limit 40 | --all
-//   npm run grade -- --draft <id> | --person <id>
+//   npm run grade -- --draft <id>[,<id>...] | --person <id>
 //   npm run grade -- --since <ISO time>    every latest draft written since then (the daily run)
 //   npm run grade -- --sent                grade what the operator SENT instead
 //   npm run grade -- --repeat 3            three passes per note, for agreement
@@ -38,7 +38,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun } from './db.mjs';
 import { loadConfig, CONNECT_NOTE_MAX } from './config.mjs';
-import { complete, promptBody } from './models.mjs';
+import { complete, promptBody, batchMode } from './models.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { noteOnly } from './note-text.mjs';
@@ -107,7 +107,8 @@ function evidenceFor(db, d) {
 function pick(db, args, model, version, which) {
   const col = which === 'sent' ? 'sent_text' : 'body';
   if (args.draft && args.draft !== true) {
-    return db.prepare(`SELECT * FROM drafts WHERE id = ? AND ${col} IS NOT NULL`).all(Number(args.draft));
+    const ids = String(args.draft).split(',').map(Number).filter(Number.isFinite);
+    return db.prepare(`SELECT * FROM drafts WHERE id IN (${ids.map(() => '?').join(',')}) AND ${col} IS NOT NULL`).all(...ids);
   }
   const byPerson = args.person && args.person !== true;
   const since = args.since && args.since !== true ? String(args.since) : null;
@@ -279,7 +280,8 @@ async function main() {
   // Four notes in flight; each note's repeats already run side by side.
   let cursor = 0;
   const worker = async () => { for (let i = cursor++; i < drafts.length; i = cursor++) await gradeOne(drafts[i]); };
-  await Promise.all(Array.from({ length: Math.min(4, drafts.length) }, worker));
+  // In batch mode every draft is queued at once, so the grades go out as one batch.
+  await Promise.all(Array.from({ length: batchMode() ? drafts.length : Math.min(4, drafts.length) }, worker));
 
   finishRun(db, runId, { cost_usd: cost, n_in: drafts.length });
   console.log(dim(`\n$${cost.toFixed(3)} · ${drafts.length} note(s) × ${repeat} pass(es)`));

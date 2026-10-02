@@ -115,7 +115,11 @@ models:
   # means...") that the prompt had already been corrected for three times, and
   # dropped the specific thing the brief asked it to name. Four times the price
   # per draft, on a stage you run a few dozen times a year.
-  draft: "claude-opus-5"
+  # Opus 5.5 from 2026-10-02: on ten people drafted both ways and graded blind
+  # by the grader, it passed 2 of 10 to Opus 5's 1, with fewer recitals and no
+  # unsourced claim, at 7% less a draft (it writes longer, which eats most of
+  # the 20% lower price).
+  draft: "claude-opus-5-5"
   cheap: "claude-haiku-4-5"
   grader: "claude-opus-5"
   bakeoff: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"]

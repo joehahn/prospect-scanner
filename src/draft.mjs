@@ -33,6 +33,7 @@ import { loadTargeting } from './targeting.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
+import { noteBody } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
 
@@ -896,7 +897,10 @@ async function main() {
     console.log(dim('  they learn an AI consultant is writing to them.'));
     process.exitCode = 2;
   }
-  const hits = neverClaimHits(res.text, cfg.operator?.never_claim);
+  // THE NOTE, NOT THE NOTES. Checked over the whole response, "Go" on the
+  // never-claim list matched the drafter's own advice to "Go lateral to ..."
+  // three times in ten drafts. Only the note is sent.
+  const hits = neverClaimHits(noteBody(res.text), cfg.operator?.never_claim);
   if (hits.length) {
     console.log(`\n${bold('NEVER_CLAIM — this draft names something you do not claim')}`);
     for (const h of hits) {

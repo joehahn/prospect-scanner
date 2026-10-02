@@ -20,6 +20,11 @@ import { readFileSync } from 'node:fs';
 // `thinking` here means the adaptive form. Older models take the removed
 // budget_tokens form instead, which this system does not use.
 const CAPABILITIES = {
+  // Opus 5.5 and Sonnet 5.5 reject thinking: {type: "disabled"}; omitting it
+  // runs adaptive, which is what thinking: false sends below.
+  'claude-opus-5-5':   { thinking: true, effort: true },
+  'claude-sonnet-5-5': { thinking: true, effort: true },
+  'claude-fable-5-1':  { thinking: true, effort: true },
   'claude-opus-5':     { thinking: true, effort: true },
   'claude-opus-4-8':   { thinking: true, effort: true },
   'claude-opus-4-7':   { thinking: true, effort: true },
@@ -37,6 +42,11 @@ const capsFor = (model) => CAPABILITIES[model] ?? { thinking: false, effort: fal
 // USD per 1M tokens. `intro_until` handles promotional pricing so the cost
 // study stays accurate across the boundary instead of silently overstating.
 const PRICING = {
+  // cacheRead overrides the usual 0.1x where a model's cache reads are priced
+  // apart: $0.20/MTok on Opus 5.5 (0.05x), $0.25/MTok on Fable 5.1 (0.025x).
+  'claude-opus-5-5':   { in: 4.00, out: 20.00, cacheRead: 0.05 },
+  'claude-sonnet-5-5': { in: 2.00, out: 10.00 },
+  'claude-fable-5-1':  { in: 10.00, out: 50.00, cacheRead: 0.025 },
   'claude-opus-5':     { in: 5.00, out: 25.00 },
   'claude-opus-4-8':   { in: 5.00, out: 25.00 },
   'claude-opus-4-7':   { in: 5.00, out: 25.00 },
@@ -71,10 +81,82 @@ export function priceOf(model, usage, onDate = new Date().toISOString().slice(0,
   const cacheWrite = usage?.cache_creation_input_tokens ?? 0;
   return (
     (inTok * rate.in
-      + cacheRead * rate.in * CACHE_READ_MULTIPLIER
+      + cacheRead * rate.in * (p.cacheRead ?? CACHE_READ_MULTIPLIER)
       + cacheWrite * rate.in * CACHE_WRITE_MULTIPLIER
       + outTok * rate.out) / 1_000_000
   );
+}
+
+// ---- batch mode -----------------------------------------------------------
+// HALF PRICE FOR WORK NOBODY IS WAITING ON. Added 2026-10-02. The morning run's
+// judging, screening and grading are read hours after they finish, and the
+// Batches API bills the same model, prompt and output at 50%. With
+// CLAUDE_BATCH=1 in the environment, complete() queues its request instead of
+// sending it; a queue that has been quiet for BATCH_GATHER_MS goes out as one
+// batch, and each caller's promise resolves with its own result. Nothing about
+// the request changes, so nothing about the answer does.
+//
+// THE MORNING CANNOT STALL ON IT. Most batches end within the hour, but the
+// limit is a day. Past CLAUDE_BATCH_WAIT_MIN (default 40) the batch is
+// cancelled and whatever has not come back is sent the ordinary way, at full
+// price, and recorded as such.
+const BATCH_GATHER_MS = 3000;
+const batchQueue = [];
+let gatherTimer = null;
+export const batchMode = () => process.env.CLAUDE_BATCH === '1';
+
+function enqueue(req) {
+  return new Promise((resolve, reject) => {
+    batchQueue.push({ req, resolve, reject });
+    clearTimeout(gatherTimer);
+    gatherTimer = setTimeout(() => { flushBatch().catch((e) => console.error(`batch failed: ${e.message}`)); },
+      BATCH_GATHER_MS);
+  });
+}
+
+async function flushBatch() {
+  const items = batchQueue.splice(0);
+  if (!items.length) return;
+  const api = getClient();
+  const sendDirect = async (it) => {
+    try { it.resolve({ res: await api.messages.create(it.req), batched: false }); }
+    catch (e) { it.reject(e); }
+  };
+  let batch;
+  try {
+    batch = await api.messages.batches.create({
+      requests: items.map((it, i) => ({ custom_id: `r${i}`, params: it.req })) });
+  } catch (e) {
+    console.error(`  batch not accepted (${e.message}); sending ${items.length} call(s) directly`);
+    await Promise.all(items.map(sendDirect));
+    return;
+  }
+  const deadline = Date.now() + Number(process.env.CLAUDE_BATCH_WAIT_MIN ?? 40) * 60_000;
+  console.error(`  batch ${batch.id}: ${items.length} call(s) at half price, waiting for results`);
+  while (batch.processing_status !== 'ended' && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 15_000));
+    batch = await api.messages.batches.retrieve(batch.id);
+  }
+  if (batch.processing_status !== 'ended') {
+    console.error(`  batch ${batch.id} still running at the deadline: cancelling, the rest go direct`);
+    await api.messages.batches.cancel(batch.id).catch(() => {});
+    // A cancel takes a moment to settle; results are only readable once ended.
+    for (let i = 0; i < 20 && batch.processing_status !== 'ended'; i++) {
+      await new Promise((r) => setTimeout(r, 3_000));
+      batch = await api.messages.batches.retrieve(batch.id);
+    }
+  }
+  const done = new Set();
+  if (batch.processing_status === 'ended') {
+    for await (const r of await api.messages.batches.results(batch.id)) {
+      const it = items[Number(String(r.custom_id).slice(1))];
+      if (!it) continue;
+      if (r.result.type === 'succeeded') { it.resolve({ res: r.result.message, batched: true }); done.add(it); }
+    }
+  }
+  // Errored, expired, cancelled, or never read: the ordinary way, so a caller
+  // never waits on a request that is not coming.
+  await Promise.all(items.filter((it) => !done.has(it)).map(sendDirect));
 }
 
 let client = null;
@@ -134,20 +216,25 @@ export async function complete(db, runId, {
   }
 
   let res;
+  let batched = false;
   try {
-    // STREAM WHEN THE CEILING IS HIGH. The SDK refuses a non-streaming request
-    // whose max_tokens implies it could run past ten minutes, and refuses it
-    // CLIENT-SIDE — so it costs nothing and reads like a model failure rather
-    // than a config one. Tuning the ceiling under that threshold was tried
-    // twice on 2026-09-21 and is the wrong fix: it caps how long a stage may
-    // think for a reason that has nothing to do with the work.
-    //
-    // `.stream()` with `finalMessage()` returns the same shape the rest of this
-    // function already reads, so nothing downstream changes. Below the
-    // threshold the plain call is kept: it is simpler and the limit is real.
-    res = maxTokens > 16000
-      ? await getClient().messages.stream(req).finalMessage()
-      : await getClient().messages.create(req);
+    if (batchMode()) {
+      ({ res, batched } = await enqueue(req));
+    } else {
+      // STREAM WHEN THE CEILING IS HIGH. The SDK refuses a non-streaming request
+      // whose max_tokens implies it could run past ten minutes, and refuses it
+      // CLIENT-SIDE — so it costs nothing and reads like a model failure rather
+      // than a config one. Tuning the ceiling under that threshold was tried
+      // twice on 2026-09-21 and is the wrong fix: it caps how long a stage may
+      // think for a reason that has nothing to do with the work.
+      //
+      // `.stream()` with `finalMessage()` returns the same shape the rest of this
+      // function already reads, so nothing downstream changes. Below the
+      // threshold the plain call is kept: it is simpler and the limit is real.
+      res = maxTokens > 16000
+        ? await getClient().messages.stream(req).finalMessage()
+        : await getClient().messages.create(req);
+    }
   } catch (err) {
     // Credential resolution fails before the request is sent, so this is not an
     // AuthenticationError and the SDK's own message does not say what to do.
@@ -180,7 +267,9 @@ export async function complete(db, runId, {
   // does not, and the cost-per-qualified-prospect number would be wrong in the
   // one direction that flatters the system.
   const searches = res.usage?.server_tool_use?.web_search_requests ?? 0;
-  const cost = (priceOf(model, res.usage) ?? 0) + searches * 0.01;
+  // The Batches API bills tokens at half the listed rate.
+  const tokenCost = priceOf(model, res.usage);
+  const cost = (tokenCost ?? 0) * (batched ? 0.5 : 1) + searches * 0.01;
   const text = res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
 
   // With adaptive thinking on, max_tokens covers thinking AND the answer. Too
@@ -201,12 +290,12 @@ export async function complete(db, runId, {
   db.prepare(`UPDATE runs SET model = COALESCE(model, ?), cost_usd = COALESCE(cost_usd, 0) + ? WHERE id = ?`)
     .run(model, cost ?? 0, runId);
   db.prepare(`INSERT INTO llm_calls (run_id, stage, model, at, input_tokens, output_tokens,
-      cache_read_tokens, cache_write_tokens, web_searches, cost_usd, stop_reason)
-    VALUES (?, (SELECT stage FROM runs WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      cache_read_tokens, cache_write_tokens, web_searches, cost_usd, stop_reason, batch)
+    VALUES (?, (SELECT stage FROM runs WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(runId, runId, model, new Date().toISOString(), res.usage?.input_tokens ?? 0,
       res.usage?.output_tokens ?? 0, res.usage?.cache_read_input_tokens ?? 0,
       res.usage?.cache_creation_input_tokens ?? 0, searches,
-      priceOf(model, res.usage) === null ? null : cost, res.stop_reason ?? null);
+      tokenCost === null ? null : cost, res.stop_reason ?? null, batched ? 1 : 0);
 
   if (!text && res.stop_reason === 'max_tokens') {
     throw new Error(

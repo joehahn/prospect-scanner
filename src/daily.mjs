@@ -36,6 +36,7 @@
 //   npm run daily -- --screen N   how many people to screen (default 600)
 //   npm run daily -- --judge N    how many screened people to judge in full (default 150)
 //   npm run daily -- --drafts N   how many first drafts to write (default 10)
+//   npm run daily -- --no-batch   send every model call directly, at full price
 //   npm run daily -- --dry        say what would run, run nothing
 
 import { execFile, execFileSync } from 'node:child_process';
@@ -62,11 +63,17 @@ const judgeN = argN('--judge', 150);
 // threshold is re-checked with `npm run judge -- --screen --eval`.
 const screenN = argN('--screen', 600);
 const SCREEN_PASS = 2;
+// HALF PRICE ON THE STEPS NOBODY WATCHES (2026-10-02): screening, judging and
+// grading go through the Batches API (models.mjs). One step each, so each is
+// one batch; the time limit covers the batch's own 40-minute deadline plus the
+// direct calls it falls back to. --no-batch sends them the ordinary way.
+const BATCH = args.includes('--no-batch') ? null
+  : { env: { CLAUDE_BATCH: '1', CLAUDE_BATCH_WAIT_MIN: '40' }, limitMs: 75 * 60_000 };
 const draftN = argN('--drafts', 10);
 const started = new Date().toISOString();
 
 const STEP_LIMIT_MS = 10 * 60_000;   // generous: a vet with a browser fallback takes a few minutes
-const run = (label, cmd) => {
+const run = (label, cmd, { env = {}, limitMs = STEP_LIMIT_MS } = {}) => {
   console.log(`\n${bold(label)} ${dim(`npm run ${cmd.join(' ')}`)}`);
   if (dry) return '';
   try {
@@ -75,7 +82,7 @@ const run = (label, cmd) => {
     // whole run waited on it. A step that fails here is logged and the run
     // moves on, as any other failure does.
     const out = execFileSync('npm', ['run', '--silent', ...cmd], { cwd: ROOT, encoding: 'utf8',
-      maxBuffer: 64 << 20, timeout: STEP_LIMIT_MS, killSignal: 'SIGKILL' });
+      env: { ...process.env, ...env }, maxBuffer: 64 << 20, timeout: limitMs, killSignal: 'SIGKILL' });
     return out.replace(/\x1b\[[0-9;]*m/g, '');
   } catch (e) {
     console.log(`  FAILED: ${String(e.stderr || e.message).split('\n').filter((l) => !/warning/.test(l)).slice(-3).join(' ')}`);
@@ -227,16 +234,22 @@ const alive = vetted.length ? q(`SELECT id FROM orgs WHERE id IN (${vetted.map((
 // 4. screen, then judge. Every person not yet judged or screened gets one cheap
 // pass, new people first (the window a trigger is newest), in steps of 150 so
 // no step nears the time limit; the full judge then takes the best screened.
-for (let done = 0; done < screenN; done += 150) {
-  const n = Math.min(150, screenN - done);
-  const out = run(`4. screen · ${done + n} of up to ${screenN}`, ['judge', '--', '--screen', '--backlog', '--limit', String(n)]);
-  if (/screened 0\b/.test(out)) break;
-}
-for (let done = 0; done < judgeN; done += 40) {
-  const n = Math.min(40, judgeN - done);
-  const out = run(`4. judge · screened ${SCREEN_PASS}+, ${done + n} of up to ${judgeN}`,
-    ['judge', '--', '--passed', '--min', String(SCREEN_PASS), '--limit', String(n)]);
-  if (/judge · 0 person/.test(out)) break;
+if (BATCH) {
+  if (screenN > 0) run(`4. screen · up to ${screenN}, one batch`, ['judge', '--', '--screen', '--backlog', '--limit', String(screenN)], BATCH);
+  if (judgeN > 0) run(`4. judge · screened ${SCREEN_PASS}+, up to ${judgeN}, one batch`,
+    ['judge', '--', '--passed', '--min', String(SCREEN_PASS), '--limit', String(judgeN)], BATCH);
+} else {
+  for (let done = 0; done < screenN; done += 150) {
+    const n = Math.min(150, screenN - done);
+    const out = run(`4. screen · ${done + n} of up to ${screenN}`, ['judge', '--', '--screen', '--backlog', '--limit', String(n)]);
+    if (/screened 0\b/.test(out)) break;
+  }
+  for (let done = 0; done < judgeN; done += 40) {
+    const n = Math.min(40, judgeN - done);
+    const out = run(`4. judge · screened ${SCREEN_PASS}+, ${done + n} of up to ${judgeN}`,
+      ['judge', '--', '--passed', '--min', String(SCREEN_PASS), '--limit', String(n)]);
+    if (/judge · 0 person/.test(out)) break;
+  }
 }
 
 // 4b. first drafts for the strongest, so the operator edits rather than drafts.
@@ -253,7 +266,7 @@ if (draftN > 0) {
 // 4c. grade this morning's drafts with a model other than the drafter, so a
 // note that recites the reader's own post, or points at something it never
 // named, is flagged on the card before the operator edits it.
-if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--since', started]);
+if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--since', started], BATCH ?? {});
 
 // 5. pages
 run('5. dash', ['dash']);

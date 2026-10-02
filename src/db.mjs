@@ -714,6 +714,9 @@ const COLUMN_MIGRATIONS = [
   ['people', 'builds_in_house', 'TEXT'],
   ['people', 'buyer_remit', 'TEXT'],
   ['people', 'prior_relationship', 'TEXT'],
+  // 1 when the call went through the Batches API, which bills at half price.
+  // Without it a halved cost would read as a cheaper model.
+  ['llm_calls', 'batch', 'INTEGER'],
   ['scores', 'package_trigger', 'TEXT'],
   // WHAT THE WORK IS, kept apart from which offer was chosen. See `capabilities`
   // in offers.yml: evidence names the capability, the buyer's seat names the

@@ -59,7 +59,7 @@ import { loadConfig } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { loadBusiness, describeForJudge } from './business.mjs';
 import { scoreboard } from './measures.mjs';
-import { complete } from './models.mjs';
+import { complete, batchMode } from './models.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 import { retense } from './events.mjs';
 
@@ -273,8 +273,7 @@ async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, deci
   const t = timing(db, f);
   const r = reach(f.person);
   const ex = examplesFor(db, f, decisions);
-  const content = [operatorBlock(cfg, targeting), '', candidateBlock(db, f, t, r), '',
-    examplesBlock(ex)].join('\n');
+  const content = userContent(cfg, targeting, [candidateBlock(db, f, t, r), '', examplesBlock(ex)].join('\n'));
   const system = readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8');
   const batch = `${personId}@${new Date().toISOString()}`;
   const results = await Promise.all(Array.from({ length: runs }, () => complete(db, runId, {
@@ -341,8 +340,8 @@ async function screenOne(db, cfg, targeting, personId, { model, runId, decisions
   if (!f) throw new Error(`no person "${personId}"`);
   const t = timing(db, f);
   const r = reach(f.person);
-  const content = [operatorBlock(cfg, targeting), '', candidateBlock(db, f, t, r), '',
-    examplesBlock(examplesFor(db, f, decisions))].join('\n');
+  const content = userContent(cfg, targeting,
+    [candidateBlock(db, f, t, r), '', examplesBlock(examplesFor(db, f, decisions))].join('\n'));
   const res = await complete(db, runId, { model, system: readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8'),
     schema: SCHEMA, effort: 'low', maxTokens: 2000, messages: [{ role: 'user', content }] });
   const c = Number(res.data?.compelling);
@@ -381,6 +380,14 @@ function passedIds(db, min, limit) {
        AND s.compelling >= ? AND s.person_id NOT IN (SELECT person_id FROM judgments)
        AND s.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
      ORDER BY s.compelling DESC, s.id LIMIT ?`).all(min, limit).map((r) => r.person_id);
+}
+
+// THE OPERATOR'S PART IS THE SAME FOR EVERY CANDIDATE, so it is its own block
+// with a cache breakpoint: after the system prompt it is the longest stable
+// prefix the judge and the screen send, and it was billed in full on every call.
+function userContent(cfg, targeting, rest) {
+  return [{ type: 'text', text: operatorBlock(cfg, targeting), cache_control: { type: 'ephemeral' } },
+    { type: 'text', text: rest }];
 }
 
 function line(j) {
@@ -498,7 +505,9 @@ async function main() {
     const got = [];
     let scost = 0;
     let cur = 0;
-    const jobs = Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 8) || 8);
+    // In batch mode every request is queued at once, so they go out as one batch.
+    const jobs = batchMode() ? sids.length
+      : Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 8) || 8);
     const work = async () => {
       for (let i = cur++; i < sids.length; i = cur++) {
         try { const x = await screenOne(db, cfg, targeting, sids[i], { model: cheap, runId, decisions }); scost += x.cost; got.push(x); }
@@ -563,7 +572,8 @@ async function main() {
   // three people to everyone new. One at a time, 150 people is twenty minutes
   // against a ten-minute step limit. Each person's runs already go in parallel;
   // better-sqlite3 is synchronous, so the writes serialise in this process.
-  const jobs = Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 4) || 4);
+  const jobs = batchMode() ? ids.length
+    : Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 4) || 4);
   let cursor = 0;
   const worker = async () => {
     for (let i = cursor++; i < ids.length; i = cursor++) {
