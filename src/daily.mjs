@@ -79,6 +79,17 @@ const runAsync = (label, cmd) => {
   if (dry) return Promise.resolve('');
   return new Promise((done) => execFile('npm', ['run', '--silent', ...cmd], { cwd: ROOT, encoding: 'utf8',
     maxBuffer: 64 << 20, timeout: STEP_LIMIT_MS, killSignal: 'SIGKILL' }, (e, out, err) => {
+    // EXIT 2 IS A VERDICT, NOT A CRASH. draft exits 2 when the note was written
+    // and stored but tripped one of its own checks; logging that as FAILED hid
+    // eight stored drafts on 2026-10-02 and threw away which check fired. Name
+    // the checks instead: they are the all-caps headings draft prints.
+    if (e?.code === 2) {
+      const flags = [...new Set(String(out).replace(/\x1b\[[0-9;]*m/g, '').split('\n')
+        .map((l) => l.trim()).filter((l) => /^[A-Z][A-Z_ ]{4,}( —|$)/.test(l))
+        .map((l) => l.split(' — ')[0]))];
+      console.log(`  FLAGGED ${label}: stored, but ${flags.join(', ') || 'a check fired'}`);
+      return done(String(out));
+    }
     if (e) console.log(`  FAILED ${label}: ${String(err || e.message).split('\n').filter((l) => !/warning/.test(l)).slice(-2).join(' ')}`);
     done(e ? '' : String(out));
   }));
@@ -88,8 +99,9 @@ const runAsync = (label, cmd) => {
  * Who gets a first draft this morning: the judge's 3+ ratings (the middle of
  * each person's runs, as the Ready page reads them), one per firm, nobody the
  * operator marked "wouldn't", nobody already written to, no firm written to in
- * the last 14 days, and nobody drafted in the last 14 days. Ordered as the
- * Ready page orders: rating, then value, then how soon the trigger is.
+ * the last 14 days, nobody drafted in the last 14 days, and no firm rank found
+ * no offer for. Ordered as the Ready page orders: rating, then value, then how
+ * soon the trigger is.
  */
 function draftPicks(n) {
   const rows = q(`SELECT j.person_id, j.compelling, j.value, j.timing_days, p.name, p.org_id, p.email
@@ -99,6 +111,9 @@ function draftPicks(n) {
      WHERE j.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
        AND p.org_id NOT IN (SELECT org_id FROM outreach WHERE sent_at >= date('now', '-14 days'))
        AND p.org_id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')
+       -- A firm rank left without an offer: draft refuses it ("no OFFER under it
+       -- does"), and with no draft stored it came back every morning for a slot.
+       AND EXISTS (SELECT 1 FROM scores s WHERE s.org_id = p.org_id AND s.package_id IS NOT NULL)
        AND p.id NOT IN (SELECT person_id FROM drafts WHERE created_at >= datetime('now', '-14 days')
                          AND person_id IS NOT NULL)
        AND p.id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
