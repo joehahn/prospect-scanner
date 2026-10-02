@@ -42,7 +42,7 @@ import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
 import { fetchPage, extractText } from './sources/web.mjs';
 import { exemplarText } from './exemplars.mjs';
-import { loadSpeakers, eventDateFrom, markAgendaDays } from './events.mjs';
+import { loadSpeakers, eventDateFrom, markAgendaDays, calendarSessions, sessionDayFrom } from './events.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 
 const FIND_FILE = 'prompts/find-conferences.md';
@@ -305,7 +305,11 @@ async function read(db, cfg, b, args) {
       continue;
     }
     const when = eventDateFrom(got.when) ?? eventDateFrom(page.html);
-    all.push(...got.kept.map((s) => ({ ...s, event: c.key, event_name: c.name, url: page.url, when })));
+    // A session's calendar link outranks the reader: it is the page's own
+    // statement of the day, and the reader may not have been shown the headings.
+    const cal = calendarSessions(page.html);
+    const dayOf = (s) => (cal.length ? sessionDayFrom(cal, s.session) : null) ?? s.session_date;
+    all.push(...got.kept.map((s) => ({ ...s, session_date: dayOf(s), event: c.key, event_name: c.name, url: page.url, when })));
     done.run('read', got.dropped ? `${got.dropped} name(s) not found on the page, dropped` : null, got.kept.length, now, c.id);
     console.log(`  ${bold('read')}    ${c.name}: ${got.kept.length} speakers` +
       `${got.kept.filter((s) => s.session).length ? `, ${got.kept.filter((s) => s.session).length} with a session` : ''}` +

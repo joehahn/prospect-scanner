@@ -144,12 +144,51 @@ export function markAgendaDays(html) {
     m = x.match(/^(?:day[-_])?(20\d\d)-(\d{2})-(\d{2})$/);
     return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
   };
-  return String(html ?? '').replace(
+  const tabbed = String(html ?? '').replace(
     /<(div|section|article|ul|ol|li|table|tbody)\b([^>]*?)\b(id|data-date|data-day)="([^"]+)"([^>]*)>/gi,
     (tag, el, pre, attr, val, post) => {
       const d = asIso(val);
       return d ? `${tag}\n[DAY ${d}]\n` : tag;
     });
+  // A DAY HEADING IN THE PAGE'S OWN TEXT, added 2026-10-02: "May 11 2026 | Day 1"
+  // and "MAY 12 2026 | Day 2" printed above each day's sessions. The model was
+  // told to use a day heading and dated all 118 sessions to the first one
+  // anyway, so the heading is marked the same way a tab is.
+  return tabbed.replace(
+    new RegExp(`\\b(${Object.keys(MON3).join('|')})[a-z]*\\.?\\s+(\\d{1,2}),?\\s+(20\\d\\d)((?:\\s|<[^>]{0,80}>|\\|)*)Day\\s*\\d\\b`, 'gi'),
+    (m, mon, day, yr) => `${m}\n[DAY ${yr}-${String(MON3[mon.toLowerCase().slice(0, 3)]).padStart(2, '0')}-${day.padStart(2, '0')}]\n`);
+}
+
+/**
+ * Each session's own day, from its "add to calendar" link. Added 2026-10-02.
+ * An agenda printed its sessions as speaker cards first and its day headings
+ * 130,000 characters later, past what the reader is shown, so all 118 sessions
+ * came back dated to the first day. The Google Calendar link on each card
+ * carries the session's title and date, and it is read here without a model.
+ * Returns [{ title, date }] in page order.
+ */
+export function calendarSessions(html) {
+  const out = [];
+  for (const m of String(html ?? '').matchAll(/href="(https:\/\/calendar\.google\.com\/calendar\/[^"]+)"/g)) {
+    const u = m[1].replace(/&amp;/g, '&');
+    const d = u.match(/[?&]dates=(20\d\d)(\d\d)(\d\d)/);
+    const t = u.match(/[?&]text=([^&]*)/);
+    if (!d || !t) continue;
+    let title = '';
+    try { title = decodeURIComponent(t[1].replace(/\+/g, ' ')); } catch { title = t[1]; }
+    out.push({ title: title.trim(), date: `${d[1]}-${d[2]}-${d[3]}` });
+  }
+  return out;
+}
+
+/** The day a session title falls on, by its calendar link; null if none or ambiguous. */
+export function sessionDayFrom(sessions, title) {
+  const norm = (x) => String(x ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const want = norm(title).slice(0, 40);
+  if (want.length < 12) return null;
+  const days = new Set(sessions.filter((x) => norm(x.title).startsWith(want) || want.startsWith(norm(x.title).slice(0, 40)))
+    .map((x) => x.date));
+  return days.size === 1 ? [...days][0] : null;
 }
 
 // THE LANDING PAGE ADVERTISES THE NEXT EDITION, NOT THE ONE YOU SCRAPED, and
