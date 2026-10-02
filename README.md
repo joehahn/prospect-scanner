@@ -43,8 +43,9 @@ flowchart TD
     K["LLM reading: keeps news of something that just happened, quoting the source"]:::ai
     V["LLM reading: extracts what each firm does and who decides, from its own site"]:::ai
     G{{"Rules drop firms that are too small, too big, out of region, or that sell what you sell"}}:::code
-    J["LLM judgment: rates each prospect 1-5, learning from your earlier Write first / Wouldn't clicks"]:::ai
-    Q --> W --> K --> V --> G --> J
+    S["LLM screening: one cheap pass over everyone not yet judged"]:::ai
+    J["LLM judgment: rates the best screened 1-5, learning from your earlier Write first / Wouldn't clicks"]:::ai
+    Q --> W --> K --> V --> G --> S --> J
   end
   J --> R[("Database (SQLite): prospects, sources, your clicks, drafts, sends, AI costs")]:::code
   R ---> P["A dashboard in your browser: ranked prospects, each with its evidence; a firm you wrote to in the last two weeks is held back"]:::code
@@ -74,6 +75,7 @@ that can be computed uses no AI at all.
 | Step and model | What it does, and why AI rather than code |
 |---|---|
 | **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and extracts what a firm does, who decides, and whose boards a partner sits on. Finding a firm's own website uses Claude with Anthropic's web search tool. Pages vary endlessly; a fixed schema keeps the output checkable. |
+| **LLM screening**<br/>Claude Haiku | Asks the judge's own question, with the same prompt and evidence, once on the cheap model, so the judge's three runs go only to people worth them. How well the screen predicts the judge is measured, and the pass mark is set from that measurement. |
 | **LLM judgment**<br/>Claude Sonnet | Rates each prospect 1-5 from your own Write first / Wouldn't clicks, and works out what the person is after and which offer fits. Your taste is learned from examples, not written as rules. |
 | **LLM writing**<br/>Claude Opus | Drafts the note and revises it on request, then a separate call checks every claim against its source before the note is saved. The most capable model for the one output a stranger reads. |
 | **LLM grading**<br/>Claude Fable | Grades each morning's drafts with a different model from the writer, so no model grades its own work: are the claims on file, does the note recite the reader's own facts back, does it claim anything the operator never claims, does it break a channel rule, does every reference land. A failing draft is flagged on its card with the words that failed. Every grade is stored, so a defect rate can be traced to the model and prompt that wrote the note. |
@@ -85,9 +87,12 @@ to a cheaper model is a measured decision.
 
 ## How it's used
 
-- **Each weekday morning** a scheduled run finds new dated events, vets the firms
-  behind them, has the judge rate the people it finds, then drafts a note for the
-  strongest and grades each draft.
+- **Each weekday morning** a scheduled run finds new dated events and conferences,
+  vets the firms behind them, screens everyone not yet judged, has the judge rate the
+  best of them, then drafts a note for the strongest who have a pasted profile and
+  grades each draft. It ends with the day's list of profiles to paste: the strongest
+  people a note could go to who have none on file. The Funnel page counts each day
+  against two goals, strong prospects found and notes sent.
 - **You open the Ready page:** a short list of prospects, best first. Each card
   describes the person and their role, what their firm does, what just happened that
   makes now a good time to write (with sources), whether they hold the budget, and

@@ -22,6 +22,20 @@ that day. The first call after a judgment is the one scored, so a changed mind c
 flatter the judge.
 `npm run judge -- --scoreboard`, or the Scoreboard page. The comparison is ongoing.
 
+**The screen against the judge.** The screen asks the judge's question once on the
+cheap model, and only people it rates 2 or higher go on to the judge. Whether that
+loses anyone the judge would rate 3+ is checked by screening people the judge has
+already rated: `npm run judge -- --screen --eval`. On 80 such people the screen kept
+all 10 the judge rated 3+ while sending 52 of the 80 on, at about a sixth of the
+judge's cost per person. Ten is a small number, so the check is re-run as judgments
+accumulate.
+
+**The daily funnel.** Every day is counted stage by stage: found, screened, judged,
+rated 3+, still writable, profile pasted, drafted, draft passed grading, sent,
+replied, and set against the operator's two daily goals from config. A second table
+counts the same stages by where each person was first found, so a source that finds
+many people and rates few can be seen. The Funnel page; no model, no cost.
+
 **What each search is worth.** Each weekly search records what it returned, what
 qualified, and what each find became: vetted, rated 4 or 5, written to, replied. A
 search that finds nothing twice retires itself, with the reason.

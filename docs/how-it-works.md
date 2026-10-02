@@ -187,6 +187,7 @@ daily run strings the routine ones together.
 | Vet | `npm run lead -- vet` | the firm's own site, then the gates | cheap |
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
 | Gates | `npm run gate` | deterministic disqualifiers | none |
+| Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
 | Judge | `npm run judge` | 1-5 rating from past decisions | default |
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check | most capable |
