@@ -29,7 +29,11 @@ const SEAT = new Set(['head', 'director', 'of', 'the', 'and', 'chief', 'officer'
 export function capabilityTerms(titles = []) {
   const words = new Set(titles.flatMap((t) => String(t).toLowerCase().split(/[^a-z0-9]+/))
     .filter((w) => w.length >= 2 && !SEAT.has(w)));
+  // "data-driven initiatives" is not a data role: a word used as a modifier for
+  // -driven/-informed/-backed does not name the capability. Added 2026-10-02,
+  // when a repost of programmer-analyst openings blocked a deputy CIO.
+  const notModifier = '(?![- ]?(?:driven|informed|backed|centric|first)\\b)';
   return [...words].map((w) => (w.length >= 6
-    ? new RegExp(`\\b${w.slice(0, -2)}`, 'i')
-    : new RegExp(`\\b${w}\\b`, 'i')));
+    ? new RegExp(`\\b${w.slice(0, -2)}\\w*${notModifier}`, 'i')
+    : new RegExp(`\\b${w}\\b${notModifier}`, 'i')));
 }
