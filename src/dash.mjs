@@ -1528,9 +1528,10 @@ function readyPage(db, d, cfg) {
     InMail credits <button type="submit">Update</button></form>`;
   const intro = `<section class="panel"><h2>Ready to write</h2>
 <p class="lead">Rated 1 to 5 from your own past decisions, not from the ranking formula; each
-person three times, and <b>±</b> means the runs disagreed by two or more. The judge orders this
-page. Your <b>Write first</b> picks are its check: if they keep landing low on its list, that
-shows in <code>npm run judge -- --scoreboard</code>, against where the old ranker had them.</p>
+person three times, and <b>±</b> means the runs disagreed by two or more. The page shows
+everyone the judge rates 3 or more, in the order of whichever of the judge and the ranking
+formula the Scoreboard currently favours. Your <b>Write first</b> picks are the check:
+<code>npm run judge -- --scoreboard</code>, or the Scoreboard page.</p>
 <p class="lead">${meter || 'No outreach_budget_per_month in config.'}</p>
 ${balanceForm}</section>`;
   if (!has) {
@@ -1728,15 +1729,17 @@ ${balanceForm}</section>`;
   // writes to one. Blind cards are grouped by firm in a neutral order (the
   // judge's preference between them would leak its ratings); decided ones show
   // the highest-rated person per firm with the colleagues folded under them.
-  // THE JUDGE ORDERS THE PAGE, from 2026-09-26. On the first batch judged with
-  // the current setup (1-5 ratings, the operator's offers and targets, pasted
-  // profiles) it put his writes above his skips 0.86 of the time against the
-  // ranker's 0.61, and it learns from every verdict; the ranker does not. The
-  // blind comparison that got here ends with this: an ordered page hints at the
-  // rating. Set BLIND = true to go back to neutral order with ratings hidden.
-  // The ranker's position is still stored on every verdict, so the two can be
-  // compared on his Write-first picks (judge --scoreboard).
+  // WHICHEVER THE SCOREBOARD FAVOURS ORDERS THE PAGE. The judge did from
+  // 2026-09-26, when it put the operator's writes above his skips 0.86 of the
+  // time against the ranker's 0.61. By 2026-10-02, on 69 blind calls, it was
+  // the ranker 0.73 to the judge's 0.63, and the ranker held 4 of his 7 Write
+  // first picks in its top five to the judge's 3. CLAUDE.md: ranking changes
+  // go through his verdicts and the Scoreboard decides, so the page follows
+  // it. The judge still decides who is on the page (3+), who is judged in full
+  // and who is drafted; both are still scored on every call. Set ORDER to
+  // 'judge' to go back. BLIND = true is neutral order with ratings hidden.
   const BLIND = false;
+  const ORDER = 'ranker';
   const firmBest = new Map();
   for (const c of cards.filter((x) => !decided(x))) {
     firmBest.set(c.p.org_id, Math.max(firmBest.get(c.p.org_id) ?? 0, c.rating));
@@ -1745,6 +1748,27 @@ ${balanceForm}</section>`;
     || String(a.p.org_id).localeCompare(String(b.p.org_id))
     || b.rating - a.rating || Number(b.pick.value) - Number(a.pick.value)
     || (a.pick.timing_days ?? 9e9) - (b.pick.timing_days ?? 9e9);
+  // The ranker's order AS THE SCOREBOARD SCORES IT: each person's latest score
+  // among all live people, blockers or not (verdicts.rank_then, lead.mjs). The
+  // writable list leaves out anyone with a blocker, which on this page is
+  // nearly everyone. Firms kept together under their best-placed person; anyone
+  // the ranker has not scored goes last, in the judge's order.
+  const rankTotal = new Map(db.prepare(`SELECT s.person_id, s.total FROM person_scores s
+      WHERE s.id = (SELECT MAX(id) FROM person_scores x WHERE x.person_id = s.person_id)`).all()
+    .map((r) => [r.person_id, r.total]));
+  const pos = (c) => (rankTotal.has(c.p.person_id) ? -rankTotal.get(c.p.person_id) : Infinity);
+  const firmPos = new Map();
+  for (const c of cards.filter((x) => !decided(x))) {
+    firmPos.set(c.p.org_id, Math.min(firmPos.get(c.p.org_id) ?? Infinity, pos(c)));
+  }
+  const byRanker = (a, b) => {
+    const fa = firmPos.get(a.p.org_id) ?? Infinity; const fb = firmPos.get(b.p.org_id) ?? Infinity;
+    if (fa !== fb) return fa === Infinity ? 1 : fb === Infinity ? -1 : fa - fb;
+    if (fa === Infinity) return byJudge(a, b);
+    return String(a.p.org_id).localeCompare(String(b.p.org_id))
+      || (pos(a) === pos(b) ? 0 : pos(a) === Infinity ? 1 : pos(b) === Infinity ? -1 : pos(a) - pos(b))
+      || b.rating - a.rating;
+  };
   // ONLY 3 AND ABOVE (2026-09-27). Judging the backlog put 110 undecided cards
   // here, 70 of them rated 1 or 2; the day's list is the ones worth a note.
   // The rest stay on All prospects, in the judge's order.
@@ -1752,7 +1776,7 @@ ${balanceForm}</section>`;
   const below = cards.filter((c) => !decided(c) && c.rating < MIN_RATING).length;
   const open = cards.filter((c) => !decided(c) && c.rating >= MIN_RATING).sort(BLIND
     ? (a, b) => hash(a.p.org_id) - hash(b.p.org_id) || String(a.p.name).localeCompare(String(b.p.name))
-    : byJudge);
+    : ORDER === 'ranker' ? byRanker : byJudge);
   // An undecided card, rated: the judge's call and reasons, the evidence, and the
   // paste box, so a profile can still be pasted before deciding.
   // Every Ready card carries the paste box now (card() adds it), decided or not:
@@ -1783,7 +1807,9 @@ ${balanceForm}</section>`;
   return intro + pastePanel(db)
     + `<section class="panel"><h2>${open.length} to decide${BLIND ? ', blind' : ', best first'}</h2>
 <p class="lead">${BLIND ? 'The judge has rated these 1 to 5; its rating stays hidden until you click, and the order here is neutral, so your answer is yours.'
-  : 'Ordered by the judge: its 1-to-5 rating, then value, then how fresh the reason is. People at one firm are kept together, best first.'}
+  : ORDER === 'ranker'
+    ? 'Ordered by the ranking formula, which the Scoreboard currently favours; anyone it does not list comes after, in the judge\'s order. People at one firm are kept together, best first.'
+    : 'Ordered by the judge: its 1-to-5 rating, then value, then how fresh the reason is. People at one firm are kept together, best first.'}
 <b>Write first</b> is for the few you would send before the rest; paste a profile first for anyone worth a closer look.</p>
 ${below ? `<p class="lead dim">${below} more the judge rated 1 or 2 are on <a href="index.html">All prospects</a>.</p>` : ''}
 ${blindList || '<p class="callout">Nothing waiting. Run <code>npm run judge -- --queue</code> for more.</p>'}</section>`
@@ -1931,9 +1957,9 @@ function scoreboardPage(db) {
   const row = (label, x) => `<tr><td>${label}</td><td>${x.calls} (${x.writes} write)</td><td>${x.agreed} of ${x.calls}</td>
     <td><b>${f2(x.judge)}</b></td><td>${f2(x.ranker)}</td></tr>`;
   return `<section class="panel"><h2>Is the judge holding up?</h2>
-<p class="lead">The judge orders the Ready page since 2026-09-26. The check, for two weeks: are your
-<b>Write first</b> picks near the top of its list? The old ranker's position is stored with every call,
-so both are scored the same way.</p>
+<p class="lead">The Ready page is ordered by whichever of the two scores better here. The check: are
+your <b>Write first</b> picks near the top of each one's list? The judge's rating and the ranker's
+position are stored with every call, so both are scored the same way.</p>
 <p class="lead"><b>Your Write first picks in the top ${sb.topK} of their day:</b>
 ${sb.firsts ? `judge ${sb.judgeFirsts} of ${sb.firsts} · old ranker ${sb.rankerFirsts} of ${sb.firsts}` : 'none yet. Mark your top one or two each day Write first.'}</p>
 ${sb.days.length ? `<ul>${sb.days.map((d) => `<li>${esc(d.day)}: ${d.cards} cards, ${d.firsts} write first,

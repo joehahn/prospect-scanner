@@ -244,9 +244,14 @@ function ingest(fields) {
   // comparison sets his informed call against its uninformed one. Only an
   // undecided person: re-judging someone already decided would send their card
   // back to blind.
+  // NEVER JUDGED COUNTS TOO (2026-10-02): a profile pasted for someone the judge
+  // had not yet seen was stored and then nothing happened -- a 4/5 sat unjudged
+  // until someone noticed. Judged now, unless the operator has already decided.
   const waiting = db.prepare(`SELECT 1 FROM judgments j WHERE j.person_id = ?
       AND NOT EXISTS (SELECT 1 FROM verdicts v WHERE v.person_id = j.person_id AND v.created_at >= j.created_at)
-      AND j.batch = (SELECT MAX(batch) FROM judgments WHERE person_id = ?)`).get(personId, personId);
+      AND j.batch = (SELECT MAX(batch) FROM judgments WHERE person_id = ?)`).get(personId, personId)
+    || (!db.prepare('SELECT 1 FROM judgments WHERE person_id = ?').get(personId)
+      && !db.prepare('SELECT 1 FROM verdicts WHERE person_id = ?').get(personId));
   if (waiting) {
     try { execFileSync('npm', ['run', 'judge', '--silent', '--', '--person', personId], { cwd: ROOT, encoding: 'utf8' }); }
     catch (e) { console.log(`  re-judge failed for ${personId}: ${String(e.stderr || e.message).slice(0, 200)}`); }

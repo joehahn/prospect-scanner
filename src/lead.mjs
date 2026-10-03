@@ -43,6 +43,8 @@
 //                              [--to addr@firm.com]  which address it actually went to;
 //                              defaults to the address on file, guess included
 //                              [--summary "..."] [--warm] [--credit] [--status ...]
+//                              [--again]  the same message really went twice; without
+//                              it an identical message within 7 days is refused
 //   npm run lead -- unsend     --outreach <id>
 //                              Undo a `sent` recorded by mistake. Removes the outreach row,
 //                              unpairs the draft, and frees the person back onto the
@@ -965,6 +967,24 @@ function sent(db, cfg, args) {
       `(${body.length} chars)${d.subject ? `, subject "${d.subject}"` : ', no subject on it'}`));
   }
   const str = (k) => (args[k] && args[k] !== true ? String(args[k]) : null);
+
+  // THE SAME NOTE TWICE IS ONE SEND RECORDED TWICE, almost always. Added
+  // 2026-10-02: one email was recorded on two consecutive days, identical but
+  // for a line ending, which counted an extra send and an extra non-reply and
+  // marked a draft he never sent as sent. Refused within seven days unless
+  // --again says it really went twice.
+  if (body && !args.again) {
+    const norm = (x) => String(x ?? '').replace(/\r/g, '').replace(/\s+/g, ' ').trim();
+    const twin = db.prepare(`SELECT id, channel, sent_at, message_text FROM outreach
+        WHERE person_id = ? AND sent_at IS NOT NULL
+          AND ABS(julianday(sent_at) - julianday(?)) <= 7`).all(personId, date)
+      .find((o) => norm(o.message_text) === norm(body));
+    if (twin) {
+      throw new Error(`outreach #${twin.id} already records this exact message to ${person.name}, ` +
+        `sent ${twin.sent_at} by ${twin.channel}. Nothing recorded. If it really went twice, ` +
+        'pass --again.');
+    }
+  }
 
   // Resolved once, because the row and the warning below have to agree about
   // which address was used.
