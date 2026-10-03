@@ -30,6 +30,7 @@
 //
 // Usage:
 //   npm run conferences -- --find [--searches 6]    find events, write nothing to the book
+//   npm run conferences -- --find --query "a || b"  only these searches, as written
 //   npm run conferences -- --read [--limit 3]       read waiting agendas into the book
 //   npm run conferences -- --read --dry             read and list speakers, write nothing
 //   npm run conferences -- --read --ids 4,12        just those
@@ -159,9 +160,17 @@ async function find(db, cfg, b, args) {
   const c0 = creditsUsed();
   const n = Number(args.searches ?? 6);
   const searches = [];
+  // THE OPERATOR'S OWN SEARCHES, added 2026-10-02: a series known to run in
+  // every state ("Digital Government Summit", "Government Innovation") is worth
+  // naming outright, and the written searches kept landing on the home state.
+  // Several separated by ||. Given these, only these run: the example and
+  // written searches would repeat the last run's and find nothing new.
+  const own = typeof args.query === 'string'
+    ? args.query.split('||').map((x) => x.trim()).filter(Boolean) : [];
+  for (const query of own) searches.push({ query, via: 'operator' });
 
   // Where the examples speak: their name, their firm, and a speaking word.
-  for (const t of b.targets ?? []) {
+  for (const t of own.length ? [] : b.targets ?? []) {
     for (const id of t.exemplars ?? []) {
       const p = db.prepare('SELECT p.name, o.name org FROM people p JOIN orgs o ON o.id = p.org_id WHERE p.id = ?').get(id);
       if (p) searches.push({ query: `"${p.name}" ${p.org} speaker OR panel OR keynote conference`, via: `example:${id}` });
@@ -170,7 +179,7 @@ async function find(db, cfg, b, args) {
   // Searches written from the targets and their examples.
   const examples = (b.targets ?? []).filter((t) => t.exemplars?.length)
     .map((t) => `\n## Examples for "${t.name}"\n${exemplarText(db, t, { full: false })}`).join('\n');
-  const q = await complete(db, runId, { model: cfg.models?.default, system: promptBody(FIND_FILE),
+  const q = own.length ? { data: { queries: [] } } : await complete(db, runId, { model: cfg.models?.default, system: promptBody(FIND_FILE),
     schema: QUERIES_SCHEMA, effort: 'low', thinking: false, maxTokens: 1500, messages: [{ role: 'user',
       content: `## The operator's targets\n${(b.targets ?? []).map((t) => `- ${t.name}: ${t.description}`).join('\n')}\n`
         + `${examples}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
