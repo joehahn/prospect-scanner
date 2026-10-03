@@ -46,6 +46,10 @@
 //                              [--again]  the same message really went twice; without
 //                              it an identical message within 7 days is refused
 //   npm run lead -- unsend     --outreach <id>
+//   npm run lead -- merge      --from <person id> --into <person id>
+//                              one person on file twice: every row moves to --into,
+//                              blank fields on --into are filled from --from, and
+//                              --from is removed
 //                              Undo a `sent` recorded by mistake. Removes the outreach row,
 //                              unpairs the draft, and frees the person back onto the
 //                              shortlist. `sent` is easy to run while meaning to READ a
@@ -421,6 +425,48 @@ const FIRST_HAND = 'operator:first-hand';
  * while meaning only to look at a draft. That happened, and unwinding it meant
  * editing the database by hand, which is not a thing this tool should require.
  */
+/**
+ * ONE PERSON, TWO RECORDS. Added 2026-10-02: a firm's team page and a profile's
+ * sidebar named the same founder two ways, and a managing partner was on file
+ * twice with a send under one record and the judgments under the other. Both
+ * read as two people, so one could be written to while the other was on hold.
+ * Every table that holds a person_id is moved over; a row that would collide
+ * with one --into already has is dropped, except a send or a verdict, which
+ * stops the merge instead.
+ */
+function merge(db, args) {
+  const from = String(requireArg(args, 'from', 'merge'));
+  const into = String(requireArg(args, 'into', 'merge'));
+  if (from === into) throw new Error('--from and --into are the same person');
+  const a = db.prepare('SELECT * FROM people WHERE id = ?').get(from);
+  const b = db.prepare('SELECT * FROM people WHERE id = ?').get(into);
+  if (!a) throw new Error(`no person "${from}"`);
+  if (!b) throw new Error(`no person "${into}"`);
+  const tables = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all().map((t) => t.name)
+    .filter((t) => db.prepare(`PRAGMA table_info(${t})`).all().some((c) => c.name === 'person_id'));
+  db.transaction(() => {
+    const moved = [];
+    for (const t of tables) {
+      const n = db.prepare(`UPDATE OR IGNORE ${t} SET person_id = ? WHERE person_id = ?`).run(into, from).changes;
+      const left = db.prepare(`SELECT COUNT(*) n FROM ${t} WHERE person_id = ?`).get(from).n;
+      if (left && ['outreach', 'verdicts'].includes(t)) {
+        throw new Error(`${left} ${t} row(s) for ${from} would collide with ${into}'s; nothing merged.`);
+      }
+      if (left) db.prepare(`DELETE FROM ${t} WHERE person_id = ?`).run(from);
+      if (n) moved.push(`${t} ${n}`);
+    }
+    // Blank fields on the kept record take the other's value; nothing is overwritten.
+    const cols = db.prepare('PRAGMA table_info(people)').all().map((c) => c.name)
+      .filter((c) => !['id', 'org_id', 'name'].includes(c) && b[c] == null && a[c] != null);
+    for (const c of cols) db.prepare(`UPDATE people SET ${c} = ? WHERE id = ?`).run(a[c], into);
+    db.prepare('DELETE FROM people WHERE id = ?').run(from);
+    console.log(`merged ${bold(a.name)} (${from}) into ${bold(b.name)} (${into})`
+      + (moved.length ? dim(` · moved ${moved.join(', ')}`) : '')
+      + (cols.length ? dim(` · filled ${cols.join(', ')}`) : ''));
+  })();
+  console.log(dim('  run `npm run rank` so the board sees one person'));
+}
+
 function unsend(db, args) {
   const id = Number(requireArg(args, 'outreach', 'unsend'));
   const row = db.prepare(`SELECT o.*, p.name AS person FROM outreach o
@@ -853,13 +899,30 @@ async function extractProfile(db, cfg, person, body, url, args) {
     const claimed = m[0].toLowerCase();
     return orgWords.some((w) => claimed.includes(w)) ? null : m[0].trim();
   };
+  // THE FIRM'S OWN TEAM PAGE OUTRANKS A PROFILE'S SIDEBAR. Added 2026-10-02.
+  // "People also viewed" names arrive with no title, so the checks above have
+  // nothing to test, and five of them were filed as staff of a PE firm whose
+  // own team page lists none of them -- each with a guessed address at its
+  // domain. Where the firm's team page is on file, a name joins the firm only
+  // if that page lists it. With no team page on file, the old rule stands.
+  const nameKey = (n) => String(n ?? '').toLowerCase().replace(/[^a-z ]/g, ' ').split(/\s+/)
+    .filter((w) => w.length > 1).filter((w, i, all) => i === 0 || i === all.length - 1).join(' ');
+  // Same surname, and one first name starting the other: "Ron" is "Ronald".
+  const team = db.prepare(`SELECT DISTINCT p.name FROM evidence e JOIN people p ON p.id = e.person_id
+      WHERE p.org_id = ? AND e.kind IN ('staff_listing', 'staff_bio')`).all(person.org_id).map((r) => nameKey(r.name).split(' '));
+  const onTeam = (name) => {
+    const [f, l] = nameKey(name).split(' ');
+    return team.some(([tf, tl]) => tl === l && (tf.startsWith(f) || f.startsWith(tf)));
+  };
   const elsewhere = [];
   const partial = [];
+  const offTeam = [];
   for (const o of d.other_people ?? []) {
     if (!o.name) continue;
     if (initialOnly(o.name)) { partial.push(`${o.name} — ${o.title ?? ''}`); continue; }
     const other = namesAnotherFirm(o.title) ?? namesAnotherCompany(o.title);
     if (other) { elsewhere.push(`${o.name} — ${o.title}`); continue; }
+    if (team.length && !onTeam(o.name)) { offTeam.push(`${o.name} — ${o.title ?? ''}`); continue; }
     const changed = insP.run(slugify(o.name), person.org_id, o.name, o.title ?? null,
       o.degree ?? null, `Surfaced from ${person.name}'s profile page. Not researched.`).changes;
     added += changed;
@@ -871,6 +934,10 @@ async function extractProfile(db, cfg, person, body, url, args) {
   if (partial.length) {
     console.log(dim(`  ${partial.length} name(s) NOT filed — surname shown only as an ` +
       `initial:\n    ${partial.slice(0, 5).join('\n    ')}`));
+  }
+  if (offTeam.length) {
+    console.log(dim(`  ${offTeam.length} name(s) NOT filed — not on the firm's own team page:` +
+      `\n    ${offTeam.slice(0, 5).join('\n    ')}`));
   }
 
   const flag = { confirmed: 'confirmed', unclear: 'UNCLEAR', contradicted: 'CONTRADICTED' }[d.role_confirmed];
@@ -2167,6 +2234,7 @@ async function main() {
       case 'domains':   await domains(db, cfg, args); break;
       case 'sent':       sent(db, cfg, args); break;
       case 'unsend':     unsend(db, args); break;
+      case 'merge':      merge(db, args); break;
       case 'reply':      reply(db, args); break;
       case 'list': case undefined: list(db, args); break;
       default:
