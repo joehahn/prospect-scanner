@@ -313,7 +313,14 @@ async function read(db, cfg, b, args) {
       console.log(`  ${dim('empty')}   ${c.name}`);
       continue;
     }
-    const when = eventDateFrom(got.when) ?? eventDateFrom(page.html);
+    const parsed = eventDateFrom(got.when) ?? eventDateFrom(page.html);
+    // A DATE FROM ANOTHER YEAR IS SOME OTHER DATE ON THE PAGE. Added 2026-10-02:
+    // a 2026 police technology conference came back dated September 11, 2001,
+    // and a 2026 forum August 1, 2021 -- dates the pages mention, not the event.
+    // Where the event's own name carries a year, a date more than a year from it
+    // is dropped, and the speaker record says the date is not published.
+    const named = Number((String(c.name).match(/\b(20\d\d)\b/) ?? [])[1]);
+    const when = parsed && named && Math.abs(Number(parsed.starts_on.slice(0, 4)) - named) > 1 ? null : parsed;
     // A session's calendar link outranks the reader: it is the page's own
     // statement of the day, and the reader may not have been shown the headings.
     const cal = calendarSessions(page.html);
