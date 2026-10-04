@@ -54,6 +54,9 @@
 //                              unpairs the draft, and frees the person back onto the
 //                              shortlist. `sent` is easy to run while meaning to READ a
 //                              draft — use `npm run draft -- --person <id> --show` for that.
+//   npm run lead -- accepted   --person <id> [--date YYYY-MM-DD]
+//                              they accepted your connection request: recorded on the
+//                              latest one sent them, and NOT counted as a reply
 //   npm run lead -- reply      --outreach <id> --sentiment positive|negative|neutral|bounced
 //                              [--date YYYY-MM-DD] [--outcome "..."] [--file reply.txt]
 //   npm run lead -- banks      --thesis <id> --state "Texas" [--min 2] [--max 25] [--dry]
@@ -1180,6 +1183,29 @@ function sent(db, cfg, args) {
 }
 
 /** Record a reply the operator pasted in. Classifies nothing automatically yet. */
+/**
+ * A CONNECTION REQUEST ACCEPTED IS NOT A REPLY, AND IT IS NOT NOTHING. Added
+ * 2026-10-02. Sixteen connection requests sat as "no reply" whether or not
+ * they were accepted, so the channel could not be judged at all. Like a bounce
+ * it gets its own sentiment, kept out of every reply count; unlike a bounce it
+ * is evidence about the market: the note was read and the door opened.
+ */
+function accepted(db, args) {
+  const personId = String(requireArg(args, 'person', 'accepted'));
+  const o = db.prepare(`SELECT o.id, o.status, o.sent_at, p.name FROM outreach o JOIN people p ON p.id = o.person_id
+      WHERE o.person_id = ? AND o.channel = 'linkedin_connect_note' ORDER BY o.sent_at DESC, o.id DESC LIMIT 1`).get(personId);
+  if (!o) throw new Error(`no connection request on record for "${personId}"`);
+  if (db.prepare(`SELECT 1 FROM responses WHERE outreach_id = ? AND sentiment = 'accepted'`).get(o.id)) {
+    console.log(`already recorded: ${o.name} accepted outreach #${o.id}`); return;
+  }
+  const date = args.date && args.date !== true ? String(args.date) : today();
+  db.prepare(`INSERT INTO responses (outreach_id, responded_at, sentiment, outcome, notes)
+              VALUES (?, ?, 'accepted', 'connection request accepted', NULL)`).run(o.id, date);
+  if (o.status === 'sent_no_reply') db.prepare(`UPDATE outreach SET status = 'accepted' WHERE id = ?`).run(o.id);
+  console.log(`recorded: ${bold(o.name)} accepted the connection request sent ${o.sent_at} (outreach #${o.id})`);
+  console.log(dim('  not a reply, and not counted as one; a message to them now goes as a 1st-degree message'));
+}
+
 function reply(db, args) {
   const outreachId = Number(requireArg(args, 'outreach', 'reply'));
   const o = db.prepare(`SELECT o.*, p.name FROM outreach o LEFT JOIN people p
@@ -2235,6 +2261,7 @@ async function main() {
       case 'sent':       sent(db, cfg, args); break;
       case 'unsend':     unsend(db, args); break;
       case 'merge':      merge(db, args); break;
+      case 'accepted':   accepted(db, args); break;
       case 'reply':      reply(db, args); break;
       case 'list': case undefined: list(db, args); break;
       default:

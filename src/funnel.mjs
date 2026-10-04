@@ -97,10 +97,13 @@ function stages(db) {
   const clean = first(`SELECT d.person_id, MIN(g.graded_at) t FROM draft_grades g JOIN drafts d ON d.id = g.draft_id
       WHERE g.clean = 1 AND g.graded_text = 'draft' GROUP BY d.person_id`);
   const sent = first(`SELECT person_id, MIN(sent_at) t FROM outreach WHERE sent_at IS NOT NULL AND person_id IS NOT NULL GROUP BY person_id`);
-  // A reply is a human answering, not a bounce.
+  // A reply is a human answering: not a bounce, and not a connection accepted.
   const replied = first(`SELECT o.person_id, MIN(r.responded_at) t FROM responses r JOIN outreach o ON o.id = r.outreach_id
-      WHERE COALESCE(r.sentiment, '') <> 'bounced' AND r.outcome NOT LIKE '%undeliverable%' AND r.outcome NOT LIKE '%bounced%'
+      WHERE COALESCE(r.sentiment, '') NOT IN ('bounced', 'accepted')
+        AND COALESCE(r.outcome, '') NOT LIKE '%undeliverable%' AND COALESCE(r.outcome, '') NOT LIKE '%bounced%'
       GROUP BY o.person_id`);
+  const accepted = first(`SELECT o.person_id, MIN(r.responded_at) t FROM responses r JOIN outreach o ON o.id = r.outreach_id
+      WHERE r.sentiment = 'accepted' GROUP BY o.person_id`);
   const strongNow = new Set();
   const latest = db.prepare(`SELECT j.person_id, j.compelling FROM judgments j
       JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l ON l.person_id = j.person_id AND l.b = j.batch`).all();
@@ -114,7 +117,7 @@ function stages(db) {
     strong: strongNow.has(f.person_id), writable: writable.has(f.person_id),
     pasted: localDay(pasted.get(f.person_id)), drafted: localDay(drafted.get(f.person_id)),
     clean: localDay(clean.get(f.person_id)), sent: localDay(sent.get(f.person_id)),
-    replied: localDay(replied.get(f.person_id)),
+    accepted: localDay(accepted.get(f.person_id)), replied: localDay(replied.get(f.person_id)),
   }));
 }
 
@@ -133,7 +136,7 @@ export function funnelDays(db, days = 14) {
     out.push({ day, found: on('found').length, screened: on('screened').length, judged: judged.length,
       strong: judged.filter((p) => p.strong).length, writable: judged.filter((p) => p.writable).length,
       pasted: on('pasted').length, drafted: on('drafted').length, clean: on('clean').length,
-      sent: on('sent').length, replied: on('replied').length });
+      sent: on('sent').length, accepted: on('accepted').length, replied: on('replied').length });
   }
   return out;
 }
@@ -143,12 +146,13 @@ export function sourceYield(db, days = 30) {
   const since = new Date(Date.now() - days * 86_400_000).toLocaleDateString('en-CA');
   const by = new Map();
   for (const p of stages(db).filter((x) => x.found && x.found >= since)) {
-    const s = by.get(p.source) ?? { source: p.source, found: 0, judged: 0, strong: 0, writable: 0, sent: 0, replied: 0 };
+    const s = by.get(p.source) ?? { source: p.source, found: 0, judged: 0, strong: 0, writable: 0, sent: 0, accepted: 0, replied: 0 };
     s.found++;
     if (p.judged) s.judged++;
     if (p.strong) s.strong++;
     if (p.writable) s.writable++;
     if (p.sent) s.sent++;
+    if (p.accepted) s.accepted++;
     if (p.replied) s.replied++;
     by.set(p.source, s);
   }

@@ -32,7 +32,7 @@ accumulate.
 
 **The daily funnel.** Every day is counted stage by stage: found, screened, judged,
 rated 3+, still writable, profile pasted, drafted, draft passed grading, sent,
-replied, and set against the operator's two daily goals from config. A second table
+connection accepted, replied, and set against the operator's two daily goals from config. A second table
 counts the same stages by where each person was first found, so a source that finds
 many people and rates few can be seen. The Funnel page; no model, no cost.
 
@@ -53,6 +53,11 @@ search that finds nothing twice retires itself, with the reason.
 cost into a `runs` table the moment it is made, along with search credits. The Spend
 page shows cumulative cost by day, by step and by model. Cost cannot be reconstructed
 after the fact, which is why it is recorded at the moment of every call.
+
+**Replies, kept honest.** A bounce and an accepted connection request are each
+recorded, and neither counts as a reply: a bounce says the address was wrong, and an
+acceptance says the note was read and the door opened, which is worth knowing about a
+channel but is not an answer.
 
 **What the drafter got right.** Each note keeps every draft, every revise instruction,
 and the text actually sent, so how much of each draft survived is on record for every

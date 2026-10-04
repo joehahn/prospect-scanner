@@ -1924,7 +1924,7 @@ function funnelPage(db, cfg) {
   const goal = (v, g) => (g ? `${v} <span class="dim">of ${g}</span>` : String(v));
   const cols = [['found', 'found'], ['screened', 'screened'], ['judged', 'judged'], ['strong', 'rated 3+'],
     ['writable', 'writable now'], ['pasted', 'profile pasted'], ['drafted', 'drafted'],
-    ['clean', 'draft passed grading'], ['sent', 'sent'], ['replied', 'replied']];
+    ['clean', 'draft passed grading'], ['sent', 'sent'], ['accepted', 'connection accepted'], ['replied', 'replied']];
   const src = sourceYield(db, 30);
   return `<section class="panel"><h2>The two daily goals</h2>
 <table><thead><tr><th></th><th>today</th><th>7-day average</th><th>goal</th></tr></thead><tbody>
@@ -1943,9 +1943,9 @@ ${days.map((d) => `<tr><td>${esc(d.day)}</td>${cols.map(([k]) => `<td>${
 <section class="panel"><h2>What each source yields</h2>
 <p class="lead">People first found in the last 30 days, by where they were first found, and how far
 each source's people got. A source that finds many and rates few is costing judging time.</p>
-<table><thead><tr><th>source</th><th>found</th><th>judged</th><th>rated 3+</th><th>writable now</th><th>sent</th><th>replied</th></tr></thead><tbody>
+<table><thead><tr><th>source</th><th>found</th><th>judged</th><th>rated 3+</th><th>writable now</th><th>sent</th><th>accepted</th><th>replied</th></tr></thead><tbody>
 ${src.map((r) => `<tr><td>${esc(r.source)}</td><td>${r.found}</td><td>${r.judged}</td><td>${r.strong}</td>
-  <td>${r.writable}</td><td>${r.sent}</td><td>${r.replied}</td></tr>`).join('')}
+  <td>${r.writable}</td><td>${r.sent}</td><td>${r.accepted}</td><td>${r.replied}</td></tr>`).join('')}
 </tbody></table></section>`;
 }
 
@@ -2685,13 +2685,14 @@ function buildAll(db, cfg, targeting) {
     let unattributed = { sectors: 0, geo: 0, service: 0 };
     for (const o of db.prepare(`
       SELECT o.service_pitched,
-             (r.id IS NOT NULL) AS replied,
+             -- A reply is a human answering: a bounce or an accepted connection is not one.
+             EXISTS (SELECT 1 FROM responses x WHERE x.outreach_id = o.id
+                     AND COALESCE(x.sentiment, '') NOT IN ('bounced', 'accepted')) AS replied,
              p.org_id, o.person_id,
              p.country, p.location, g.hq
         FROM outreach o
         JOIN people p ON p.id = o.person_id
         JOIN orgs g ON g.id = p.org_id
-        LEFT JOIN responses r ON r.outreach_id = o.id
        WHERE 1=1${ns.sql.replace(/service_pitched/g, 'o.service_pitched')}`).all(...ns.params)) {
       const add = (axis, val) => {
         if (!val) { unattributed[axis] += 1; return; }
