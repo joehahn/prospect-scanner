@@ -162,7 +162,7 @@ function tie(p) {
   const bits = [];
   if (p.degree === 1) bits.push('a first-degree connection of the operator');
   else if (p.degree === 2) bits.push('second-degree');
-  if (String(p.prior_relationship ?? '').trim()) bits.push(`known to the operator: ${truncate(p.prior_relationship, 160)}`);
+  if (String(p.prior_relationship ?? '').trim()) bits.push(`relationship to the operator: ${truncate(p.prior_relationship, 160)}`);
   if (p.referral_value >= 0.4) bits.push('well connected; could refer the operator on');
   return bits.join('; ');
 }
