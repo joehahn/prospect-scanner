@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS orgs (
   -- (config.mjs buyerForOrg), and the 2026-08-25 audit showed it is the single
   -- most decisive attribute: a delivery_firm hires, an investor buys judgment.
   kind           TEXT CHECK (kind IN
-                   ('end_client','investor','advisor','delivery_firm','marketplace','staffing','individual')),
+                   ('end_client','public_body','investor','advisor','delivery_firm','marketplace','staffing','individual')),
   aum_usd        INTEGER,                    -- (seed)
   -- Announced capital programme, from a dated news event. One of three ways a
   -- firm can clear the hands-on money gate: it need not be big, it needs to be

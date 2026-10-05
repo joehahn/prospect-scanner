@@ -1,4 +1,7 @@
-# enrich-firm — v3, 2026-09-29
+# enrich-firm — v4, 2026-10-02
+
+*v4: adds `public_body`, split out of `end_client`. Cities, counties, state
+agencies and police departments are bought differently from companies.*
 
 *v3: adds `staffing`, split out of `marketplace`. A recruiting firm whose
 recruiters place contractors with client firms is a way in for an independent;
@@ -71,6 +74,12 @@ fact here produces a wrong kill, and the operator never learns why.
    - `investor` — private equity, venture, family office. Owns companies.
    - `end_client` — an operating company whose business is something other than
      technology services.
+   - `public_body` — a government body: a city, town or county, a state or
+     federal agency or department, a police or sheriff's department, a school
+     district, public college or university, a hospital, transit, water, port or
+     airport authority or district, a court, a council of governments. Its site
+     is usually on a .gov, .us or state domain and talks about residents,
+     services, budgets and departments, not customers and products.
    - `marketplace` — a platform or network that brokers independent talent or
      expert calls: the independent applies through it, or is booked for calls.
    - `staffing` — a recruiting or staffing firm whose recruiters place

@@ -19,6 +19,7 @@
 #
 # The selector is the KIND of firm:
 #   investor       — oversees portfolio companies that are buying AI  -> buyers_side
+#   public_body    — a city, county, state agency, police department or district -> senior_capacity if large or staffed, else build_direct
 #   end_client     — has the problem itself                           -> buyers_side or build_direct
 #   delivery_firm  — sells AI delivery services                       -> overflow_bench (DEAD)
 #   marketplace    — brokers talent or expert calls                   -> nothing, gate kills it
@@ -386,3 +387,10 @@ not_sales:
   why: >-
     Applying for a job is outreach, but it is not a pitch. Counting it as one
     inflates the sales denominator and measures a cohort that was never sold to.
+
+# WHERE A PUBLIC BODY GETS HOURS RATHER THAN A BUILD (config.mjs, case
+# public_body). At or above this many staff a city, county or agency is taken
+# to have an analytics or AI team with a backlog, and is offered senior hands by
+# the hour; below it, with no sign of AI staff, the fixed-price build.
+public_body:
+  hourly_min_headcount: 1000

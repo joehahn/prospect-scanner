@@ -1286,6 +1286,33 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
               why: 'investor with no AI staff, overseeing portfolio companies that buy — ' +
                    'the sale is the work itself at a portfolio company' }
           : null;
+    case 'public_body': {
+      // A PUBLIC BODY, filed apart from companies 2026-10-02 at the operator's
+      // word. Large ones have analytics or AI staff and a backlog -- "cities
+      // have analytics teams and huge stack of use cases that are on hold due to
+      // insufficient bandwidth" -- so they get hands by the hour. A small one (a
+      // town, a small police department) with no sign of AI staff gets the
+      // fixed-price build, which fits a purchase order where open-ended hours
+      // need a contract. The line is `public_body.hourly_min_headcount` in
+      // offers.yml; a headcount the model recalled rather than looked up is
+      // said so, because the line is drawn on it.
+      const min = Number(cfg.public_body?.hourly_min_headcount ?? 1000);
+      const hc = Number(org.headcount_est);
+      const big = Number.isFinite(hc) && hc >= min;
+      const said = big ? `${hc.toLocaleString('en-US')} staff${/recall/i.test(org.headcount_source ?? '') ? ' (recalled, not looked up)' : ''}` : '';
+      if ((staffed || big) && has('senior_capacity')) {
+        return { id: 'senior_capacity',
+          why: staffed ? 'public body with its own data or AI staff — hands for its backlog'
+            : `public body of ${said}, large enough to have an analytics team — hands for its backlog` };
+      }
+      if (has('build_direct')) {
+        return { id: 'build_direct',
+          why: 'small public body with no sign of AI staff — one fixed-price build, which fits a ' +
+               'purchase order where open-ended hours need a contract' };
+      }
+      return has('senior_capacity')
+        ? { id: 'senior_capacity', why: 'public body; no fixed-price build is live, so hours' } : null;
+    }
     case 'end_client':
       // Hands-on only where the retainer is a rounding error. Without this the
       // pitch chased anyone with a problem, and a $5k/mo engagement at a firm

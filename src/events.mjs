@@ -34,6 +34,7 @@ import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { loadConfig } from './config.mjs';
 import { complete, promptBody } from './models.mjs';
 import { heading, bold, dim } from './report.mjs';
+import { looksPublic } from './public-body.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const JUDGE_PROMPT = 'prompts/judge-session.md';
@@ -476,7 +477,7 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
 
   // ---- write ---------------------------------------------------------------
   const org = db.prepare(`INSERT INTO orgs (id,name,domain,headcount_est,headcount_source,kind,first_seen,source)
-    VALUES (@id,@name,NULL,@hc,'recalled','end_client',@today,@source)
+    VALUES (@id,@name,NULL,@hc,'recalled',@kind,@today,@source)
     ON CONFLICT(id) DO UPDATE SET headcount_est = COALESCE(orgs.headcount_est, excluded.headcount_est)`);
   const per = db.prepare(`INSERT OR IGNORE INTO people (id,org_id,name,title) VALUES (@id,@org,@name,@title)`);
   // IDEMPOTENT, because a harvest gets re-run. The first re-run after the parser
@@ -490,7 +491,10 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
   let people = 0;
   for (const r of hits) {
     const oid = slug(r.firm); const pid = slug(r.name);
-    org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today, source });
+    // A city, agency or police department on an agenda is a public body, not a
+    // company; nothing reads its site here, so its name decides (public-body.mjs).
+    org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today, source,
+      kind: looksPublic(r.firm) ? 'public_body' : 'end_client' });
     per.run({ id: pid, org: oid, name: r.name, title: r.title });
     ev.run({ org: oid, person: pid, url: r.url, now: new Date().toISOString(),
       claim: `${r.name} ${speakingVerb(r, today)} ${r.event_name}${dateLabel(r) ? ` (${dateLabel(r)})` : ''} on: `

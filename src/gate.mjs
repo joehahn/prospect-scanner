@@ -227,7 +227,7 @@ const EVALUATORS = {
       // firm was judged a correct kill. The word is the
       // tell and it is the same tell in every professional-services firm.
       const SELLS_IT = /\b(practice|advisory|consulting|client[- ]facing|go[- ]to[- ]market)\b/i;
-      if (ctx.org.kind === 'end_client' && ctx.hasCapacityPitch && !SELLS_IT.test(p.title ?? '')) {
+      if (['end_client', 'public_body'].includes(ctx.org.kind) && ctx.hasCapacityPitch && !SELLS_IT.test(p.title ?? '')) {
         return {
           outcome: 'warn',
           reason: `${p.name} holds the title "${p.title}", which matches the capability ` +
