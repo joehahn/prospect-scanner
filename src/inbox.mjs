@@ -284,6 +284,8 @@ function note(fields) {
     if (service) args.push('--service', service);
     const subj = (fields.subject ?? '').trim();
     if (subj) args.push('--subject', subj);
+    // An InMail to an Open Profile spends no credit (lead sent --free).
+    if (fields.free) args.push('--free');
     const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
     execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
     return out.trim();
