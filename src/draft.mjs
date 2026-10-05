@@ -13,6 +13,7 @@
 //   npm run draft -- --person <id> [--channel email] [--service read_proposal]
 //                    [--model claude-opus-5] [--effort high] [--force]
 //                    [--examples fixed|picked]   which voice examples (default: alternate)
+//                    [--no-store] [--pool-before <draft id>]   a replay: print, store nothing
 //   npm run draft -- --person <id> --show        print stored drafts, no API call
 //   npm run draft -- --person <id> --revise "cut the metrics, halve it"
 //                    Rewrite the latest version against an instruction. Writes
@@ -34,7 +35,7 @@ import { loadTargeting } from './targeting.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
-import { noteBody } from './checks.mjs';
+import { noteBody, unbold } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
 import { voiceFor, chooseArm, PICKED_PROMPT } from './voice-examples.mjs';
@@ -105,7 +106,7 @@ function parseArgs(argv) {
 }
 
 /** Everything the model is allowed to know. Nothing is asserted that is not in here. */
-function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '') {
+function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '', cutoff = null) {
   const bizOffer = service ? loadBusiness(cfg, targeting).offers.find((o) => o.name === service.name) : null;
   const evidence = db.prepare(`
     SELECT kind, claim, source_url, retrieved_at, provenance, body
@@ -123,7 +124,9 @@ function buildDossier(db, cfg, targeting, person, org, service, line, offerNote 
      WHERE s.org_id = ? AND s.retracted_at IS NULL`).all(org.id);
   const prior = db.prepare(`
     SELECT channel, sent_at, service_pitched, status, subject, message_text
-    FROM outreach WHERE org_id = ? ORDER BY sent_at DESC`).all(org.id);
+    FROM outreach WHERE org_id = ? AND (? IS NULL OR sent_at < ?) ORDER BY sent_at DESC`)
+    .all(org.id, cutoff, cutoff);
+  // ^ `cutoff`, for a replay: the note being replayed must not be in its own dossier.
 
   // THE BEST SENTENCE IN THE DATABASE WAS IN A TABLE THIS STAGE NEVER OPENED.
   // `unblock` reads a blocked prospect and, where there is one, returns the
@@ -640,9 +643,14 @@ async function main() {
   const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
   const voice = voiceFor(db, { arm, voiceText: readVoice(), pickedPrompt: readPrompt(PICKED_PROMPT),
     personId, channel, packageId: serviceId, superseded: cfg.operator?.superseded_wording,
-    neverClaim: cfg.operator?.never_claim });
+    neverClaim: cfg.operator?.never_claim,
+    before: args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null });
   const system = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${voice.text}`;
-  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote);
+  const poolBefore = args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null;
+  const cutoff = poolBefore
+    ? db.prepare(`SELECT MIN(created_at) t FROM drafts WHERE person_id = ?`).get(personId)?.t?.slice(0, 10) ?? null
+    : null;
+  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff);
 
   const runId = startRun(db, 'draft', { model, notes: `${personId} ${channel} ${serviceId ?? ''}` });
   console.log(dim(`${revise ? `revising ${crossChannel ? `the ${prior.channel} ` : ''}v${prior.version} for` : 'drafting for'} ${person.name} ` +
@@ -681,6 +689,19 @@ async function main() {
 
   if (!res.text.trim()) {
     throw new Error('the model returned no text. Nothing stored.');
+  }
+  // Headers as plain words, so every split below finds them (checks.mjs).
+  res.text = unbold(res.text);
+
+  // --no-store: a replay for measurement (src/replay-drafts.mjs). The call is
+  // costed in `runs` like any other; the note is printed and never stored, so
+  // it reaches no card and no Scoreboard count.
+  if (args['no-store']) {
+    finishRun(db, runId, { cost_usd: res.cost_usd ?? 0 });
+    console.log(`REPLAY ${JSON.stringify({ arm: voice.record.arm, examples: voice.record,
+      cost_usd: res.cost_usd, body: noteBody(res.text) })}`);
+    db.close();
+    return;
   }
 
   // Split the subject off the body. It is stored in its own column because the

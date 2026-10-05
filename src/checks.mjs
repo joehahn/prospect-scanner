@@ -21,8 +21,17 @@
 // drift apart.
 
 /** Strip the dossier furniture, leaving what the recipient would actually read. */
+/**
+ * Section headers as plain words. A model sometimes writes **NOTES** for NOTES,
+ * and every split on the header then misses: the operator's NOTES were counted
+ * as part of the letter.
+ */
+export function unbold(raw) {
+  return String(raw ?? '').replace(/^\s*\*\*(DRAFT|NOTES|SUBJECT)\*\*\s*$/gm, '$1');
+}
+
 export function noteBody(raw) {
-  const body = String(raw ?? '').split(/^NOTES\s*$/m)[0]
+  const body = unbold(raw).split(/^NOTES\s*$/m)[0]
     .replace(/^\s*DRAFT\s*\n-+\s*\n/m, '')
     .replace(/^\s*SUBJECT\s*\n-+\s*\n[\s\S]*?\n\s*\n/m, '');
   return body.trim();

@@ -95,13 +95,15 @@ export function armOf(json) {
  * the dossier as prior contact, and an example is not evidence.
  */
 export function pickExamples(db, { personId, channel, packageId, superseded = [], neverClaim = [],
-  k = PICKED_K } = {}) {
+  k = PICKED_K, before = null } = {}) {
   const me = features(db, personId);
   if (!me) return [];
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
-       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ?
-     ORDER BY d.id DESC`).all(personId, me.person.org_id);
+       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ?
+     ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER);
+  // ^ `before`, for a replay: only notes drafted before the one being replayed,
+  // so a later note cannot hand the answer back.
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
       AND revise_note IS NOT NULL AND TRIM(revise_note) <> '' ORDER BY id`);
   const seen = new Set();
@@ -152,9 +154,9 @@ export function renderExample(x, i, superseded = []) {
  * be traced to the examples behind it.
  */
 export function voiceFor(db, { arm, voiceText, pickedPrompt, personId, channel, packageId,
-  superseded = [], neverClaim = [] }) {
+  superseded = [], neverClaim = [], before = null }) {
   if (arm !== 'picked') return { text: voiceText, record: { arm: 'fixed' } };
-  const picks = pickExamples(db, { personId, channel, packageId, superseded, neverClaim });
+  const picks = pickExamples(db, { personId, channel, packageId, superseded, neverClaim, before });
   if (picks.length < MIN_POOL) {
     return { text: voiceText, record: { arm: 'fixed', fell_back: `only ${picks.length} sent notes to choose from` } };
   }
