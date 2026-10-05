@@ -199,7 +199,7 @@ export function draftArms(db) {
     a.revisions += rows.filter((x) => x.person_id === r.person_id && x.id <= r.id
       && x.revised_from != null && arm(x) === arm(r)).length;
   }
-  return ['before', 'fixed', 'picked'].filter((a) => arms.has(a)).map((a) => {
+  return ['before', 'fixed', 'picked', 'edits', 'recent'].filter((a) => arms.has(a)).map((a) => {
     const x = arms.get(a);
     return { arm: a, drafted: x.drafted, sent: x.sent, unchanged: x.unchanged,
       changed: median(x.deltas), revisionsPerSent: x.sent ? x.revisions / x.sent : null };

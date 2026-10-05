@@ -165,14 +165,16 @@ the operator has said about the person, in a verdict or a revise instruction, wh
 outranks the model's inference.
 
 **The examples are chosen two ways, alternately.** One draft gets the fixed,
-hand-picked set in `prompts/voice.md`. The next gets a few of those as anchors plus
-the six sent notes to the most similar recipients (same channel and offer, similar
-seat and firm), each shown as the draft, what the operator asked to change, and what
-went out. That second set grows as notes are sent, so drafting learns from use; the
-count shown is fixed, so cost per draft does not grow with it. Retired wording in an
-old note (`you.superseded_wording` in `business.yml`) is updated before it is shown.
-Each draft records which set it came from, and the Scoreboard compares how much of
-each set's drafts the operator changes before sending.
+hand-picked set in `prompts/voice.md`. The next gets the operator's latest sent notes
+on the same channel (up to fifteen), each shown with what it was written from (the
+firm, dated events, the read, the facts on file and the start of the pasted profile),
+the drafter's reasoning at the time, what the operator asked to change, and what went
+out. That second set moves with every note sent, so drafting follows the operator's
+current voice; its size is capped, so cost per draft does not grow with the history.
+Retired wording in an old note (`you.superseded_wording` in `business.yml`) is updated
+before it is shown, and a note whose revise instructions quote a prospect's own page
+is never shown. Each draft records which set it came from, and the Scoreboard
+compares how much of each set's drafts the operator changes before sending.
 
 A separate call **checks every factual claim** in the draft against the evidence on
 file and flags any it cannot trace. The operator revises in plain words ("drop the
@@ -203,6 +205,7 @@ daily run strings the routine ones together.
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check | most capable |
 | Recheck | `npm run recheck` | stored events re-read against their source | cheap |
+| Replay | `npm run replay` | redraft recent sent notes with each example set, judged blind against what was sent; stores no draft | most capable + grader |
 | Describe | `npm run describe` | each firm in one plain sentence | cheap |
 | Dashboard | `npm run dash` | static HTML from SQLite | none |
 | Daily | `npm run daily` | the routine run, once a weekday | as above |

@@ -62,9 +62,20 @@ channel but is not an answer.
 **What the drafter got right.** Each note keeps every draft, every revise instruction,
 and the text actually sent, so how much of each draft survived is on record for every
 note, and replies are linked to the note that drew them. Drafts alternate between
-fixed example notes and examples picked per recipient from what was sent; the
-Scoreboard shows, for each, the median share of words changed before sending, how
-many went out as drafted, and revisions asked for per sent note.
+the fixed example notes and the operator's latest sent notes with what they were
+written from; the Scoreboard shows, for each, the median share of words changed
+before sending, how many went out as drafted, and revisions asked for per sent note.
+
+**Which examples teach the drafter best, tested offline first.** `npm run replay`
+redrafts recent sent notes with each candidate set of examples, using only notes sent
+before the one replayed and keeping that note out of its own dossier. A grader model
+compares each pair of redrafts against what was actually sent, blind and in both
+orders, counting a split as a tie. Over 30 notes, four sets (the fixed notes, notes
+picked for a similar recipient, the operator's sentence edits, and the latest notes
+with their inputs) came out within chance of one another. The test has a known tilt:
+every sent note began as a draft from the fixed set, so redrafts from that set start
+closer to it. It can show a new set is worse; it cannot show one is better. That is
+decided live, on how much the operator changes each draft.
 
 **Whether a stored fact still holds.** Events found by search keep the source's own
 words, and `npm run recheck` re-reads older ones against the source and retracts any
@@ -73,9 +84,9 @@ the words do not support, with the reason.
 ## Design choices the measurements support
 
 - **Examples, not rules.** The drafter learns the operator's voice from their own sent
-  notes, never from a rule list: either a fixed hand-picked set, or anchors plus the
-  sent notes to the most similar recipients with what was asked and changed on the
-  way. The two alternate, and the share of each draft that survives to sending decides
+  notes, never from a rule list: either a fixed hand-picked set, or the latest sent
+  notes with what each was written from and what was asked and changed on the way.
+  The two alternate, and the share of each draft that survives to sending decides
   between them.
 - **A judge that learns, measured against a formula.** The judge learns from the
   operator's calls rather than from weights and exemptions, and the formula running
