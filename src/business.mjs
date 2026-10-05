@@ -10,7 +10,8 @@
 //   budget      outreach per month, per channel
 //   you         strengths, proof_points, standing, credentials, never_claim,
 //               identifying_terms
-//   offers      [{ name, label?, price, unit, for, pitch, replaces? }]   live offers only (replaces: old offer ids, a bridge)
+//   offers      [{ name, label?, url?, price, unit, for, pitch, replaces? }]   live offers only (replaces: old offer ids, a bridge;
+//               url: the page a note links to for this offer, firm.url when absent)
 //   size        { revenue_min_usd, headcount_max, revenue_max_usd }
 //   where       { countries, home_metro, home_metro_towns, home_region }
 //   targets     [{ name, label?, description, examples, where?, size?, replaces? }]  (replaces: old thesis ids, a bridge)

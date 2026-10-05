@@ -1,4 +1,7 @@
-# draft-cold-note — v26, 2026-09-28
+# draft-cold-note — v27, 2026-10-04
+
+*v27: the link is the offer's own page when the dossier gives one, not the home
+page, which is written for a different buyer.*
 
 System prompt for the `draft` stage. Versioned so grades stay attributable
 (CLAUDE.md). The operator's voice rules are appended to this file at runtime
@@ -100,7 +103,8 @@ really sent by the person whose name is on this one.
    have already started, name the step in one clause and claim it in the next.
 3. **The credential**, with the present affiliation in the same breath.
 4. **What he sells**, near enough unchanged note to note.
-5. **A soft ask, then the link.**
+5. **A soft ask, then the link.** The offer's own link when the dossier gives
+   one, the firm's address otherwise.
 
 ### What a recipe rules out, whichever one is in force
 

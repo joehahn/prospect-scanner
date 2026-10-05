@@ -298,6 +298,10 @@ ${[service.price_usd && `Price: $${service.price_usd.toLocaleString('en-US')} fi
    // is there (matched by name); the old best_for otherwise.
    (bizOffer?.for ?? service.best_for) && `Best for: ${bizOffer?.for ?? service.best_for}`,
    bizOffer?.pitch && `Pitch, in the operator's words: ${bizOffer.pitch}`,
+   // THE LINK. A note pitching one offer links to that offer's own page when
+   // business.yml names one, so the reader lands on what the note sold rather
+   // than on a home page written for a different buyer.
+   bizOffer?.url && `Link for this offer (use it in place of the firm's address): ${bizOffer.url}`,
    service.note && `Note: ${service.note}`].filter(Boolean).join('\n')}` : '(none specified)'}
 
 ## THE PITCH (name this one and no other)

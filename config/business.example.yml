@@ -61,6 +61,9 @@ offers:
     for: "a company whose customers or investors now require SOC 2 and who has no one to own it"
     pitch: "From gap analysis to a clean audit, priced before it starts."
   - name: "Fractional security lead"
+    # Optional: the page a note links to when it pitches this offer. Without
+    # it, a note links to the firm's url above.
+    url: "https://example.com/fractional/"
     price: 200
     unit: "per hour, no minimum"
     for: "a team with engineers but no security lead, facing a customer questionnaire or an audit"
