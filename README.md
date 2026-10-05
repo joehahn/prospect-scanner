@@ -91,10 +91,10 @@ and the part of the judge's prompt that is the same for every person is cached.
 
 - **Each weekday morning** a scheduled run finds new dated events and conferences,
   vets the firms behind them, screens everyone not yet judged, has the judge rate the
-  best of them, looks up official bios (on the organisation's own site or a conference
-  site, never LinkedIn) for the strongest people with no profile on file, then drafts
-  a note for the strongest who have a profile or a bio and grades each draft. It ends
-  with the day's list of profiles still to paste. The Funnel page counts each day
+  best of them, and looks up official bios (on the organisation's own site or a
+  conference site, never LinkedIn) for the strongest people with no profile on file.
+  It ends with the day's list of profiles still to paste. Notes are drafted when you
+  press Draft on a card, on the channel you pick, and each draft is graded on the spot. The Funnel page counts each day
   against two goals, strong prospects found and notes sent.
 - **You open the Ready page:** a short list of prospects, best first. Each card
   describes the person and their role, what their firm does, what just happened that

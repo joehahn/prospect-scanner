@@ -341,15 +341,15 @@ function note(fields) {
     const a = ['run', 'draft', '--silent', '--', '--person', person,
       '--channel', channel, '--revise', r];
     if (service) a.push('--service', service);
-    return runDraft(a);
+    return runDraft(a, person);
   }
-  return runDraft(args);
+  return runDraft(args, person);
 }
 
 // Exit 2 from `draft` means the note was written and FAILED ITS CLAIM CHECK.
 // That is a verdict, not a crash: the draft is in the table and the operator
 // needs to see it and the reason, on the card, rather than an error page.
-function runDraft(args) {
+function runDraft(args, person) {
   let out = '';
   try {
     out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
@@ -358,6 +358,11 @@ function runDraft(args) {
     out = String(e.stdout ?? '');
     console.log('  draft written but a claim could not be sourced — see the card');
   }
+  // GRADED ON THE CLICK, added 2026-10-05 when the morning run stopped drafting:
+  // every draft now starts here, and the grader (a model other than the
+  // drafter) flags a failing note on its card before it is sent.
+  try { execFileSync('npm', ['run', 'grade', '--silent', '--', '--person', person], { cwd: ROOT, encoding: 'utf8' }); }
+  catch (e) { console.log(`  grade failed for ${person}: ${String(e.stderr || e.message).slice(0, 160)}`); }
   execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
   return out.trim();
 }

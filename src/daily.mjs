@@ -39,7 +39,7 @@
 //   npm run daily -- --screen N   how many people to screen (default 600)
 //   npm run daily -- --judge N    how many screened people to judge in full (default 150)
 //   npm run daily -- --bios N     how many paste-list people to look up a bio for (default 20)
-//   npm run daily -- --drafts N   how many first drafts to write (default 10)
+//   npm run daily -- --drafts N   first drafts to write (default 0: drafting is on the card's button)
 //   npm run daily -- --no-batch   send every model call directly, at full price
 //   npm run daily -- --dry        say what would run, run nothing
 
@@ -73,7 +73,13 @@ const SCREEN_PASS = 2;
 // direct calls it falls back to. --no-batch sends them the ordinary way.
 const BATCH = args.includes('--no-batch') ? null
   : { env: { CLAUDE_BATCH: '1', CLAUDE_BATCH_WAIT_MIN: '40' }, limitMs: 75 * 60_000 };
-const draftN = argN('--drafts', 10);
+// NO DRAFTS BY DEFAULT, from 2026-10-05, at the operator's word. Drafts the
+// morning wrote were sent 0 times in 8 while drafts he asked for were sent 40
+// in 58, and the morning cannot know the channel: some prospects take a free
+// Open Profile InMail, which he only sees when he opens a message to them, and
+// he was undoing connection-request drafts to write InMails. Drafting happens
+// on the card's Draft button, graded on the click. --drafts N turns it back on.
+const draftN = argN('--drafts', 0);
 const started = new Date().toISOString();
 
 const STEP_LIMIT_MS = 10 * 60_000;   // generous: a vet with a browser fallback takes a few minutes
