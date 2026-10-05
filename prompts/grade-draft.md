@@ -1,4 +1,10 @@
-# grade-draft — v2, 2026-10-01
+# grade-draft — v3, 2026-10-05
+
+*v3: their own words may be the starting point when the note builds on them. The
+operator, 2026-10-05: recital is fine "as long as what is proposed naturally
+connects to / builds upon / and is a next logical extension of what was written."
+v2 failed every such opener, including notes he was happy to send. What v2 was
+right about stays: a restatement nothing builds on, or a link left vague, fails.*
 
 *v2: recital no longer excuses an opener that hands the reader their own post,
 and a fifth question, clarity, asks whether every reference lands. Two drafts
@@ -50,19 +56,28 @@ contradicts it. What the operator knows first-hand counts as evidence.
 ## 2. recital — does the note hand the recipient a fact about themselves?
 
 The operator's rule: build on what the person is trying to achieve; never tell
-them what they already know. Fail any sentence that restates their own words or
-record back to them: their post, their announcement, their profile, their
-title, career history or highlights, or their firm's news as they told it.
-Opening with it does not excuse it: "Saw your post about X" or "Saw your firm's
-work on X" fails, however short, because the reader wrote X.
+them what they already know for its own sake.
 
-ONE THING passes as a reference: a talk or session they are giving or gave,
-named as the reason for writing. That is an event, not their own words handed
-back. A sentence that names what they are plausibly working toward, written as
-a guess, passes even where it rests on the same evidence.
+A sentence that refers to what they said, posted or announced PASSES when the
+note's proposal is the natural next step from it, and the note says how: what
+the operator offers continues, extends or delivers on what they wrote. "You wrote
+that X; the next piece of X is Y, which is what I build" passes.
 
-The test: delete the sentence; if the note loses nothing but proof that the
-profile was read, it is a recital.
+Fail it when:
+- nothing in the note builds on it: the proposal would read the same without it,
+  so the sentence only proves the profile was read;
+- the link to the proposal is left vague ("when one of those tools needs
+  building…") rather than stated;
+- it recites who they are rather than what they want: their title, career
+  history, highlights or awards, handed back as flattery.
+
+A talk or session they are giving or gave, named as the reason for writing, also
+passes, as does a sentence naming what they are plausibly working toward, written
+as a guess.
+
+The test: delete the sentence. If the proposal then loses its reason, the
+sentence was a foundation and passes. If the note loses nothing but proof that
+the profile was read, it is a recital.
 
 ## 3. never_claim — does the note claim or imply any of these?
 
