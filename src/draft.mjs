@@ -12,6 +12,7 @@
 // Usage:
 //   npm run draft -- --person <id> [--channel email] [--service read_proposal]
 //                    [--model claude-opus-5] [--effort high] [--force]
+//                    [--examples fixed|picked]   which voice examples (default: alternate)
 //   npm run draft -- --person <id> --show        print stored drafts, no API call
 //   npm run draft -- --person <id> --revise "cut the metrics, halve it"
 //                    Rewrite the latest version against an instruction. Writes
@@ -36,6 +37,7 @@ import { neverClaimHits } from './never-claim.mjs';
 import { noteBody } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
+import { voiceFor, chooseArm, PICKED_PROMPT } from './voice-examples.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-cold-note.md';
@@ -632,13 +634,21 @@ async function main() {
       'Run without --revise first.');
   }
 
-  const system = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${readVoice()}`;
+  // WHICH EXAMPLES. Two arms, alternated, so the Scoreboard can say whether
+  // notes chosen for this recipient beat the fixed set (src/voice-examples.mjs).
+  // `--examples fixed|picked` forces one.
+  const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
+  const voice = voiceFor(db, { arm, voiceText: readVoice(), pickedPrompt: readPrompt(PICKED_PROMPT),
+    personId, channel, packageId: serviceId, superseded: cfg.operator?.superseded_wording,
+    neverClaim: cfg.operator?.never_claim });
+  const system = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${voice.text}`;
   const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote);
 
   const runId = startRun(db, 'draft', { model, notes: `${personId} ${channel} ${serviceId ?? ''}` });
   console.log(dim(`${revise ? `revising ${crossChannel ? `the ${prior.channel} ` : ''}v${prior.version} for` : 'drafting for'} ${person.name} ` +
     `at ${org.name} · ${channel} · ${service?.id ?? 'no service'} · ${model} · effort ${effort}`));
   if (revise) console.log(dim(`  asked for: ${revise}`));
+  console.log(dim(`  examples: ${voice.record.arm}${voice.record.shown ? ` (${voice.record.shown.length} chosen sent notes + ${voice.record.anchors} anchors)` : ''}${voice.record.fell_back ? ` — ${voice.record.fell_back}` : ''}`));
 
   // A connection note has LinkedIn's hard cap (draft-cold-note v24 says what to do with it).
   const capNote = channel === 'linkedin_connect_note'
@@ -756,11 +766,12 @@ async function main() {
 
   db.prepare(`INSERT INTO drafts (org_id, person_id, channel, version, body, package_id,
       prompt_file, model, tokens_in, tokens_out, cost_usd, created_at, run_id,
-      revised_from, revise_note, subject)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      revised_from, revise_note, subject, examples)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(org.id, personId, channel, version, body, serviceId, PROMPT_FILE, model,
          res.usage.input_tokens, res.usage.output_tokens, res.cost_usd,
-         new Date().toISOString(), runId, prior?.id ?? null, revise, subject);
+         new Date().toISOString(), runId, prior?.id ?? null, revise, subject,
+         JSON.stringify(voice.record));
 
   // REBUILD THE CARDS. Drafting from the command line left the dashboards on
   // whatever they said before, so the operator opened a card and saw an older

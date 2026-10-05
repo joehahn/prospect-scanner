@@ -61,7 +61,10 @@ channel but is not an answer.
 
 **What the drafter got right.** Each note keeps every draft, every revise instruction,
 and the text actually sent, so how much of each draft survived is on record for every
-note, and replies are linked to the note that drew them.
+note, and replies are linked to the note that drew them. Drafts alternate between
+fixed example notes and examples picked per recipient from what was sent; the
+Scoreboard shows, for each, the median share of words changed before sending, how
+many went out as drafted, and revisions asked for per sent note.
 
 **Whether a stored fact still holds.** Events found by search keep the source's own
 words, and `npm run recheck` re-reads older ones against the source and retracts any
@@ -69,10 +72,11 @@ the words do not support, with the reason.
 
 ## Design choices the measurements support
 
-- **Examples, not rules.** The drafter learns the operator's voice from about nine of
-  their own sent notes. Revise instructions feed the next draft for the same person,
-  not a rule list, and the share of each draft that survives to sending is recorded,
-  so the example set is judged by what actually went out.
+- **Examples, not rules.** The drafter learns the operator's voice from their own sent
+  notes, never from a rule list: either a fixed hand-picked set, or anchors plus the
+  sent notes to the most similar recipients with what was asked and changed on the
+  way. The two alternate, and the share of each draft that survives to sending decides
+  between them.
 - **A judge that learns, measured against a formula.** The judge learns from the
   operator's calls rather than from weights and exemptions, and the formula running
   alongside it is the standard it has to beat.

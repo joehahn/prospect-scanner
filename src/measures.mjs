@@ -4,6 +4,8 @@
 // Searches pages all read these functions, so the numbers on a page and in a
 // terminal can never disagree. Pure reads: nothing here writes to the book.
 
+import { changed, armOf } from './voice-examples.mjs';
+
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 /**
@@ -170,4 +172,36 @@ export function spend(db, { topStages = 12 } = {}) {
     today: { usd: t.usd ?? 0, credits: t.credits ?? 0, runs: t.runs ?? 0,
       asOf: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) },
     daily, cumulative, stages, byStage: top, models };
+}
+
+/**
+ * Fixed voice examples against examples picked per recipient
+ * (src/voice-examples.mjs). The measure is how much of a draft the operator
+ * changes before it goes out: share of words changed on the sent note, how many
+ * go out essentially as drafted, and how many revisions he asks for per sent
+ * note. Less changing is better. Drafts from before the arms existed are the
+ * baseline: the same fixed set, before anything alternated.
+ */
+export function draftArms(db) {
+  const has = db.prepare(`SELECT 1 FROM pragma_table_info('drafts') WHERE name = 'examples'`).get();
+  if (!has) return [];
+  const rows = db.prepare(`SELECT id, person_id, body, sent_text, revised_from, examples FROM drafts ORDER BY id`).all();
+  const arms = new Map();
+  const arm = (r) => r.examples == null ? 'before' : (armOf(r.examples) ?? 'fixed');
+  const get = (a) => arms.get(a) ?? arms.set(a, { arm: a, drafted: 0, sent: 0, unchanged: 0, revisions: 0, deltas: [] }).get(a);
+  for (const r of rows) {
+    const a = get(arm(r));
+    if (r.revised_from == null) a.drafted++;
+    if (!(r.sent_text ?? '').trim()) continue;
+    const d = changed(r.body, r.sent_text);
+    a.sent++; a.deltas.push(d);
+    if (d < 0.02) a.unchanged++;
+    a.revisions += rows.filter((x) => x.person_id === r.person_id && x.id <= r.id
+      && x.revised_from != null && arm(x) === arm(r)).length;
+  }
+  return ['before', 'fixed', 'picked'].filter((a) => arms.has(a)).map((a) => {
+    const x = arms.get(a);
+    return { arm: a, drafted: x.drafted, sent: x.sent, unchanged: x.unchanged,
+      changed: median(x.deltas), revisionsPerSent: x.sent ? x.revisions / x.sent : null };
+  });
 }

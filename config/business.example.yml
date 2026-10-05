@@ -40,6 +40,11 @@ you:
   credentials:
     - "Ten years in a regional bank's security team"
     - "CISSP"
+  superseded_wording:                     # wording you have retired: each `was` found in a
+                                          # sent note is replaced by `now` before the note is
+                                          # shown to the drafter as an example (exact strings)
+    - was: "Ten years in a bank's security team, running audits."
+      now: "Ten years in a regional bank's security team, the last four leading its audit program."
   never_claim:                            # things a draft must never say you can do
     - "penetration testing"               # e.g. you refer it out
     - "24x7 monitoring"

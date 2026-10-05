@@ -159,10 +159,20 @@ Top to bottom:
 ## The read and the draft
 
 Before drafting, a **read** works out what the person is trying to do, what is in the
-way, and which offer would help. The **drafter** writes from that; from a small
-hand-picked set of the operator's own sent notes; from the boards a partner sits on;
-and from anything the operator has said about the person, in a verdict or a revise
-instruction, which outranks the model's inference.
+way, and which offer would help. The **drafter** writes from that; from examples of
+the operator's own sent notes; from the boards a partner sits on; and from anything
+the operator has said about the person, in a verdict or a revise instruction, which
+outranks the model's inference.
+
+**The examples are chosen two ways, alternately.** One draft gets the fixed,
+hand-picked set in `prompts/voice.md`. The next gets a few of those as anchors plus
+the six sent notes to the most similar recipients (same channel and offer, similar
+seat and firm), each shown as the draft, what the operator asked to change, and what
+went out. That second set grows as notes are sent, so drafting learns from use; the
+count shown is fixed, so cost per draft does not grow with it. Retired wording in an
+old note (`you.superseded_wording` in `business.yml`) is updated before it is shown.
+Each draft records which set it came from, and the Scoreboard compares how much of
+each set's drafts the operator changes before sending.
 
 A separate call **checks every factual claim** in the draft against the evidence on
 file and flags any it cannot trace. The operator revises in plain words ("drop the

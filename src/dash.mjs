@@ -20,7 +20,7 @@ import { openDb } from './db.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
-import { scoreboard, searchFunnel, spend } from './measures.mjs';
+import { scoreboard, searchFunnel, spend, draftArms } from './measures.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly } from './note-text.mjs';
@@ -1971,7 +1971,27 @@ ${sb.days.length ? `<ul>${sb.days.map((d) => `<li>${esc(d.day)}: ${d.cards} card
 the write above the skip. 1.00 is perfect, 0.50 a coin. Blind calls were made before seeing the judge's rating.</p>
 <table><thead><tr><th></th><th>calls</th><th>judge agreed</th><th>judge</th><th>old ranker</th></tr></thead>
 <tbody>${row('all your calls since each judgment', sb.forward)}${row('blind calls only', sb.blind)}</tbody></table>
-<p class="dim">Changed your mind after seeing the judge: ${sb.changed}.</p></section>`;
+<p class="dim">Changed your mind after seeing the judge: ${sb.changed}.</p></section>
+${draftArmsPanel(db)}`;
+}
+
+// FIXED EXAMPLES OR PICKED ONES? New drafts alternate between the hand-picked
+// notes in voice.md and notes chosen for each recipient from what was sent
+// (src/voice-examples.mjs). Less changing before a note goes out is better.
+function draftArmsPanel(db) {
+  const arms = draftArms(db);
+  if (!arms.length) return '';
+  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'picked for the recipient' };
+  const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
+  return `<section class="panel"><h2>Is drafting learning from you?</h2>
+<p class="lead">New drafts alternate between the fixed example notes in <code>voice.md</code> and notes
+chosen for each recipient from what you have sent, with what you asked to change. Less changing before a
+note goes out is better. A few dozen sent notes per arm are needed before a gap means anything.</p>
+<table><thead><tr><th></th><th>drafted</th><th>sent</th><th>words changed (median)</th>
+<th>sent as drafted</th><th>revisions per sent note</th></tr></thead><tbody>
+${arms.map((a) => `<tr><td>${label[a.arm]}</td><td>${a.drafted}</td><td>${a.sent}</td><td><b>${pct(a.changed)}</b></td>
+  <td>${a.unchanged} of ${a.sent}</td><td>${a.revisionsPerSent == null ? 'n/a' : a.revisionsPerSent.toFixed(1)}</td></tr>`).join('')}
+</tbody></table></section>`;
 }
 
 // WOULD YOU WRITE TO THEM? Added 2026-09-25. Nothing reads these yet: they are

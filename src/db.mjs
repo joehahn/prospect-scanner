@@ -675,6 +675,9 @@ const COLUMN_MIGRATIONS = [
   // is a record of which instructions actually changed the writing.
   ['drafts', 'revised_from', 'INTEGER'],
   ['drafts', 'revise_note', 'TEXT'],
+  // Which voice examples a draft was written from: {arm: fixed|picked, shown:
+  // [draft ids]}. Without it the two arms cannot be compared (voice-examples.mjs).
+  ['drafts', 'examples', 'TEXT'],
   // owns | influences | none | unclear — whether the person controls spend on
   // the thing being sold, as distinct from holding a title that suggests he does.
   ['people', 'capability_authority', 'TEXT'],
