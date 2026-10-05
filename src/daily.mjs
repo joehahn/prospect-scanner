@@ -102,7 +102,7 @@ const runAsync = (label, cmd) => {
     // the checks instead: they are the all-caps headings draft prints.
     if (e?.code === 2) {
       const flags = [...new Set(String(out).replace(/\x1b\[[0-9;]*m/g, '').split('\n')
-        .map((l) => l.trim()).filter((l) => /^[A-Z][A-Z_ ]{4,}( —|$)/.test(l))
+        .map((l) => l.trim()).filter((l) => /^[A-Z][A-Z_ ]{4,}( —|$)/.test(l) && !/^(DRAFT|NOTES|SUBJECT)$/.test(l))
         .map((l) => l.split(' — ')[0]))];
       console.log(`  FLAGGED ${label}: stored, but ${flags.join(', ') || 'a check fired'}`);
       return done(String(out));
