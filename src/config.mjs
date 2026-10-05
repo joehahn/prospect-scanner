@@ -1311,10 +1311,22 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
         // the way contract engineering is bought." A firm that cannot commit
         // $5k a month can still buy an afternoon. Failing the retainer test is
         // a reason not to sell the retainer, not a reason to sell nothing.
-        if (has('senior_capacity')) {
+        //
+        // BUT HOURS NEED A TEAM TO JOIN. Changed 2026-10-02, the operator's
+        // decision: a firm with no AI staff of its own has no team for an extra
+        // pair of hands to sit beside, and 188 such firms were being sold
+        // exactly that. One fixed-price build clears no signature
+        // threshold at this size either, and answers what such a firm is about
+        // to hire for. Hours stay the pitch where a team exists.
+        if (staffed && has('senior_capacity')) {
           return { id: 'senior_capacity',
-            why: 'end client below the hands-on money gate — a monthly retainer would be a ' +
-                 'decision here, so sell hours instead, which clear no threshold' };
+            why: 'end client with its own AI staff, below the hands-on money gate — a monthly ' +
+                 'retainer would be a decision here, so sell hours, which clear no threshold' };
+        }
+        if (!staffed) {
+          return { id: 'build_direct',
+            why: 'end client with no AI staff, below the hands-on money gate — one fixed-price ' +
+                 'build, which clears no threshold and gives hours no team to join' };
         }
         return { id: null, why: 'end client below the hands-on money gate, and no hourly ' +
           'pitch is live to sell in its place' };
