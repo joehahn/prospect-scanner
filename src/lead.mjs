@@ -801,7 +801,12 @@ async function extractProfile(db, cfg, person, body, url, args) {
     // satisfy a required property. Blocklisting the tokens is a losing game:
     // 'null' arrived first, then '%'. Match the SHAPE instead, which is what
     // the column actually means, and let anything else fall through to null.
-    email: bareEmail(d.email) ?? person.email,
+    // AND IT MUST BE THEIRS. A pasted page carries other people's addresses --
+    // a repost naming a colleague as the contact -- and one was stored as a
+    // CIO's verified address on 2026-10-05, a morning before a draft would have
+    // gone to it. The address has to fit the person's name, and a shared inbox
+    // (info@, inquiries@) is nobody's. --email typed by the operator is not checked.
+    email: ownEmail(bareEmail(d.email), person.name) ?? person.email,
     platform_activity: d.platform_activity,
     followers: d.followers ?? person.followers,
     decision_role: d.decision_role ?? person.decision_role,
@@ -1563,6 +1568,20 @@ const nameParts = (name) => {
  * which are useful to a human and useless to a matcher.
  */
 const bareEmail = (v) => String(v ?? '').match(/[\w.+_-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ?? null;
+// Whether an address plausibly belongs to this person: a name of three or more
+// letters in it, or first initial plus surname, or initials. Null otherwise.
+export function ownEmail(email, name) {
+  if (!email) return null;
+  const local = String(email).split('@')[0].toLowerCase().replace(/[^a-z]/g, '');
+  if (/^(info|inquiries|inquiry|contact|hello|sales|admin|office|support|team|careers|jobs|hr|press|media)$/.test(local)) return null;
+  const w = String(name ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z ]/g, ' ').split(/\s+/).filter((x) => x.length > 1);
+  if (!w.length) return null;
+  const first = w[0]; const last = w[w.length - 1];
+  const fits = w.some((x) => x.length >= 3 && local.includes(x))
+    || (local.startsWith(first[0]) && local.includes(last.slice(0, 4)))
+    || local === w.map((x) => x[0]).join('') || local === first;
+  return fits ? email : null;
+}
 
 /** Which pattern produces `email` for `name`, or null. */
 function inferPattern(name, email) {
