@@ -35,7 +35,7 @@ const HAS_PROFILE = `EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id A
  */
 export function strongWritable(db) {
   const rows = db.prepare(`SELECT j.person_id, j.compelling, j.value, j.timing_days, p.name, p.title,
-        p.org_id, p.email, o.name AS org_name, ${HAS_PROFILE} AS has_profile
+        p.org_id, p.email, p.degree, o.name AS org_name, ${HAS_PROFILE} AS has_profile
       FROM judgments j JOIN people p ON p.id = j.person_id LEFT JOIN orgs o ON o.id = p.org_id
       JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l
         ON l.person_id = j.person_id AND l.b = j.batch

@@ -149,7 +149,9 @@ function draftPicks(n) {
     firms.add(key);
     firms.add(p.org_id);
     // A confirmed address is the only reason to email; a guess bounces silently.
-    picks.push({ ...p, channel: p.email ? 'email' : 'connect' });
+    // A 1st-degree connection gets a message, not a request to connect to
+    // someone already connected (2026-10-05: two were about to).
+    picks.push({ ...p, channel: p.email ? 'email' : Number(p.degree) === 1 ? 'dm' : 'connect' });
     if (picks.length >= n) break;
   }
   return picks;

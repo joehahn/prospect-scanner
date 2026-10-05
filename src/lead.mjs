@@ -43,6 +43,7 @@
 //                              [--to addr@firm.com]  which address it actually went to;
 //                              defaults to the address on file, guess included
 //                              [--summary "..."] [--warm] [--credit] [--status ...]
+//                              [--free]  an InMail to an Open Profile: no credit spent
 //                              [--again]  the same message really went twice; without
 //                              it an identical message within 7 days is refused
 //   npm run lead -- unsend     --outreach <id>
@@ -1076,7 +1077,9 @@ function sent(db, cfg, args) {
              ? (person.email ?? person.email_guess ?? null) : null),
            status: str('status') ?? 'sent_no_reply',
            warm: args.warm ? 1 : 0,
-           credit: args.credit ? 1 : (channel === 'linkedin_inmail' ? 1 : 0),
+           // --free: an InMail to an Open Profile (a Premium member who takes free
+           // messages) spends no credit and must not count against the balance.
+           credit: args.free ? 0 : args.credit ? 1 : (channel === 'linkedin_inmail' ? 1 : 0),
            src: 'recorded via npm run lead -- sent' });
 
   // Pair the sent text with the draft it came from. `drafts.sent_text` and

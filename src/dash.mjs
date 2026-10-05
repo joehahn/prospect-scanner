@@ -1503,8 +1503,10 @@ function readyPage(db, d, cfg) {
   const has = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judgments'`).get();
   const month = new Date().toISOString().slice(0, 7);
   const budget = cfg.outreach_budget_per_month ?? {};
+  // An InMail to an Open Profile costs no credit (lead sent --free), so it is
+  // not counted against the InMail budget or balance.
   const sent = Object.fromEntries(db.prepare(`SELECT channel, COUNT(*) n FROM outreach
-      WHERE substr(sent_at, 1, 7) = ? GROUP BY channel`).all(month).map((r) => [r.channel, r.n]));
+      WHERE substr(sent_at, 1, 7) = ? AND NOT (channel = 'linkedin_inmail' AND COALESCE(credit_spent, 1) = 0) GROUP BY channel`).all(month).map((r) => [r.channel, r.n]));
   // A BALANCE BEATS AN ALLOWANCE. LinkedIn's InMail credits roll over and come
   // back on a reply, so a monthly cap in config read "none left" while LinkedIn
   // showed twelve. Where the operator has typed in the balance he sees, count
@@ -1515,7 +1517,7 @@ function readyPage(db, d, cfg) {
   const meter = [...new Set([...Object.keys(budget), ...bal.keys()])].map((ch) => {
     const b = bal.get(ch);
     if (b) {
-      const since = db.prepare(`SELECT COUNT(*) n FROM outreach WHERE channel = ? AND id > ?`).get(ch, b.after_id).n;
+      const since = db.prepare(`SELECT COUNT(*) n FROM outreach WHERE channel = ? AND id > ? AND NOT (channel = 'linkedin_inmail' AND COALESCE(credit_spent, 1) = 0)`).get(ch, b.after_id).n;
       return `<b>${esc(chName(ch))}</b> ${Math.max(0, b.credits - since)} left <span class="dim">(LinkedIn showed ${
         b.credits} on ${esc(String(b.as_of).slice(0, 10))}; ${since} sent since)</span>`;
     }
