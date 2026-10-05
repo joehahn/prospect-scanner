@@ -189,6 +189,7 @@ daily run strings the routine ones together.
 | Gates | `npm run gate` | deterministic disqualifiers | none |
 | Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
 | Judge | `npm run judge` | 1-5 rating from past decisions | default |
+| Bio | `npm run bio` | a person's official bio from their organisation's own site or a conference site, never LinkedIn, so fewer profiles are pasted by hand | default |
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check | most capable |
 | Recheck | `npm run recheck` | stored events re-read against their source | cheap |

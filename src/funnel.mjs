@@ -27,7 +27,9 @@ export const WRITABLE = `
    AND NOT EXISTS (SELECT 1 FROM person_scores ps WHERE ps.person_id = p.id
                     AND ps.blockers LIKE '%publicly recruiting for this%')`;
 
-const HAS_PROFILE = `EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id AND e.kind = 'operator_profile')`;
+// A pasted profile, or an official bio read from the organisation's own site
+// or a conference site (bio.mjs): either gives a draft something to stand on.
+const HAS_PROFILE = `EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id AND e.kind IN ('operator_profile', 'staff_bio'))`;
 
 /**
  * Everyone the judge rates 3+ (the middle of their latest runs) who is writable,
