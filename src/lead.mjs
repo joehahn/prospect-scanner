@@ -87,7 +87,7 @@ import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
-import { complete } from './models.mjs';
+import { complete, batchMode } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
 
@@ -2154,9 +2154,12 @@ async function domains(db, cfg, args) {
        AND (? IS NOT NULL OR o.kind IS NULL)
        AND (? IS NULL OR o.id = ?)
      ORDER BY o.name`)
-    .all(args.org && args.org !== true ? String(args.org) : null,
+    .all(args.org && args.org !== true ? String(args.org) : (args.orgs && args.orgs !== true ? 'list' : null),
          args.org && args.org !== true ? String(args.org) : null,
-         args.org && args.org !== true ? String(args.org) : null);
+         args.org && args.org !== true ? String(args.org) : null)
+    // --orgs a,b,c: several named firms in one run, so in batch mode their
+    // searches go out as one batch (bio.mjs does this for the paste list).
+    .filter((r) => !(args.orgs && args.orgs !== true) || String(args.orgs).split(',').includes(r.id));
 
   if (!rows.length) { console.log('Every unvetted candidate already has a domain.'); return; }
   const limit = num(args.limit) ?? Infinity;
@@ -2185,15 +2188,20 @@ async function domains(db, cfg, args) {
   let cost = 0;
   const found = [], rejected = [], missed = [], unreachable = [];
 
+  const ask = (r) => complete(db, runId, {
+    model: cfg.models.default, effort: 'low', maxTokens: 3000,
+    schema: DOMAIN_SCHEMA, system,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
+    messages: [{ role: 'user', content:
+      `FIRM: ${r.name}\n${r.why ? `KNOWN FOR: ${r.why}\n` : ''}\nWhat is this firm's own website?` }],
+  }).catch((error) => ({ error }));
+  // In batch mode every question goes out at once, as one batch at half price;
+  // the answers are then checked and written one by one, as before.
+  const answers = batchMode() ? await Promise.all(todo.map(ask)) : null;
   for (const [i, r] of todo.entries()) {
     process.stdout.write(dim(`  [${i + 1}/${todo.length}] ${r.name.slice(0, 30).padEnd(31)}`));
-    const res = await complete(db, runId, {
-      model: cfg.models.default, effort: 'low', maxTokens: 3000,
-      schema: DOMAIN_SCHEMA, system,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 }],
-      messages: [{ role: 'user', content:
-        `FIRM: ${r.name}\n${r.why ? `KNOWN FOR: ${r.why}\n` : ''}\nWhat is this firm's own website?` }],
-    });
+    const res = answers ? answers[i] : await ask(r);
+    if (res.error) { missed.push(r); console.log(dim(`failed: ${String(res.error.message).slice(0, 60)}`)); continue; }
     cost += res.cost_usd ?? 0;
     const d = (res.data?.domain ?? '').replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
 

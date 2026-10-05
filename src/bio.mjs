@@ -84,36 +84,47 @@ const insEv = db.prepare(`INSERT INTO evidence (org_id, person_id, kind, claim, 
 const logLookup = db.prepare('INSERT INTO bio_lookups (person_id, at, found, url, note, run_id) VALUES (?, ?, ?, ?, ?, ?)');
 const found = [];
 
-for (const id of ids) {
-  const p = db.prepare('SELECT p.id, p.name, p.title, p.org_id, o.name org, o.domain FROM people p JOIN orgs o ON o.id = p.org_id WHERE p.id = ?').get(id);
-  if (!p) continue;
-  process.stdout.write(`  ${truncate(p.name, 26).padEnd(27)}`);
-  let domain = (p.domain ?? '').trim();
-  if (!domain && !dry) {
-    // The organisation's own site, found and checked by the existing step.
-    try { execFileSync('npm', ['run', '--silent', 'lead', '--', 'domains', '--org', p.org_id], { cwd: ROOT, encoding: 'utf8' }); } catch { /* reported below */ }
-    domain = (db.prepare('SELECT domain FROM orgs WHERE id = ?').get(p.org_id)?.domain ?? '').trim();
-  }
+// ONE BATCH, NOT TWENTY CALLS IN A ROW. Added 2026-10-05: one after another a
+// lookup took about half a minute, eleven minutes for a morning's twenty. With
+// CLAUDE_BATCH=1 the websites are found in one run and the bio searches all go
+// out together, so each phase is one batch at half price.
+const people = ids.map((id) => db.prepare(`SELECT p.id, p.name, p.title, p.org_id, o.name org, o.domain
+    FROM people p JOIN orgs o ON o.id = p.org_id WHERE p.id = ?`).get(id)).filter(Boolean);
+
+// 1. The organisation's own website, where none is on file: found and checked by
+//    the existing step, every missing one in one run.
+const needSite = [...new Set(people.filter((p) => !(p.domain ?? '').trim()).map((p) => p.org_id))];
+if (needSite.length && !dry) {
+  console.log(dim(`  finding ${needSite.length} organisation website(s) first`));
+  try { execFileSync('npm', ['run', '--silent', 'lead', '--', 'domains', '--orgs', needSite.join(',')], { cwd: ROOT, encoding: 'utf8' }); } catch { /* reported per person below */ }
+}
+for (const p of people) p.domain = (db.prepare('SELECT domain FROM orgs WHERE id = ?').get(p.org_id)?.domain ?? '').trim();
+
+// 2. Every bio search at once.
+const scoped = people.map((p) => {
   const conf = db.prepare(`SELECT source_url FROM evidence WHERE person_id = ? AND kind = 'announcement'
       AND provenance = 'retrieved' ORDER BY retrieved_at DESC LIMIT 1`).get(p.id)?.source_url;
-  const domains = [...new Set([domain.replace(/^www\./, '').toLowerCase(), hostOf(conf)].filter(Boolean))];
+  return { p, domains: [...new Set([p.domain.replace(/^www\./, '').toLowerCase(), hostOf(conf)].filter(Boolean))] };
+});
+const answers = await Promise.all(scoped.map(({ p, domains }) => (!domains.length ? null
+  : complete(db, runId, { model: cfg.models.default, effort: 'low', maxTokens: 4000, schema: SCHEMA, system,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', allowed_domains: domains, max_uses: 3 }],
+    messages: [{ role: 'user', content: `PERSON: ${p.name}\nTITLE ON FILE: ${p.title ?? 'unknown'}\n`
+      + `ORGANISATION: ${p.org}\nSEARCH ONLY: ${domains.join(', ')}\n\nFind this person's own bio on these domains.` }] })
+    .catch((error) => ({ error })))));
+
+// 3. Checked and stored one by one.
+for (const [i, { p, domains }] of scoped.entries()) {
+  process.stdout.write(`  ${truncate(p.name, 26).padEnd(27)}`);
+  const now = new Date().toISOString();
+  const res = answers[i];
   if (!domains.length) {
     console.log(dim('no site on file and none found'));
-    if (!dry) logLookup.run(p.id, new Date().toISOString(), 0, null, 'no domain', runId);
+    if (!dry) logLookup.run(p.id, now, 0, null, 'no domain', runId);
     continue;
   }
-  let res;
-  try {
-    res = await complete(db, runId, { model: cfg.models.default, effort: 'low', maxTokens: 4000, schema: SCHEMA, system,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', allowed_domains: domains, max_uses: 3 }],
-      messages: [{ role: 'user', content: `PERSON: ${p.name}\nTITLE ON FILE: ${p.title ?? 'unknown'}\n`
-        + `ORGANISATION: ${p.org}\nSEARCH ONLY: ${domains.join(', ')}\n\nFind this person's own bio on these domains.` }] });
-  } catch (e) {
-    console.log(dim(`failed: ${truncate(e.message, 80)}`));
-    continue;
-  }
+  if (res.error) { console.log(dim(`failed: ${truncate(res.error.message, 80)}`)); continue; }
   const d = res.data ?? {};
-  const now = new Date().toISOString();
   // THREE FACTS OR IT IS NOT A BIO. A title and a session name is what the
   // agenda already said; it gives a draft nothing, so the person stays on the
   // paste list.

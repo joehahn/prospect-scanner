@@ -263,7 +263,7 @@ if (BATCH) {
 // bio is found for is judged again on it before the drafts are picked.
 const bioN = argN('--bios', 20);
 if (bioN > 0) {
-  const out = run(`4a. bios · up to ${bioN} from the paste list`, ['bio', '--', '--paste-list', '--limit', String(bioN)]);
+  const out = run(`4a. bios · up to ${bioN} from the paste list`, ['bio', '--', '--paste-list', '--limit', String(bioN)], BATCH ?? {});
   const got = out.match(/^FOUND (.+)$/m)?.[1];
   if (got) run(`4a. judge · ${got.split(',').length} with a bio now`, ['judge', '--', '--ids', got], BATCH ?? {});
 }
