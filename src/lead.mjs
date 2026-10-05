@@ -794,7 +794,11 @@ async function extractProfile(db, cfg, person, body, url, args) {
     in_seat_since: /^\d{4}(-\d{2}(-\d{2})?)?$/.test(String(d.in_seat_since ?? '').trim())
       ? String(d.in_seat_since).trim().slice(0, 7) : person.in_seat_since,
     hiring_for_capability: hiringQuote(d.hiring_for_capability, body, capabilityTerms(capabilityTitles(cfg))) ?? person.hiring_for_capability,
-    degree: d.degree ?? person.degree,
+    // THE HEADER'S DEGREE WINS. The paste form reads "· 3rd" beside the name and
+    // passes it as --degree; the model's own reading overrode it, and two 3rd-
+    // degree strangers were stored as 1st-degree connections (2026-10-05), which
+    // made them look warm and picked the wrong channel.
+    degree: (args?.degree && args.degree !== true ? Number(args.degree) : null) ?? d.degree ?? person.degree,
     // AN ADDRESS OR NOTHING. `email` is the VERIFIED column -- rank scores a
     // value here above an email_guess, and draft addresses the note to it --
     // so the one thing it must never hold is a token the model emitted to

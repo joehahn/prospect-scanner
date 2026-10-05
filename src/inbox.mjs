@@ -47,7 +47,14 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
 // reachable.
 function fieldsNear(text, name) {
   const t = String(text);
-  const at = name ? t.toLowerCase().indexOf(String(name).toLowerCase()) : -1;
+  // OUTSIDE YOUR NETWORK LINKEDIN SHOWS "Frantz F.", not the full name, so the
+  // header was never found and the model's own reading of the degree (wrong,
+  // "1st") stood in for "· 3rd". The first name and surname initial is tried next.
+  let at = name ? t.toLowerCase().indexOf(String(name).toLowerCase()) : -1;
+  if (at < 0 && name) {
+    const w = String(name).trim().split(/\s+/);
+    if (w.length > 1) at = t.toLowerCase().indexOf(`${w[0]} ${w[w.length - 1][0]}.`.toLowerCase());
+  }
   if (at < 0) return {};
   const win = t.slice(at, at + 900);              // the header block, not the rails
   const out = {};
