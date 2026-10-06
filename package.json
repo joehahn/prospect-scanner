@@ -38,6 +38,7 @@
     "bios": "node --env-file-if-exists=.env src/bios.mjs",
     "firms": "node --env-file-if-exists=.env src/firms.mjs",
     "bio": "node --env-file-if-exists=.env src/bio.mjs",
+    "research": "node --env-file-if-exists=.env src/research.mjs",
     "test": "node --test test/*.test.mjs"
   },
   "dependencies": {

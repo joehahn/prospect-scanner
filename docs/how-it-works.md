@@ -203,6 +203,7 @@ daily run strings the routine ones together.
 | Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
 | Judge | `npm run judge` | 1-5 rating from past decisions | default |
 | Bio | `npm run bio` | a person's official bio from their organisation's own site or a conference site, never LinkedIn, so fewer profiles are pasted by hand | default |
+| Research | `npm run research` | a third-party summary of a person from across the web (news, interviews, podcasts, directories), every fact with its page; LinkedIn is blocked at the search tool; the people found are judged again | default |
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check | most capable |
 | Recheck | `npm run recheck` | stored events re-read against their source | cheap |

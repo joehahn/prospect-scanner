@@ -84,6 +84,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
+import { distinctWords, otherOrgInTitle } from './org-match.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -879,21 +880,8 @@ async function extractProfile(db, cfg, person, body, url, args) {
   // this is cheap to verify: the title carries the firm, and a firm that is not
   // this one is disqualifying on its face.
   const ownOrg = db.prepare('SELECT name FROM orgs WHERE id = ?').get(person.org_id);
-  const orgWords = String(ownOrg?.name ?? '').toLowerCase()
-    .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 3);
-  const namesAnotherFirm = (title) => {
-    // ` @ ` and ` at ` only, plus civic bodies by name. `of` was in here and had
-    // to come out: it caught "Head of Product" and would have silently dropped a
-    // real colleague, which is the worse error. A missed block leaves someone
-    // filed at the wrong firm where a human can see and move them; a false block
-    // loses them without a trace.
-    const m = String(title ?? '').match(
-      /(?:\s@\s*|\sat\s+)([A-Z][\w&.,' -]{2,40})|\b((?:City|County|Town|Village|Borough|District) of [A-Z][\w' -]{2,30})/);
-    if (!m) return null;
-    const claimed = String(m[1] ?? m[2] ?? '').toLowerCase();
-    if (!orgWords.length) return null;
-    return orgWords.some((w) => claimed.includes(w)) ? null : String(m[1] ?? m[2]).trim();
-  };
+  const orgWords = distinctWords(ownOrg?.name);
+  const namesAnotherFirm = (title) => otherOrgInTitle(title, ownOrg?.name);
   // A SURNAME CUT TO AN INITIAL IS NOT A NAME. LinkedIn shows "Jane D." for
   // anyone outside the viewer's network, and a record under that name cannot
   // be searched, emailed or told apart from the next Jane D. Said aloud and

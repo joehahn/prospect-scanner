@@ -1482,13 +1482,17 @@ function copyLine(name, org) {
 // profile" and advised InMail as if a LinkedIn profile were on file.
 const isProfile = (u) => /linkedin\.com\/in\//i.test(String(u ?? ''));
 
+// ONE TAB, REUSED (2026-10-06). Each link opened a new tab, so a paste session
+// of twenty cards left twenty LinkedIn tabs open, each a heavy page, and the
+// operator's browser grew slow to render LinkedIn. A named target sends every
+// click to the same tab.
 function searchLink(name, org, profileUrl) {
   if (isProfile(profileUrl)) {
-    return `<a class="search" href="${esc(profileUrl)}" target="_blank" rel="noopener">open profile</a>`;
+    return `<a class="search" href="${esc(profileUrl)}" target="linkedin" rel="noopener">open profile</a>`;
   }
   const q = encodeURIComponent(`${searchName(name)} ${searchFirm(org)}`.trim());
   const href = `https://www.linkedin.com/search/results/people/?keywords=${q}`;
-  return `<a class="search" href="${esc(href)}" target="_blank" rel="noopener">search LinkedIn</a>`;
+  return `<a class="search" href="${esc(href)}" target="linkedin" rel="noopener">search LinkedIn</a>`;
 }
 
 // THE READY QUEUE. Added 2026-09-25.

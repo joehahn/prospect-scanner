@@ -41,7 +41,7 @@ const SCHEMA = {
     found: { type: 'boolean' },
     url: { type: 'string', description: 'The page the facts came from, or "".' },
     title_on_page: { type: 'string', description: 'Their title as the page gives it, or "".' },
-    mismatch: { type: 'string', description: 'If the page names a different title or employer, what it says; "" otherwise.' },
+    mismatch: { type: 'string', description: 'If the page is about a different person, or places this person at a different employer, what it says; "" otherwise. A reworded title at the same employer is not a mismatch.' },
     facts: { type: 'array', items: { type: 'object', additionalProperties: false, required: ['claim', 'quote'],
       properties: { claim: { type: 'string' }, quote: { type: 'string', description: 'Verbatim from the page.' } } } },
   },
