@@ -166,8 +166,8 @@ outranks the model's inference.
 
 **The examples are chosen two ways, alternately.** One draft gets the fixed,
 hand-picked set in `prompts/voice.md`. The next gets the operator's latest sent notes
-on the same kind of channel (up to fifteen; email and InMail share one pool, a
-connection note learns only from connection notes), each shown with what it was written from (the
+on the same kind of channel (up to fifteen; email, InMail and LinkedIn messages
+share one pool, a connection note learns only from connection notes), each shown with what it was written from (the
 firm, dated events, the read, the facts on file and the start of the pasted profile),
 the drafter's reasoning at the time, what the operator asked to change, and what went
 out. That second set moves with every note sent, so drafting follows the operator's

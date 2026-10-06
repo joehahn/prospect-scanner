@@ -1,6 +1,8 @@
 # The operator's latest notes on this channel, and what they were written from
 
-**Version 2, 2026-10-06.**
+**Version 3, 2026-10-06.**
+
+*v3: LinkedIn messages join the email and InMail pool.*
 
 *v2: email and InMail share one pool of examples, so an example may be from the
 other of the two channels. Its channel is in its heading.*
@@ -21,8 +23,8 @@ to you. Each one shows the whole path:
 4. **What the draft said, and what he sent.** Where they differ, his version is
    the voice.
 
-**An example on the other channel** (an email when this is an InMail, or the
-reverse) teaches voice and judgment the same way. Length, subject and format
+**An example on another channel** (an email, InMail or LinkedIn message, when
+this note is one of the others) teaches voice and judgment the same way. Length, subject and format
 follow THIS note's channel rules, not the example's.
 
 **Study the choices, not only the sentences.** Given those facts, what did he open

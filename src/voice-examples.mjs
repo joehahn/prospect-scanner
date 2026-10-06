@@ -99,12 +99,12 @@ export function armOf(json) {
 }
 
 /**
- * Channels whose sent notes teach each other. Email and InMail are the same
- * kind of note, a few short paragraphs with a subject, so they share one pool
- * (the operator, 2026-10-06); a connection note is a 300-character line and
- * learns only from its own kind.
+ * Channels whose sent notes teach each other. Email, InMail and a LinkedIn
+ * message are the same kind of note, a few short paragraphs, so they share one
+ * pool (the operator, 2026-10-06); a connection note is a 300-character line
+ * and learns only from its own kind.
  */
-const POOLS = [['email', 'linkedin_inmail']];
+const POOLS = [['email', 'linkedin_inmail', 'linkedin_message']];
 export function poolOf(channel) {
   return POOLS.find((p) => p.includes(channel)) ?? [channel];
 }

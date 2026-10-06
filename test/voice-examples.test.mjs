@@ -55,9 +55,9 @@ test('sentence edits: rewrites, cuts and additions, greeting ignored', async () 
   assert.deepEqual(e.map((x) => [x.kind, x.opening]), [['rewrote', true], ['cut', false], ['added', false]]);
 });
 
-test('email and InMail learn from one pool; a connection note only from its own', async () => {
+test('email, InMail and LinkedIn message learn from one pool; a connection note only from its own', async () => {
   const { poolOf } = await import('../src/voice-examples.mjs');
-  assert.deepEqual(poolOf('email'), ['email', 'linkedin_inmail']);
-  assert.deepEqual(poolOf('linkedin_inmail'), ['email', 'linkedin_inmail']);
+  const pool = ['email', 'linkedin_inmail', 'linkedin_message'];
+  for (const ch of pool) assert.deepEqual(poolOf(ch), pool);
   assert.deepEqual(poolOf('linkedin_connect_note'), ['linkedin_connect_note']);
 });
