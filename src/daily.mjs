@@ -18,9 +18,9 @@
 //                 --screen (new people first), so the full judge's three runs go
 //                 to the ones worth it
 //   4. judge      in full, the best screened people, up to --judge
-//   4a. bios      official bios, from the organisation's own site or a conference
-//                 site, for the people the Ready page would ask to paste; anyone
-//                 found is judged again on the bio
+//   4a. research  a third-party summary from across the web, LinkedIn blocked,
+//                 for the best --research people rated 3+ with no pasted profile
+//                 and no research in 30 days; anyone found is judged again
 //   4b. draft     a first draft for the top --drafts people the judge rated 3+,
 //                 one per firm, so the morning starts with notes to edit, not
 //                 cards to draft from. Email where an address is confirmed,
@@ -38,7 +38,7 @@
 //   npm run daily -- --events     run the conference agendas even if they ran this week
 //   npm run daily -- --screen N   how many people to screen (default 600)
 //   npm run daily -- --judge N    how many screened people to judge in full (default 150)
-//   npm run daily -- --bios N     how many paste-list people to look up a bio for (default 20)
+//   npm run daily -- --research N how many people rated 3+ to research (default 20)
 //   npm run daily -- --drafts N   first drafts to write (default 0: drafting is on the card's button)
 //   npm run daily -- --no-batch   send every model call directly, at full price
 //   npm run daily -- --dry        say what would run, run nothing
@@ -264,14 +264,17 @@ if (BATCH) {
   }
 }
 
-// 4a. official bios for the people the Ready page would ask to paste (bio.mjs):
-// their organisation's own site or a conference site, never LinkedIn. Anyone a
-// bio is found for is judged again on it before the drafts are picked.
-const bioN = argN('--bios', 20);
-if (bioN > 0) {
-  const out = run(`4a. bios · up to ${bioN} from the paste list`, ['bio', '--', '--paste-list', '--limit', String(bioN)], BATCH ?? {});
+// 4a. research (research.mjs): what third parties publish about the best
+// unpasted people rated 3+, from across the web with LinkedIn blocked. It
+// replaced the official-bio lookup on 2026-10-06: research reads the firm's own
+// pages too, and on the day it was added it moved 21 of 64 cards up a rating.
+// Anyone found is judged again before the drafts are picked.
+const researchN = argN('--research', 20);
+if (researchN > 0) {
+  const out = run(`4a. research · up to ${researchN} rated 3+`,
+    ['research', '--', '--min', '3', '--limit', String(researchN), '--no-judge'], BATCH ?? {});
   const got = out.match(/^FOUND (.+)$/m)?.[1];
-  if (got) run(`4a. judge · ${got.split(',').length} with a bio now`, ['judge', '--', '--ids', got], BATCH ?? {});
+  if (got) run(`4a. judge · ${got.split(',').length} with research now`, ['judge', '--', '--ids', got], BATCH ?? {});
 }
 
 // 4b. first drafts for the strongest, so the operator edits rather than drafts.

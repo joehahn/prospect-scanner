@@ -23,6 +23,7 @@
 //
 // Usage:
 //   npm run research -- --rating 3 [--limit 20]   Ready cards rated 3 with no pasted profile
+//   npm run research -- --min 3 [--limit 20]      rated 3 and up, best first (the morning run)
 //   npm run research -- --ids a,b,c               these people
 //   npm run research -- ... --dry                 find and print, store nothing
 //   npm run research -- ... --no-judge            do not re-judge afterwards
@@ -78,8 +79,10 @@ function latestRating(personId) {
 
 let ids;
 if (val('ids')) ids = val('ids').split(',').map((x) => x.trim()).filter(Boolean);
-else if (val('rating')) {
-  const want = Number(val('rating'));
+else if (val('rating') || val('min')) {
+  // --rating N: exactly N. --min N: N and up, best first (the morning run).
+  const want = val('rating') ? Number(val('rating')) : null;
+  const min = val('min') ? Number(val('min')) : null;
   // Judged, not written to, not ruled out, no pasted profile, not researched lately.
   const cands = db.prepare(`SELECT DISTINCT j.person_id FROM judgments j
      WHERE NOT EXISTS (SELECT 1 FROM outreach o WHERE o.person_id = j.person_id)
@@ -88,9 +91,11 @@ else if (val('rating')) {
                        AND e.retrieved_at >= datetime('now', '-30 days'))
        AND COALESCE((SELECT v.verdict FROM verdicts v WHERE v.person_id = j.person_id ORDER BY v.id DESC LIMIT 1), '') <> 'skip'`)
     .all().map((r) => r.person_id);
-  ids = cands.filter((id) => latestRating(id) === want).slice(0, Number(val('limit') ?? 20));
+  ids = cands.map((id) => ({ id, r: latestRating(id) }))
+    .filter((x) => x.r != null && (want != null ? x.r === want : x.r >= min))
+    .sort((a, b) => b.r - a.r).map((x) => x.id).slice(0, Number(val('limit') ?? 20));
 } else {
-  console.log('Pass --rating N [--limit N] or --ids a,b,c.');
+  console.log('Pass --rating N or --min N [--limit N], or --ids a,b,c.');
   process.exit(0);
 }
 
