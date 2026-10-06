@@ -99,6 +99,18 @@ export function armOf(json) {
 }
 
 /**
+ * Channels whose sent notes teach each other. Email and InMail are the same
+ * kind of note, a few short paragraphs with a subject, so they share one pool
+ * (the operator, 2026-10-06); a connection note is a 300-character line and
+ * learns only from its own kind.
+ */
+const POOLS = [['email', 'linkedin_inmail']];
+export function poolOf(channel) {
+  return POOLS.find((p) => p.includes(channel)) ?? [channel];
+}
+const inPool = (channel) => `d.channel IN (${poolOf(channel).map(() => '?').join(', ')})`;
+
+/**
  * An instruction that can be shown while drafting to someone else: short, and
  * quoting nothing from the recipient's own pages. Brackets and "profile says"
  * are how quoted text arrives; a long instruction is usually about one person.
@@ -115,15 +127,15 @@ export function portable(ask) {
  */
 export function pickExamples(db, { personId, channel, packageId, superseded = [], neverClaim = [],
   k = PICKED_K, before = null } = {}) {
-  // SAME CHANNEL ONLY. A connection note is 300 characters and an InMail is
-  // three paragraphs; in the first replay a connection note shown InMails came
-  // back longer and further from what was sent.
+  // SAME KIND OF CHANNEL ONLY (poolOf). A connection note is 300 characters and
+  // an InMail is three paragraphs; in the first replay a connection note shown
+  // InMails came back longer and further from what was sent.
   const me = features(db, personId);
   if (!me) return [];
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
-       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND d.channel = ?
-     ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER, channel);
+       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
+     ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel));
   // ^ `before`, for a replay: only notes drafted before the one being replayed,
   // so a later note cannot hand the answer back.
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
@@ -338,15 +350,15 @@ export function factsThen(db, d) {
   ].filter(Boolean).join('\n');
 }
 
-/** The K latest sent notes on this channel, with everything they were written from. */
+/** The K latest sent notes on this channel's pool (poolOf), with everything they were written from. */
 export function recentExamples(db, { personId, channel, superseded = [], neverClaim = [], before = null,
   k = RECENT_K } = {}) {
   const me = db.prepare('SELECT org_id FROM people WHERE id = ?').get(personId);
   if (!me) return [];
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text, d.created_at
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
-       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND d.channel = ?
-     ORDER BY d.id DESC`).all(personId, me.org_id, before ?? Number.MAX_SAFE_INTEGER, channel);
+       AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
+     ORDER BY d.id DESC`).all(personId, me.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel));
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
       AND revise_note IS NOT NULL AND TRIM(revise_note) <> '' ORDER BY id`);
   const out = [];
@@ -394,7 +406,7 @@ export function voiceFor(db, { arm, voiceText, prompts = {}, personId, channel, 
     const xs = recentExamples(db, opts);
     if (xs.length < MIN_POOL) {
       return { text: voiceText, record: { arm: 'fixed', wanted: arm,
-        fell_back: `only ${xs.length} sent ${channel} notes to choose from` } };
+        fell_back: `only ${xs.length} sent ${poolOf(channel).join('/')} notes to choose from` } };
     }
     // The prose (shape and prohibitions) stays; the recent notes replace the fixed ones.
     const text = [splitVoice(voiceText).prose, '---', String(prompts.recent ?? '').trim(), '',

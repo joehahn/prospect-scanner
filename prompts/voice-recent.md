@@ -1,13 +1,16 @@
 # The operator's latest notes on this channel, and what they were written from
 
-**Version 1, 2026-10-05.**
+**Version 2, 2026-10-06.**
+
+*v2: email and InMail share one pool of examples, so an example may be from the
+other of the two channels. Its channel is in its heading.*
 
 *v1: first version. In place of the fixed example notes, the most recent notes
 the operator sent on this channel, oldest first. Each shows what the drafting
 step knew about that recipient, its reasoning, what he asked to change, and what
 he sent.*
 
-These are the notes he sent most recently on this channel, the last one nearest
+These are the notes he sent most recently on this kind of channel, the last one nearest
 to you. Each one shows the whole path:
 
 1. **What was known**: the recipient, the firm, dated events, the read of what
@@ -17,6 +20,10 @@ to you. Each one shows the whole path:
 3. **What he asked to have changed**, in his words, where he asked.
 4. **What the draft said, and what he sent.** Where they differ, his version is
    the voice.
+
+**An example on the other channel** (an email when this is an InMail, or the
+reverse) teaches voice and judgment the same way. Length, subject and format
+follow THIS note's channel rules, not the example's.
 
 **Study the choices, not only the sentences.** Given those facts, what did he open
 on, what did he leave unsaid, how long did he let it run? Where his note departs
