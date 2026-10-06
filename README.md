@@ -15,7 +15,7 @@ deciding, and hands a person a short list of prospects and draft notes to them
 <sub>A working morning. The firms and prospects are fictional; the LinkedIn profile is the author's own.</sub>
 
 **Author:** Joseph M. Hahn, Ph.D., independent AI and machine learning consultant  
-[jmh-datasciences.com](https://jmh-datasciences.com) · [LinkedIn](https://www.linkedin.com/in/hahnjoe) · jmh.datasciences@gmail.com  
+[jmh-datasciences.com](https://jmh-datasciences.com) · [LinkedIn](https://www.linkedin.com/in/hahnjoe) · joe.hahn@jmh-datasciences.com  
 **Built end-to-end with Claude Code.** · **License:** [PolyForm Noncommercial](#license)
 
 ---
@@ -143,4 +143,4 @@ your own firm, is reserved.
 
 If you want to use it commercially, or you want one tuned to your market, your
 offers and your voice, that is what I do:
-**[jmh-datasciences.com](https://jmh-datasciences.com)** · jmh.datasciences@gmail.com
+**[jmh-datasciences.com](https://jmh-datasciences.com)** · joe.hahn@jmh-datasciences.com
