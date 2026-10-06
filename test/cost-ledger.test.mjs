@@ -33,6 +33,19 @@ check(Math.abs(cost(id) - 0.5) < 1e-9, `a finish with no total changed the cost 
 check(Boolean(db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'llm_calls'`).get()),
   'the per-call ledger table does not exist');
 
+// A 1-hour cache write bills at 2x the input rate, a 5-minute one at 1.25x.
+// Pricing every write at 1.25x would understate the drafting stage.
+const { priceOf } = await import(R + 'models.mjs');
+const M = 1_000_000;
+const p5 = priceOf('claude-opus-5-5', { cache_creation_input_tokens: M });
+const p1h = priceOf('claude-opus-5-5', { cache_creation_input_tokens: M,
+  cache_creation: { ephemeral_5m_input_tokens: 0, ephemeral_1h_input_tokens: M } });
+const mixed = priceOf('claude-opus-5-5', { cache_creation_input_tokens: 2 * M,
+  cache_creation: { ephemeral_5m_input_tokens: M, ephemeral_1h_input_tokens: M } });
+check(Math.abs(p5 - 5) < 1e-9, `a 5-minute write of 1M Opus 5.5 tokens is $5, got ${p5}`);
+check(Math.abs(p1h - 8) < 1e-9, `a 1-hour write of 1M Opus 5.5 tokens is $8, got ${p1h}`);
+check(Math.abs(mixed - 13) < 1e-9, `1M of each TTL is $13, got ${mixed}`);
+
 db.close(); rmSync(dir, { recursive: true, force: true });
 console.log(`\n  ${pass} pass, ${fail} fail`);
 if (fail) process.exitCode = 1;

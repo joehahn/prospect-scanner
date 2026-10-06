@@ -62,9 +62,11 @@ const PRICING = {
   'claude-haiku-4-5':  { in: 1.00, out: 5.00 },
 };
 
-// Cached reads bill at ~0.1x, cache writes at ~1.25x of the input rate.
+// Cached reads bill at ~0.1x, cache writes at ~1.25x of the input rate for the
+// default 5-minute entry and 2x for a 1-hour one.
 const CACHE_READ_MULTIPLIER = 0.1;
 const CACHE_WRITE_MULTIPLIER = 1.25;
+const CACHE_WRITE_1H_MULTIPLIER = 2;
 
 export function knownModels() {
   return Object.keys(PRICING);
@@ -79,10 +81,15 @@ export function priceOf(model, usage, onDate = new Date().toISOString().slice(0,
   const outTok = usage?.output_tokens ?? 0;
   const cacheRead = usage?.cache_read_input_tokens ?? 0;
   const cacheWrite = usage?.cache_creation_input_tokens ?? 0;
+  // The split by TTL, where the response carries it. Without it every write is
+  // priced as a 5-minute one, which is what every call made before 1-hour
+  // entries were used actually was.
+  const write1h = Math.min(usage?.cache_creation?.ephemeral_1h_input_tokens ?? 0, cacheWrite);
   return (
     (inTok * rate.in
       + cacheRead * rate.in * (p.cacheRead ?? CACHE_READ_MULTIPLIER)
-      + cacheWrite * rate.in * CACHE_WRITE_MULTIPLIER
+      + (cacheWrite - write1h) * rate.in * CACHE_WRITE_MULTIPLIER
+      + write1h * rate.in * CACHE_WRITE_1H_MULTIPLIER
       + outTok * rate.out) / 1_000_000
   );
 }
@@ -173,6 +180,10 @@ function getClient() {
  * @param db        open database, so the cost lands in `runs` before it can be lost
  * @param runId     the run this call belongs to
  * @param model     model id from config/runtime.yml
+ * @param system    a string, or a list of strings sent as consecutive blocks
+ *                  with a cache breakpoint after each (at most four)
+ * @param cacheTtl  '1h' where calls sharing a prefix arrive more than five
+ *                  minutes apart; default is the API's five-minute entry
  * @returns {text, usage, cost_usd, model, stop_reason}
  */
 export async function complete(db, runId, {
@@ -183,6 +194,7 @@ export async function complete(db, runId, {
   effort = 'high',
   thinking = true,
   cacheSystem = true,
+  cacheTtl = null,
   schema = null,
   tools = null,
 }) {
@@ -210,9 +222,13 @@ export async function complete(db, runId, {
   if (system) {
     // The system prompt here is the voice file plus firm config — stable across
     // calls and large enough to cache, so it is the natural breakpoint.
+    // A list puts a breakpoint after each part, so a stable head is read from
+    // cache even when the tail after it differs from the last call.
+    const parts = (Array.isArray(system) ? system : [system]).filter(Boolean);
+    const cache_control = { type: 'ephemeral', ...(cacheTtl ? { ttl: cacheTtl } : {}) };
     req.system = cacheSystem
-      ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
-      : system;
+      ? parts.map((text) => ({ type: 'text', text, cache_control }))
+      : parts.join('');
   }
 
   let res;

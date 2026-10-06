@@ -38,7 +38,7 @@ import { neverClaimHits } from './never-claim.mjs';
 import { noteBody, unbold } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
-import { voiceFor, chooseArm, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
+import { voiceFor, chooseArm, splitVoice, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-cold-note.md';
@@ -642,12 +642,20 @@ async function main() {
   // (src/voice-examples.mjs).
   // `--examples fixed|picked|edits|recent` forces one.
   const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
-  const voice = voiceFor(db, { arm, voiceText: readVoice(),
+  const voiceText = readVoice();
+  const voice = voiceFor(db, { arm, voiceText,
     prompts: { picked: readPrompt(PICKED_PROMPT), edits: readPrompt(EDITS_PROMPT), recent: readPrompt(RECENT_PROMPT) },
     personId, channel, packageId: serviceId, superseded: cfg.operator?.superseded_wording,
     neverClaim: cfg.operator?.never_claim,
     before: args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null });
-  const system = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${voice.text}`;
+  // TWO CACHED PARTS. The drafting prompt and the voice prose open every arm's
+  // system prompt byte for byte; only the examples after them differ. A
+  // breakpoint between the two lets every arm read the shared head from cache
+  // instead of each writing its own copy of it.
+  const head = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${splitVoice(voiceText).prose}`;
+  const whole = `${readPrompt(PROMPT_FILE)}\n\n---\n\n${voice.text}`;
+  const system = whole.startsWith(head) && whole.length > head.length
+    ? [head, whole.slice(head.length)] : whole;
   const poolBefore = args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null;
   const cutoff = poolBefore
     ? db.prepare(`SELECT MIN(created_at) t FROM drafts WHERE person_id = ?`).get(personId)?.t?.slice(0, 10) ?? null
@@ -672,7 +680,10 @@ async function main() {
     // like a model problem. 16000 was too low for a dossier carrying two full
     // pasted profiles; this sits between the two limits. Streaming would remove
     // the ceiling properly and is the real fix if drafts keep growing.
-    model, system, effort, maxTokens: 24000,
+    // ONE-HOUR ENTRIES. Drafts arrive minutes apart, often more than five, so
+    // the default entry expired between them and the same prefix was written
+    // again at full write price. Two uses inside the hour pay for the 2x write.
+    model, system, cacheTtl: '1h', effort, maxTokens: 24000,
     messages: [{ role: 'user', content: revise
       ? `${dossier}\n\nHere is version ${prior.version}, which the operator wants changed:\n\n` +
         `<<<DRAFT\n${prior.body}\nDRAFT\n\n` +
