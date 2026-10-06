@@ -108,6 +108,13 @@ const POOLS = [['email', 'linkedin_inmail', 'linkedin_message']];
 export function poolOf(channel) {
   return POOLS.find((p) => p.includes(channel)) ?? [channel];
 }
+// ONE POOL PER DAY. `recordedBefore` (an ISO time, normally the start of the
+// operator's day) keeps out notes recorded as sent after it, so every draft in
+// a day sees the same examples and reads them from cache. A note sent today
+// joins the pool tomorrow.
+const RECORDED = '(d.sent_recorded_at IS NULL OR d.sent_recorded_at < ?)';
+const NO_CUTOFF = '9999';
+
 const inPool = (channel) => `d.channel IN (${poolOf(channel).map(() => '?').join(', ')})`;
 
 /**
@@ -126,7 +133,7 @@ export function portable(ask) {
  * the dossier as prior contact, and an example is not evidence.
  */
 export function pickExamples(db, { personId, channel, packageId, superseded = [], neverClaim = [],
-  k = PICKED_K, before = null } = {}) {
+  k = PICKED_K, before = null, recordedBefore = null } = {}) {
   // SAME KIND OF CHANNEL ONLY (poolOf). A connection note is 300 characters and
   // an InMail is three paragraphs; in the first replay a connection note shown
   // InMails came back longer and further from what was sent.
@@ -135,7 +142,9 @@ export function pickExamples(db, { personId, channel, packageId, superseded = []
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
        AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
-     ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel));
+       AND ${RECORDED}
+     ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel),
+       recordedBefore ?? NO_CUTOFF);
   // ^ `before`, for a replay: only notes drafted before the one being replayed,
   // so a later note cannot hand the answer back.
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
@@ -352,13 +361,15 @@ export function factsThen(db, d) {
 
 /** The K latest sent notes on this channel's pool (poolOf), with everything they were written from. */
 export function recentExamples(db, { personId, channel, superseded = [], neverClaim = [], before = null,
-  k = RECENT_K } = {}) {
+  recordedBefore = null, k = RECENT_K } = {}) {
   const me = db.prepare('SELECT org_id FROM people WHERE id = ?').get(personId);
   if (!me) return [];
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text, d.created_at
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
        AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
-     ORDER BY d.id DESC`).all(personId, me.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel));
+       AND ${RECORDED}
+     ORDER BY d.id DESC`).all(personId, me.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel),
+       recordedBefore ?? NO_CUTOFF);
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
       AND revise_note IS NOT NULL AND TRIM(revise_note) <> '' ORDER BY id`);
   const out = [];
@@ -399,9 +410,9 @@ export function renderRecent(db, x, i, superseded = []) {
  *   recent  its prose, and the RECENT_K latest sent notes with what they were written from
  */
 export function voiceFor(db, { arm, voiceText, prompts = {}, personId, channel, packageId,
-  superseded = [], neverClaim = [], before = null }) {
+  superseded = [], neverClaim = [], before = null, recordedBefore = null }) {
   if (!['picked', 'edits', 'recent'].includes(arm)) return { text: voiceText, record: { arm: 'fixed' } };
-  const opts = { personId, channel, packageId, superseded, neverClaim, before };
+  const opts = { personId, channel, packageId, superseded, neverClaim, before, recordedBefore };
   if (arm === 'recent') {
     const xs = recentExamples(db, opts);
     if (xs.length < MIN_POOL) {

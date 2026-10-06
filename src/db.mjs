@@ -678,6 +678,12 @@ const COLUMN_MIGRATIONS = [
   // Which voice examples a draft was written from: {arm: fixed|picked, shown:
   // [draft ids]}. Without it the two arms cannot be compared (voice-examples.mjs).
   ['drafts', 'examples', 'TEXT'],
+  // When the sent text was RECORDED, not when the note went out (that is
+  // outreach.sent_at, which may be backdated). The example pool for a day is
+  // the notes recorded before it began, so a send recorded at noon does not
+  // change the prompt every later draft that day reads from cache. NULL on
+  // rows recorded before the column existed: they count as long recorded.
+  ['drafts', 'sent_recorded_at', 'TEXT'],
   // owns | influences | none | unclear — whether the person controls spend on
   // the thing being sold, as distinct from holding a title that suggests he does.
   ['people', 'capability_authority', 'TEXT'],

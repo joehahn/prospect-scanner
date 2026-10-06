@@ -482,7 +482,7 @@ function unsend(db, args) {
       '`sent`. Refusing to delete it — that is the record this system was seeded with.');
   }
   const paired = db.prepare('SELECT id, version FROM drafts WHERE outreach_id = ?').all(id);
-  db.prepare('UPDATE drafts SET sent_text = NULL, outreach_id = NULL WHERE outreach_id = ?').run(id);
+  db.prepare('UPDATE drafts SET sent_text = NULL, outreach_id = NULL, sent_recorded_at = NULL WHERE outreach_id = ?').run(id);
   db.prepare('DELETE FROM responses WHERE outreach_id = ?').run(id);
   db.prepare('DELETE FROM outreach WHERE id = ?').run(id);
   console.log(`removed outreach #${id}: ${bold(row.person ?? row.org_id)} · ` +
@@ -1115,8 +1115,8 @@ function sent(db, cfg, args) {
     if (!linked && service) { linked = q('AND package_id = ?', service); crossChannel = Boolean(linked); }
     if (!linked) { linked = q(''); crossChannel = Boolean(linked); }
     if (linked) {
-      db.prepare('UPDATE drafts SET sent_text = ?, outreach_id = ? WHERE id = ?')
-        .run(body, row.id, linked.id);
+      db.prepare('UPDATE drafts SET sent_text = ?, outreach_id = ?, sent_recorded_at = ? WHERE id = ?')
+        .run(body, row.id, new Date().toISOString(), linked.id);
     }
   }
 

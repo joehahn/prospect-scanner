@@ -61,3 +61,28 @@ test('email, InMail and LinkedIn message learn from one pool; a connection note 
   for (const ch of pool) assert.deepEqual(poolOf(ch), pool);
   assert.deepEqual(poolOf('linkedin_connect_note'), ['linkedin_connect_note']);
 });
+
+test('a note recorded as sent today joins the example pool tomorrow, not mid-day', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { openDb } = await import('../src/db.mjs');
+  const { recentExamples } = await import('../src/voice-examples.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'pool-day-'));
+  const db = openDb(join(dir, 'test.db'));
+  try {
+    db.pragma('foreign_keys = OFF');
+    db.prepare(`INSERT INTO people (id, org_id, name) VALUES ('target', 'org-t', 'T')`).run();
+    const add = db.prepare(`INSERT INTO drafts (id, person_id, org_id, channel, version, model, body,
+      sent_text, created_at, sent_recorded_at) VALUES (?, ?, ?, 'email', 1, 'm', 'DRAFT\n---\nhi', 'hi', ?, ?)`);
+    add.run(1, 'a', 'org-a', '2026-10-01T10:00:00Z', null);                     // recorded before the column
+    add.run(2, 'b', 'org-b', '2026-10-02T10:00:00Z', '2026-10-02T11:00:00Z');   // yesterday
+    add.run(3, 'c', 'org-c', '2026-10-03T08:00:00Z', '2026-10-03T12:00:00Z');   // today, noon
+    const ids = (cut) => recentExamples(db, { personId: 'target', channel: 'email', recordedBefore: cut })
+      .map((x) => x.id);
+    assert.deepEqual(ids('2026-10-03T05:00:00Z'), [1, 2]);
+    assert.deepEqual(ids(null), [1, 2, 3]);
+  } finally {
+    db.close(); rmSync(dir, { recursive: true, force: true });
+  }
+});

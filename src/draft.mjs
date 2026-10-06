@@ -74,6 +74,13 @@ const readPrompt = (rel) => readFileSync(resolve(ROOT, rel), 'utf8');
  * Fall back to it rather than crashing, but say loudly what is missing — drafts
  * written against the template will not sound like anyone in particular.
  */
+/** Midnight at the start of the operator's local day, as an ISO time. */
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
 function readVoice() {
   try {
     return readPrompt(VOICE_FILE);
@@ -647,7 +654,11 @@ async function main() {
     prompts: { picked: readPrompt(PICKED_PROMPT), edits: readPrompt(EDITS_PROMPT), recent: readPrompt(RECENT_PROMPT) },
     personId, channel, packageId: serviceId, superseded: cfg.operator?.superseded_wording,
     neverClaim: cfg.operator?.never_claim,
-    before: args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null });
+    before: args['pool-before'] && args['pool-before'] !== true ? Number(args['pool-before']) : null,
+    // Today's pool is the notes recorded as sent before today began, so every
+    // draft today shares one cached prompt (voice-examples.mjs). A replay sets
+    // its own cutoff with --pool-before and takes no daily one.
+    recordedBefore: args['pool-before'] && args['pool-before'] !== true ? null : startOfToday() });
   // TWO CACHED PARTS. The drafting prompt and the voice prose open every arm's
   // system prompt byte for byte; only the examples after them differ. A
   // breakpoint between the two lets every arm read the shared head from cache
@@ -684,8 +695,13 @@ async function main() {
     // the default entry expired between them and the same prefix was written
     // again at full write price. Two uses inside the hour pay for the 2x write.
     model, system, cacheTtl: '1h', effort, maxTokens: 24000,
+    // A REVISION CACHES THE DOSSIER. It opens the request unchanged, and a
+    // revision of a revision usually follows within five minutes. A first draft
+    // does not: most are never revised, and the write would cost more than the
+    // reads it buys (measured over 30 days on 2026-10-06).
     messages: [{ role: 'user', content: revise
-      ? `${dossier}\n\nHere is version ${prior.version}, which the operator wants changed:\n\n` +
+      ? [{ type: 'text', text: dossier, cache_control: { type: 'ephemeral' } }, { type: 'text', text:
+        `\n\nHere is version ${prior.version}, which the operator wants changed:\n\n` +
         `<<<DRAFT\n${prior.body}\nDRAFT\n\n` +
         `WHAT HE ASKED FOR: ${revise}\n\n` +
         (crossChannel
@@ -696,7 +712,7 @@ async function main() {
             'SUBJECT rules apply to it exactly as they did the first time. ' +
             'Rewrite it. Change what he asked about and leave the rest alone — an instruction ') +
         'about length is not licence to drop the evidence, and an instruction about one ' +
-        'paragraph is not licence to rewrite the opening. Today is ' + today + '.' + capNote
+        'paragraph is not licence to rewrite the opening. Today is ' + today + '.' + capNote }]
       : `${dossier}\n\nDraft the ${channel} note. Today is ${today}.${capNote}` }],
   });
 
