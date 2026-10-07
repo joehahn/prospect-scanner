@@ -80,6 +80,7 @@
 //                              Writes email_guess, never email.
 //   npm run lead -- list [--vertical id]
 
+import { noteOnly, isDeclined } from './note-text.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1102,8 +1103,9 @@ function sent(db, cfg, args) {
     // never happened, because the 365 words were an argument for not sending at
     // all. The pair is the training signal; poisoning it with refusals makes the
     // one measurement this command exists for meaningless.
-    const hasDraft = (d) => d && /^DRAFT\s*\n-+\s*\n\s*\S/m.test(String(d.body ?? ''))
-      && !/^\s*\(none\b/m.test(String(d.body ?? '').split(/^NOTES\s*$/m)[0]);
+    // Asked by the note's text, not its DRAFT heading, which the drafter sometimes
+    // bolds or leaves out (note-text.mjs).
+    const hasDraft = (d) => d && !isDeclined(d.body);
     const q = (extra, ...params) => {
       const rows = db.prepare(
         `SELECT id, version, body, channel, package_id FROM drafts
@@ -1156,9 +1158,7 @@ function sent(db, cfg, args) {
     // Count the note, not the NOTES section under it. That briefing is written
     // for the operator and never sent, and counting it reported a 20% trim as
     // an 80% rewrite everywhere the pair was shown.
-    const noteOnly = String(linked.body ?? '').split(/^NOTES\s*$/m)[0]
-      .replace(/^\s*DRAFT\s*\n-+\s*\n/m, '').trim() || String(linked.body ?? '');
-    const drafted = noteOnly.split(/\s+/).filter(Boolean).length;
+    const drafted = noteOnly(linked.body).split(/\s+/).filter(Boolean).length;
     const actual = body.split(/\s+/).filter(Boolean).length;
     console.log(dim(`  paired with draft #${linked.id} v${linked.version} ` +
       `(${drafted} words drafted, ${actual} sent). The edit is the training signal.`));
