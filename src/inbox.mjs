@@ -276,7 +276,11 @@ function note(fields) {
   if (!person) throw new Error('no person');
   const channel = (fields.channel ?? 'linkedin_inmail').trim();
   const service = (fields.service ?? '').trim();
-  const act = fields.do;
+  // A TYPED INSTRUCTION IS NEVER DROPPED. On 2026-10-07 "mention that I am an AI
+  // consultant/builder" went in the box, the post arrived as a plain draft, and
+  // a fresh note came back with the instruction nowhere -- it was not even
+  // stored. Draft again with words in the box means revise with those words.
+  const act = fields.do === 'draft' && (fields.revise ?? '').trim() ? 'revise' : fields.do;
 
   if (act === 'sent') {
     // THE TEXTAREA AS IT STANDS, not the stored draft. The gap between what was
