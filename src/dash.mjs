@@ -23,7 +23,7 @@ import { loadTargeting } from './targeting.mjs';
 import { scoreboard, searchFunnel, spend, draftArms } from './measures.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
-import { noteOnly } from './note-text.mjs';
+import { noteOnly, isDeclined } from './note-text.mjs';
 import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -2103,8 +2103,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
   // wording. That is the guardrail working, and it has to READ as a refusal
   // rather than as a note that happens to be strange, or the operator edits an
   // explanation and sends it.
-  const declined = draft?.body && !/^\s*DRAFT\s*$/m.test(String(draft.body))
-    && /^\s*NOTES\s*$/m.test(String(draft.body));
+  const declined = draft?.body && isDeclined(draft.body);
   const body = esc(declined ? '' : (draft?.body ? noteOnly(draft.body) : ''));
   const subject = esc(draft?.subject ?? '');
   const svc = esc(draft?.package_id ?? p.service_id ?? '');
