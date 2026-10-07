@@ -49,6 +49,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
 import { strongWritable, pasteQueue } from './funnel.mjs';
+import { ratingOf } from './measures.mjs';
 import { heading, bold, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -305,21 +306,27 @@ run('5. dash', ['dash']);
 // summary
 if (!dry) {
   const cost = q(`SELECT ROUND(SUM(cost_usd), 3) c, SUM(tavily_credits) t FROM runs WHERE started_at >= ?`, started)[0];
-  // RATINGS ARE EACH PERSON'S LATEST JUDGMENT, not any judgment this run: a card
-  // research moved down from 3 to 2 is not rated 3+, and F1 counts NEW 4-5 cards
-  // (rated 4+ now, not before this run).
-  const ratingAt = (cmp) => `SELECT person_id, compelling FROM judgments WHERE id IN (SELECT MAX(id) FROM judgments
-    WHERE compelling IS NOT NULL AND created_at ${cmp} ? GROUP BY person_id)`;
-  const before = new Map(q(ratingAt('<'), started).map((r) => [r.person_id, r.compelling]));
-  const now = q(ratingAt('>='), started);
-  const judged = now.length;
-  const strong = now.filter((r) => r.compelling >= 3).length;
-  const newTop = now.filter((r) => r.compelling >= 4 && !((before.get(r.person_id) ?? 0) >= 4)).length;
+  // RATINGS ARE EACH PERSON'S LATEST JUDGMENT, the median of that batch's runs
+  // (ratingOf, as the cards show it), not any judgment this run: a card research
+  // moved down from 3 to 2 is not rated 3+, and F1 counts NEW 4-5 cards (rated 4+
+  // now, not before this run).
+  const ratingsAt = (cmp, at) => {
+    const by = new Map();
+    for (const r of q(`SELECT person_id, verdict, compelling FROM judgments j WHERE batch = (SELECT batch FROM judgments
+        WHERE person_id = j.person_id AND created_at ${cmp} ? ORDER BY id DESC LIMIT 1)`, at)) {
+      by.set(r.person_id, [...(by.get(r.person_id) ?? []), r]);
+    }
+    return new Map([...by].map(([id, runs]) => [id, ratingOf(runs)]));
+  };
+  const before = ratingsAt('<', started);
+  const now = ratingsAt('>=', started);
+  const judged = now.size;
+  const strong = [...now.values()].filter((c) => c >= 3).length;
+  const newTop = [...now].filter(([id, c]) => c >= 4 && !((before.get(id) ?? 0) >= 4)).length;
   let moved = '';
   if (researchedIds.length) {
-    const pre = new Map(q(ratingAt('<'), researchedAt).map((r) => [r.person_id, r.compelling]));
-    const post = new Map(now.map((r) => [r.person_id, r.compelling]));
-    const d = researchedIds.map((id) => (post.get(id) ?? 0) - (pre.get(id) ?? 0));
+    const pre = ratingsAt('<', researchedAt);
+    const d = researchedIds.map((id) => (now.get(id) ?? 0) - (pre.get(id) ?? 0));
     moved = ` · research: ${d.filter((x) => x > 0).length} up, ${d.filter((x) => x < 0).length} down, `
       + `${d.filter((x) => x === 0).length} same of ${researchedIds.length}`;
   }
