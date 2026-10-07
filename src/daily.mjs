@@ -270,11 +270,17 @@ if (BATCH) {
 // pages too, and on the day it was added it moved 21 of 64 cards up a rating.
 // Anyone found is judged again before the drafts are picked.
 const researchN = argN('--research', 20);
+let researchedAt = null, researchedIds = [];
 if (researchN > 0) {
+  researchedAt = new Date().toISOString();
   const out = run(`4a. research · up to ${researchN} rated 3+`,
     ['research', '--', '--min', '3', '--limit', String(researchN), '--no-judge'], BATCH ?? {});
+  // Who was researched and NOT judged again, and why, so the count is never a
+  // silent gap (on 2026-10-07, 16 of 20 were judged and the log said nothing of the 4).
+  for (const l of out.split('\n').filter((l) => /\s(little found|failed:)/.test(l))) console.log(`  not judged again: ${l.trim()}`);
   const got = out.match(/^FOUND (.+)$/m)?.[1];
-  if (got) run(`4a. judge · ${got.split(',').length} with research now`, ['judge', '--', '--ids', got], BATCH ?? {});
+  researchedIds = got ? got.split(',') : [];
+  if (got) run(`4a. judge · ${researchedIds.length} with research now`, ['judge', '--', '--ids', got], BATCH ?? {});
 }
 
 // 4b. first drafts for the strongest, so the operator edits rather than drafts.
@@ -299,15 +305,31 @@ run('5. dash', ['dash']);
 // summary
 if (!dry) {
   const cost = q(`SELECT ROUND(SUM(cost_usd), 3) c, SUM(tavily_credits) t FROM runs WHERE started_at >= ?`, started)[0];
-  const judged = q(`SELECT COUNT(DISTINCT person_id) n FROM judgments WHERE created_at >= ?`, started)[0].n;
-  const strong = q(`SELECT COUNT(DISTINCT person_id) n FROM judgments WHERE created_at >= ? AND compelling >= 3`, started)[0].n;
+  // RATINGS ARE EACH PERSON'S LATEST JUDGMENT, not any judgment this run: a card
+  // research moved down from 3 to 2 is not rated 3+, and F1 counts NEW 4-5 cards
+  // (rated 4+ now, not before this run).
+  const ratingAt = (cmp) => `SELECT person_id, compelling FROM judgments WHERE id IN (SELECT MAX(id) FROM judgments
+    WHERE compelling IS NOT NULL AND created_at ${cmp} ? GROUP BY person_id)`;
+  const before = new Map(q(ratingAt('<'), started).map((r) => [r.person_id, r.compelling]));
+  const now = q(ratingAt('>='), started);
+  const judged = now.length;
+  const strong = now.filter((r) => r.compelling >= 3).length;
+  const newTop = now.filter((r) => r.compelling >= 4 && !((before.get(r.person_id) ?? 0) >= 4)).length;
+  let moved = '';
+  if (researchedIds.length) {
+    const pre = new Map(q(ratingAt('<'), researchedAt).map((r) => [r.person_id, r.compelling]));
+    const post = new Map(now.map((r) => [r.person_id, r.compelling]));
+    const d = researchedIds.map((id) => (post.get(id) ?? 0) - (pre.get(id) ?? 0));
+    moved = ` · research: ${d.filter((x) => x > 0).length} up, ${d.filter((x) => x < 0).length} down, `
+      + `${d.filter((x) => x === 0).length} same of ${researchedIds.length}`;
+  }
   const drafted = q(`SELECT COUNT(*) n FROM drafts WHERE created_at >= ?`, started)[0].n;
   // The page's own count: it already knows who is live, uncontacted and undecided.
   let waiting = '?';
   try { waiting = readFileSync(resolve(ROOT, 'data/dash/ready.html'), 'utf8').match(/(\d+) to decide/)?.[1] ?? '0'; } catch { /* no page yet */ }
   console.log(heading('done'));
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
-    + `${judged} judged, ${strong} rated 3+ · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
+    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
   // THE OPERATOR'S PART OF THE MORNING: the strongest writable people with no
   // profile on file. A draft waits for one; tomorrow's run writes it.
