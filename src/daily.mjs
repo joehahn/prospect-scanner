@@ -338,12 +338,12 @@ if (!dry) {
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
     + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
-  // THE OPERATOR'S PART OF THE MORNING: the strongest writable people with no
-  // profile on file. A draft waits for one; tomorrow's run writes it.
+  // THE OPERATOR'S PART OF THE MORNING: the few strongest writable people whose
+  // seat is the open question and who have no profile on file (funnel.mjs).
   const db = openDb();
   try {
     const screened = db.prepare('SELECT COUNT(DISTINCT person_id) n FROM screens WHERE created_at >= ?').get(started)?.n ?? 0;
-    const paste = pasteQueue(db, 20);
+    const paste = pasteQueue(db);
     console.log(`  ${screened} screened · ${paste.length} profile(s) to paste today${paste.length ? ':' : ''}`);
     for (const p of paste) console.log(`    ${p.rating}/5  ${p.name} — ${p.title ?? ''}, ${p.org_name ?? p.org_id}`);
   } catch { /* screens table not created yet */ } finally { db.close(); }

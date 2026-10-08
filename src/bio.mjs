@@ -69,7 +69,7 @@ if (val('ids')) ids = val('ids').split(',').map((x) => x.trim()).filter(Boolean)
 else if (flag('paste-list')) {
   const recent = new Set(db.prepare(`SELECT person_id FROM bio_lookups WHERE at >= datetime('now', '-30 days')`).all()
     .map((r) => r.person_id));
-  ids = pasteQueue(db, 200).map((p) => p.person_id).filter((id) => !recent.has(id)).slice(0, Number(val('limit') ?? 20));
+  ids = pasteQueue(db, 200, { unclearOnly: false }).map((p) => p.person_id).filter((id) => !recent.has(id)).slice(0, Number(val('limit') ?? 20));
 } else {
   console.log('Pass --paste-list [--limit N] or --ids a,b,c.');
   process.exit(0);

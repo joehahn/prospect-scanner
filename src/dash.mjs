@@ -1903,19 +1903,19 @@ Plotly.newPlot('c-stage', [{ type:'bar', orientation:'h', y:${JSON.stringify(byS
 
 // SCOREBOARD: the judge against the old ranker (measures.mjs, shared with
 // `judge --scoreboard`).
-// PASTE THESE TODAY, added 2026-10-02. A draft now waits for a pasted profile,
-// so pasting is the operator's part of the morning, and it goes only to the
-// strongest people a note could go to (funnel.mjs pasteQueue). Each links to
+// PASTE THESE TODAY: the few strongest people whose seat is in doubt
+// (funnel.mjs pasteQueue). Each links to
 // its card below, where the paste box and the profile search are.
 function pastePanel(db) {
-  const q = pasteQueue(db, 20);
+  const q = pasteQueue(db);
   if (!q.length) {
     return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
-      + 'whom a note could go to has a profile on file; tomorrow\'s run drafts for them.</p></section>';
+      + 'whose seat is in doubt has a profile on file. Draft the rest straight from their cards.</p></section>';
   }
   return `<section class="panel"><h2>Profiles to paste today: ${q.length}</h2>
-<p class="lead">Rated 3+ by the judge, writable, and no profile on file. A draft waits for the
-profile; the next morning's run writes it.</p>
+<p class="lead">Rated 3+ on a title alone, or on a seat the judge doubts owns the work, with no profile
+on file. The profile settles whether they are the right person. Anyone rated on a dated event can be
+drafted without one; paste theirs when you open it to send, if it shows something.</p>
 <ol>${q.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> · ${p.rating}/5 ·
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}</li>`).join('')}</ol></section>`;
 }

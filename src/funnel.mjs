@@ -36,7 +36,7 @@ const HAS_PROFILE = `EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id A
  * strongest first: rating, then value, then how soon the trigger is.
  */
 export function strongWritable(db) {
-  const rows = db.prepare(`SELECT j.person_id, j.compelling, j.value, j.timing_days, p.name, p.title,
+  const rows = db.prepare(`SELECT j.person_id, j.compelling, j.value, j.timing_days, j.timing_what, j.owner, p.name, p.title,
         p.org_id, p.email, p.degree, o.name AS org_name, ${HAS_PROFILE} AS has_profile
       FROM judgments j JOIN people p ON p.id = j.person_id LEFT JOIN orgs o ON o.id = p.org_id
       JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l
@@ -53,17 +53,26 @@ export function strongWritable(db) {
 }
 
 /**
- * THE PROFILES TO PASTE TODAY. A draft waits for a pasted profile, because the
- * profile is where a note's substance comes from and LinkedIn is read only by
- * the operator, by hand. Pasting is the scarce step -- about twenty minutes for
- * twenty people -- so it goes only to the strongest writable people, one per
- * firm, who have no profile on file.
+ * THE PROFILES TO PASTE TODAY: five, and only where the seat is the open
+ * question. Cut from twenty on 2026-10-08, on the record: across 184 people
+ * judged before and after a paste, half the ratings moved (a third move on a
+ * re-judge with nothing new), mostly DOWN -- the profile's use is catching the
+ * wrong seat, not feeding the note, whose openers come from agendas and the
+ * morning research. And two thirds of pasted profiles never led to a send.
+ *
+ * So a person whose rating rests on a dated event (a talk, a new appointment, a
+ * named pilot) goes straight to Draft, and the operator pastes, if at all, when
+ * he opens the profile to send. The list keeps the people rated on a title alone
+ * or on a seat the judge doubts owns the work, one per firm.
  */
-export function pasteQueue(db, n = 20) {
+const titleOnly = (p) => !p.timing_what || /^(took the seat|no dated event)/i.test(p.timing_what);
+export const seatUnclear = (p) => titleOnly(p) || (p.owner != null && p.owner !== 'owns');
+
+export function pasteQueue(db, n = 5, { unclearOnly = true } = {}) {
   const firms = new Set();
   const out = [];
   for (const p of strongWritable(db)) {
-    if (p.has_profile || firms.has(p.org_id)) continue;
+    if (p.has_profile || firms.has(p.org_id) || (unclearOnly && !seatUnclear(p))) continue;
     firms.add(p.org_id);
     out.push(p);
     if (out.length >= n) break;
