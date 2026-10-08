@@ -58,7 +58,7 @@ import { openDb, startRun, finishRun } from './db.mjs';
 import { loadConfig } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { loadBusiness, describeForJudge } from './business.mjs';
-import { scoreboard } from './measures.mjs';
+import { scoreboard, timingText } from './measures.mjs';
 import { complete, batchMode } from './models.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 import { retense } from './events.mjs';
@@ -143,17 +143,47 @@ function describe(f) {
     + (tie(f.person) ? `; ${tie(f.person)}` : '');
 }
 
-/** Days since the freshest reason to write, and what it was. No model. */
+/**
+ * The date a conference announcement states, as `events` writes it: "speaking
+ * at <event> (Tuesday, October 20, 2026) on: ...", or a range ("November 9-11,
+ * 2026", "March 15–18, 2026"), whose first day is taken. Null when it states none.
+ */
+function talkDate(claim) {
+  const m = String(claim ?? '').match(/\(([^()]*\d{4})\)/);
+  const d = m?.[1].match(/([A-Z][a-z]+)\s+(\d{1,2})(?:\s*[–-]\s*(?:[A-Z][a-z]+\s+)?\d{1,2})?,\s*(\d{4})/);
+  if (!d) return null;
+  const t = Date.parse(`${d[1]} ${d[2]}, ${d[3]} 12:00 UTC`);
+  return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : null;
+}
+
+/**
+ * Days to the nearest reason to write, and what it was. No model.
+ *
+ * A TALK COUNTS, added 2026-10-08. Timing read only firm signals and the seat
+ * date, so a speaker on a panel twelve days out was "737 days since took the
+ * seat" -- read as a title-only rating by the paste list and the Ready order,
+ * though the judge's own reason cited the panel. A talk is measured by distance
+ * either side of today: twelve days ahead is as fresh as twelve days ago.
+ */
 function timing(db, f) {
   const sig = db.prepare(`SELECT trigger_id, detected_at FROM signals WHERE org_id = ?
     AND retracted_at IS NULL ORDER BY detected_at DESC LIMIT 1`).get(f.person.org_id);
   const seat = f.person.in_seat_since ? `${f.person.in_seat_since}-01`.slice(0, 10) : null;
+  const talks = db.prepare(`SELECT claim FROM evidence WHERE person_id = ? AND kind = 'announcement'`)
+    .all(f.person.id).map((e) => {
+      const at = talkDate(e.claim);
+      const event = String(e.claim).match(/ at (.+?) \(/)?.[1] ?? 'a conference';
+      // The tense carries the direction: the stored text is read back as "N days since/until".
+      return { at, what: `${at > new Date().toISOString().slice(0, 10) ? 'speaks' : 'spoke'} at ${event}`.slice(0, 80) };
+    })
+    .filter((x) => x.at);
+  const days = (at) => Math.round(Math.abs(Date.now() - Date.parse(at)) / DAY_MS);
   const cands = [sig && { at: sig.detected_at, what: sig.trigger_id },
-                 seat && { at: seat, what: 'took the seat' }].filter(Boolean)
+                 seat && { at: seat, what: 'took the seat' }, ...talks].filter(Boolean)
     .filter((x) => Number.isFinite(Date.parse(x.at)));
   if (!cands.length) return { days: null, what: 'no dated event on file' };
-  const best = cands.sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
-  return { days: Math.max(0, Math.round((Date.now() - Date.parse(best.at)) / DAY_MS)), what: best.what };
+  const best = cands.sort((a, b) => days(a.at) - days(b.at))[0];
+  return { days: days(best.at), what: best.what };
 }
 
 /** Will a message land? No model. */
@@ -190,7 +220,7 @@ function candidateBlock(db, f, t, r) {
     `${f.person.name} — ${describe(f)}`,
     f.person.in_seat_since ? `In the seat since ${f.person.in_seat_since}.` : '',
     f.person.location ? `Based in ${f.person.location}.` : '',
-    `Timing: ${t.days == null ? t.what : `${t.days} days since ${t.what}`}.`,
+    `Timing: ${timingText(t.days, t.what)}.`,
     `Reach: ${r}.`,
     sigs.length ? `Dated events at the firm: ${sigs.map((s) => `${s.trigger_id} (${s.detected_at})`).join('; ')}` : '',
     read ? `\nA prior read of this person (${read.confidence}):\n`

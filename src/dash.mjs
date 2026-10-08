@@ -20,7 +20,7 @@ import { openDb } from './db.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
-import { scoreboard, searchFunnel, spend, draftArms } from './measures.mjs';
+import { scoreboard, searchFunnel, spend, draftArms, timingText } from './measures.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
@@ -1587,7 +1587,7 @@ ${balanceForm}</section>`;
     return v && String(v.created_at) >= String(c.pick.created_at) ? v : null; };
   const hash = (x) => [...String(x)].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
   const facts = (pick) => `${pick.timing_days == null ? 'no dated event'
-    : `${pick.timing_days} days since ${esc(pick.timing_what)}`} · ${esc(pick.reach ?? '')}`;
+    : esc(timingText(pick.timing_days, pick.timing_what))} · ${esc(pick.reach ?? '')}`;
   // THE FACTS STAY; ONLY THE CALLS ARE HIDDEN. The first version hid everything
   // but the name, and the operator could not judge. What a card withholds is
   // anyone's verdict -- the judge's, the read's, the ranker's -- never evidence.

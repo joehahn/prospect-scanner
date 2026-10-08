@@ -9,6 +9,16 @@ import { changed, armOf } from './voice-examples.mjs';
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
 /**
+ * Timing in words, for the judge's prompt and the card alike. An upcoming talk
+ * is stored with the present tense ("speaks at ...", judge.mjs timing()), and
+ * reads forward; everything else is days since.
+ */
+export function timingText(days, what) {
+  if (days == null) return what ?? 'no dated event on file';
+  return /^speaks at /.test(String(what ?? '')) ? `${what} in ${days} days` : `${days} days since ${what}`;
+}
+
+/**
  * The judge's rating of a person from one batch of runs, on the 1-5 scale.
  * Judgments from before the 1-5 prompt carry only write/skip; they are placed
  * on the same scale (unanimous write 4, split write 3, split skip 2, unanimous
