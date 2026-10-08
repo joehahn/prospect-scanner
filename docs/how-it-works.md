@@ -185,6 +185,15 @@ number, lead with the diligence angle"); every version is kept.
 gap between drafted and sent is kept for every note, and replies are linked to the
 note that drew them.
 
+**The channel is tested the same way.** Every person rated 4+ who can be written to
+and has an address on file, published or guessed from a published pattern, is
+assigned email or LinkedIn, alternately, and the card suggests that channel. The
+operator still chooses; what was actually sent is what is counted. The Scoreboard
+compares reply rates on sends at least fourteen days old, with bounces counted apart
+from silence, since a note that never arrived says nothing about the channel. The
+alternation is what makes it fair: email otherwise goes wherever an address happens
+to be published, and those people are not like the rest.
+
 ## Steps and their commands
 
 Each step can be run on its own, by the command shown or by asking Claude Code. The
@@ -198,6 +207,7 @@ daily run strings the routine ones together.
 | Conferences | `npm run conferences` | find new conferences, then read their agendas into the book | cheap |
 | Firm lists | `npm run firms` | a target's firms from rankings and directories, each checked on its own site before it is kept | cheap |
 | Vet | `npm run lead -- vet` | the firm's own site, then the gates | cheap |
+| Addresses | `npm run lead -- addresses` | a published address on the firm's own pages (then at most one press search), and the pattern it implies for everyone there, kept as a guess | none |
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
 | Gates | `npm run gate` | deterministic disqualifiers | none |
 | Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
