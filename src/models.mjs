@@ -126,7 +126,7 @@ async function flushBatch() {
   if (!items.length) return;
   const api = getClient();
   const sendDirect = async (it) => {
-    try { it.resolve({ res: await api.messages.create(it.req), batched: false }); }
+    try { it.resolve({ res: await api.messages.create(it.req, CALL_OPTS), batched: false }); }
     catch (e) { it.reject(e); }
   };
   let batch;
@@ -165,6 +165,15 @@ async function flushBatch() {
   // never waits on a request that is not coming.
   await Promise.all(items.filter((it) => !done.has(it)).map(sendDirect));
 }
+
+// A STALLED CALL FAILS IN MINUTES, NOT HALF AN HOUR. The SDK's default is ten
+// minutes per request and two retries, so a request that never answers held a
+// `vet` for 14 minutes on one firm (2026-10-07) and 31 on another (2026-10-08),
+// its one model call landing at the very end both times, past the daily run's
+// step limit. A plain call here is at most 8,000 output tokens and normally
+// returns in well under a minute; the long ones stream (below) and are not
+// capped by this. Four minutes, one retry: a stall now costs about eight.
+const CALL_OPTS = { timeout: 4 * 60_000, maxRetries: 1 };
 
 let client = null;
 function getClient() {
@@ -249,7 +258,7 @@ export async function complete(db, runId, {
       // threshold the plain call is kept: it is simpler and the limit is real.
       res = maxTokens > 16000
         ? await getClient().messages.stream(req).finalMessage()
-        : await getClient().messages.create(req);
+        : await getClient().messages.create(req, CALL_OPTS);
     }
   } catch (err) {
     // Credential resolution fails before the request is sent, so this is not an
