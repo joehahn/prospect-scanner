@@ -1,6 +1,10 @@
 # Does every factual claim in this note trace to the evidence?
 
-**Version 2, 2026-09-27.**
+**Version 3, 2026-10-08.**
+
+*v3: saying the operator attended, watched or heard them is a claim about them,
+not one of his own credentials. "Caught the AI arms race panel at ITC Vegas last
+week" was let through as the sender's own business.*
 
 *v2: what the operator knows first-hand may appear under its own heading, and
 counts as evidence. A claim resting on it is supported.*
@@ -52,6 +56,11 @@ systems, their situation or their plans** as a matter of fact.
   hourly rate, "no vendor relationships attached". Those are
   the operator's facts about himself, checked elsewhere, and none of your
   business here.
+  EXCEPT a first-hand claim about the recipient: that the operator attended,
+  watched, heard, read or met them ("caught your panel", "enjoyed your talk",
+  "saw you speak"). That IS a claim, supported only when the operator's
+  first-hand knowledge on file says so. Naming a talk as scheduled or published
+  ("you're on the panel on the 20th") is not one.
 - **A guess, written as a guess.** "Two guesses at what might be on your list",
   "perhaps forecasting demand", "maybe a way for a board member to ask". The
   whole point of the hedge is that it asserts nothing. A hedged guess about what

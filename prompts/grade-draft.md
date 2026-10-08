@@ -1,4 +1,9 @@
-# grade-draft — v3, 2026-10-05
+# grade-draft — v4, 2026-10-08
+
+*v4: saying the operator attended, watched or heard them is a claim. "Caught the
+AI arms race panel at ITC Vegas last week" passed v3, which exempted everything
+about the sender, though nothing on file said he saw it. A talk named as
+scheduled or published still passes.*
 
 *v3: their own words may be the starting point when the note builds on them. The
 operator, 2026-10-05: recital is fine "as long as what is proposed naturally
@@ -40,8 +45,16 @@ A factual claim is anything asserted as true about the recipient, their firm,
 systems, situation or plans: events, dates, counts, money, products, systems,
 titles, structure, an integration or project that exists.
 
+A FIRST-HAND CLAIM ABOUT THEM IS A CLAIM. A sentence saying the operator
+attended, watched, heard, read or met them ("caught your panel", "enjoyed your
+talk", "saw you speak at", "great to meet you at") asserts something that
+happened between them. It passes only when the operator's first-hand knowledge on
+file says so. Naming a talk as scheduled or published ("you're on the panel on
+the 20th", "your session on X is on the agenda") is not this, and passes.
+
 NOT claims, never flag these:
-- The sender's own credentials, rate or offer.
+- The sender's own credentials, rate or offer (but not a first-hand claim about
+  them, above).
 - A guess written as a guess ("I'd guess", "perhaps", "two guesses at").
 - A general statement about the world, not asserted of them.
 - An offer to build something that does not exist yet.
