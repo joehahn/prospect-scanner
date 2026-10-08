@@ -21,6 +21,7 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBu
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { scoreboard, searchFunnel, spend, draftArms, timingText } from './measures.mjs';
+import { armOf, channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
@@ -1673,10 +1674,25 @@ ${balanceForm}</section>`;
   // The fields the reach advice reads, fresh from the book (a paste may have added them).
   const reachQ = db.prepare('SELECT email, email_guess, degree, profile_url, platform_activity, prior_relationship FROM people WHERE id = ?');
   const pFull = (p) => ({ ...p, ...(reachQ.get(p.person_id) ?? {}) });
+  // THE CHANNEL TEST (channel-test.mjs): a person assigned the email arm gets
+  // Email as the box's default and a line saying why; the LinkedIn arm keeps the
+  // usual advice. Either way the operator chooses, and what he sends is counted.
+  const testLine = (p) => {
+    const arm = armOf(db, p.person_id);
+    if (!arm) return '';
+    return `<p class="meta"><b>Channel test: ${arm === 'email' ? 'send by email' : 'send on LinkedIn'}</b>
+      <span class="dim">(people rated 4+ with an address alternate between the two, so the reply rates compare like with like)</span></p>`;
+  };
   const readyNote = (p) => {
     const latest = draftsOf?.get(p.person_id)?.[0] ?? null;
     const { email, email_guess: guess } = db.prepare('SELECT email, email_guess FROM people WHERE id = ?').get(p.person_id) ?? {};
-    return noteBox(p, latest, { channel: reachOptions(pFull(p), d).find((x) => x.channel)?.channel ?? 'linkedin_inmail', email, guess });
+    const usual = reachOptions(pFull(p), d).find((x) => x.channel && x.channel !== 'email')?.channel
+      ?? reachOptions(pFull(p), d).find((x) => x.channel)?.channel ?? 'linkedin_inmail';
+    const arm = armOf(db, p.person_id);
+    const channel = arm === 'email' && (email || guess) ? 'email'
+      : arm === 'linkedin' ? usual
+      : reachOptions(pFull(p), d).find((x) => x.channel)?.channel ?? 'linkedin_inmail';
+    return noteBox(p, latest, { channel, email, guess });
   };
   // THE SAME FILTER ATTRIBUTES AS ON ALL PROSPECTS, so a target, offer or
   // geography chip narrows the day's cards in place.
@@ -1726,6 +1742,7 @@ ${balanceForm}</section>`;
       ? `<li>Against the examples: ${cited(pick.against_example)}</li>` : ''}</ul></details>
   <p class="lookup">${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</p>
   ${reachLine(pFull(p), d)}
+  ${testLine(p)}
   ${pastedQ.get(p.person_id)?.at ? pasteBox(p).replace('<b>Paste a profile</b>', '<b>Paste again</b>') : pasteBox(p)}
   ${verdictBox(p, mine)}
   ${readyNote(p)}
@@ -1976,7 +1993,30 @@ the write above the skip. 1.00 is perfect, 0.50 a coin. Blind calls were made be
 <table><thead><tr><th></th><th>calls</th><th>judge agreed</th><th>judge</th><th>old ranker</th></tr></thead>
 <tbody>${row('all your calls since each judgment', sb.forward)}${row('blind calls only', sb.blind)}</tbody></table>
 <p class="dim">Changed your mind after seeing the judge: ${sb.changed}.</p></section>
-${draftArmsPanel(db)}`;
+${draftArmsPanel(db)}
+${channelPanel(db)}`;
+}
+
+// EMAIL OR LINKEDIN? (channel-test.mjs, 2026-10-08.) Replies only on sends old
+// enough to have had one; bounces apart, since a note that never arrived says
+// nothing about the channel. The test rows are the people assigned an arm, so
+// the two columns compare like with like; the record rows are everything, which
+// is not a fair comparison and is shown only for scale.
+function channelPanel(db) {
+  let cfg = null;
+  try { cfg = loadConfig(); } catch { /* no config: count every row */ }
+  const r = channelResults(db, { notSales: cfg ? notSalesSql(cfg, 'o.service_pitched') : undefined });
+  const pct = (x) => (x.mature ? `${Math.round((100 * x.replied) / x.mature)}%` : '—');
+  const row = (label, x) => `<tr><td>${label}</td><td>${x.sent}</td><td>${x.mature}</td><td>${x.replied}</td>
+    <td><b>${pct(x)}</b></td><td>${x.bounced}</td></tr>`;
+  return `<section class="panel"><h2>Email or LinkedIn?</h2>
+<p class="lead">People rated 4+ with an address alternate between the two, and the card says which.
+Replies are counted on sends at least ${r.matureDays} days old. With reply rates in single digits,
+about thirty a side shows a large difference and no small one.</p>
+<table><thead><tr><th></th><th>sent</th><th>${r.matureDays}+ days old</th><th>replied</th><th>rate</th><th>bounced</th></tr></thead>
+<tbody>${row('<b>Test</b>: email', r.test.email)}${row('<b>Test</b>: LinkedIn', r.test.linkedin)}
+${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.linkedin)}</tbody></table>
+<p class="dim">The whole record is not a fair comparison: email went where an address happened to be on file.</p></section>`;
 }
 
 // FIXED EXAMPLES OR PICKED ONES? New drafts alternate between the hand-picked

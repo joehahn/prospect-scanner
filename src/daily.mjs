@@ -27,6 +27,10 @@
 //                 otherwise a LinkedIn connection note. Nothing is sent.
 //   4c. grade     those drafts, by a model other than the drafter; a failing
 //                 one is flagged on its card with the words that failed
+//   4d. addresses for the firms of writable people rated 4+ where nobody has
+//                 one, read off the firm's own pages (up to --addresses firms);
+//                 then the channel test gives each new 4+ person with an
+//                 address the arm, email or LinkedIn, the last one did not get
 //   5. dash       rebuild the pages
 //
 // Every stage records its own cost in `runs`; the summary at the end adds them
@@ -40,6 +44,7 @@
 //   npm run daily -- --judge N    how many screened people to judge in full (default 150)
 //   npm run daily -- --research N how many people rated 3+ to research (default 20)
 //   npm run daily -- --drafts N   first drafts to write (default 0: drafting is on the card's button)
+//   npm run daily -- --addresses N firms to look up an address for (default 8)
 //   npm run daily -- --no-batch   send every model call directly, at full price
 //   npm run daily -- --dry        say what would run, run nothing
 
@@ -50,6 +55,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
 import { strongWritable, pasteQueue } from './funnel.mjs';
 import { ratingOf } from './measures.mjs';
+import { assign, candidates } from './channel-test.mjs';
 import { heading, bold, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -300,6 +306,37 @@ if (draftN > 0) {
 // named, is flagged on the card before the operator edits it.
 if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--since', started], BATCH ?? {});
 
+// 4d. ADDRESSES, THEN THE CHANNEL TEST (channel-test.mjs, 2026-10-08). Email
+// can only be tested on people with an address, and the firms that publish
+// one are not a random sample, so look one up for every firm with a writable
+// 4+ person and none on file, then alternate the channel among those who have
+// one. `addresses` reads the firm's own pages, then at most one press search.
+const addrN = argN('--addresses', 8);
+let assigned = [];
+if (addrN > 0 && !dry) {
+  const db = openDb();
+  let firms = [];
+  try {
+    const anyAddr = db.prepare(`SELECT 1 FROM people WHERE org_id = ? AND (email IS NOT NULL OR email_guess IS NOT NULL)`);
+    const seen = new Set();
+    for (const p of strongWritable(db)) {
+      if (p.rating < 4 || seen.has(p.org_id) || anyAddr.get(p.org_id)) continue;
+      seen.add(p.org_id);
+      firms.push({ id: p.org_id, name: p.org_name ?? p.org_id });
+      if (firms.length >= addrN) break;
+    }
+  } finally { db.close(); }
+  for (const f of firms) {
+    const hasDomain = () => q('SELECT domain FROM orgs WHERE id = ?', f.id)[0]?.domain;
+    if (!hasDomain()) run(`4d. domain · ${f.name}`, ['lead', '--', 'domains', '--org', f.id]);
+    if (hasDomain()) run(`4d. addresses · ${f.name}`, ['lead', '--', 'addresses', '--org', f.id]);
+  }
+  const db2 = openDb();
+  try { assigned = assign(db2, candidates(db2)); } finally { db2.close(); }
+  console.log(`\n${bold('4d. channel test')} ${assigned.length} assigned`
+    + (assigned.length ? `: ${assigned.map((a) => `${a.person_id} → ${a.arm}`).join(', ')}` : ''));
+}
+
 // 5. pages
 run('5. dash', ['dash']);
 
@@ -336,7 +373,7 @@ if (!dry) {
   try { waiting = readFileSync(resolve(ROOT, 'data/dash/ready.html'), 'utf8').match(/(\d+) to decide/)?.[1] ?? '0'; } catch { /* no page yet */ }
   console.log(heading('done'));
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
-    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
+    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${assigned.length} into the channel test · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
   // THE OPERATOR'S PART OF THE MORNING: the few strongest writable people whose
   // seat is the open question and who have no profile on file (funnel.mjs).
