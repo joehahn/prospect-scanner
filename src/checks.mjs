@@ -117,5 +117,22 @@ export function checkNote({ raw, person = {}, org = {}, evidenceText = '', hasRe
   return flags;
 }
 
+/**
+ * The phrases the operator has retired, as listed under "# Retired phrases" in
+ * the voice file: one per bullet. They live there, not here, because they are
+ * his wording and this repo holds nothing about the operator.
+ */
+export function retiredPhrases(voiceText) {
+  const m = String(voiceText ?? '').match(/^# Retired phrases\s*$([\s\S]*?)(?=^# )/m);
+  if (!m) return [];
+  return [...m[1].matchAll(/^- (.+)$/gm)].map((x) => x[1].trim().toLowerCase()).filter(Boolean);
+}
+
+/** Each retired phrase the note uses. Case and runs of spaces are ignored. */
+export function retiredHits(text, phrases = []) {
+  const t = String(text ?? '').toLowerCase().replace(/\s+/g, ' ');
+  return phrases.filter((ph) => t.includes(ph));
+}
+
 export const MECHANICAL_FLAGS = ['empty', 'aphorism-opener', 'no-bridge', 'late-bridge',
   'wrong-recipient', 'too-long', 'no-read'];

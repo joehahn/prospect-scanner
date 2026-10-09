@@ -35,7 +35,7 @@ import { loadTargeting } from './targeting.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
-import { noteBody, unbold } from './checks.mjs';
+import { noteBody, unbold, retiredPhrases, retiredHits } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
 import { voiceFor, chooseArm, splitVoice, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
@@ -1009,6 +1009,15 @@ async function main() {
     }
     console.log(dim('  Cut it before sending. The draft is stored either way — what the ' +
       'model wrote is the record.'));
+  }
+
+  // STOCK PHRASES, FLAGGED NOT BLOCKED. The voice file lists the phrases that made
+  // 109 notes read as one note; the examples still carry some of them.
+  const stock = retiredHits(noteBody(res.text), retiredPhrases(readVoice()));
+  if (stock.length) {
+    console.log(`\n${bold('RETIRED PHRASES — reword before sending')}`);
+    for (const ph of stock) console.log(`  "${ph}"`);
+    console.log(dim('  Listed under "# Retired phrases" in prompts/voice.md.'));
   }
 
   console.log(dim(`\n${res.usage.input_tokens} in / ${res.usage.output_tokens} out · ` +

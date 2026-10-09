@@ -25,6 +25,7 @@ import { armOf, channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
+import { retiredPhrases, retiredHits } from './checks.mjs';
 import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -2112,6 +2113,19 @@ function pasteBox(p) {
 const GRADES = new Map();
 const GRADE_DIMS = [['claims', 'claim not on file'], ['recital', 'recites their own facts'],
   ['never_claim', 'never-claim'], ['channel_rules', 'channel rule'], ['clarity', 'unclear'], ['fits_channel', 'too long']];
+// The operator's retired phrases, read once from the voice file (gitignored; an
+// absent file means no list). Shown on the card, because the Draft button runs
+// `draft` in the background and its terminal warning reaches nobody.
+let RETIRED = null;
+function retiredLine(draft) {
+  if (RETIRED === null) {
+    try { RETIRED = retiredPhrases(readFileSync(resolve(ROOT, 'prompts/voice.md'), 'utf8')); } catch { RETIRED = []; }
+  }
+  const hits = draft?.body ? retiredHits(noteOnly(draft.body), RETIRED) : [];
+  return hits.length ? `<div class="gradebox"><b>Retired phrases — reword before sending:</b> ${
+    hits.map((h) => `&ldquo;${esc(h)}&rdquo;`).join(', ')}</div>` : '';
+}
+
 function gradeLine(draft) {
   const g = draft?.id ? GRADES.get(draft.id) : null;
   if (!g) return { mark: '', html: '' };
@@ -2174,7 +2188,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
         <input name="subject" placeholder="subject" value="${subject}">
       </div>
       <p class="nbto"${ch === 'email' ? '' : ' hidden'}>To: ${to}</p>
-      ${declined ? '' : gradeLine(draft).html}
+      ${declined ? '' : gradeLine(draft).html}${declined ? '' : retiredLine(draft)}
       <textarea name="body" rows="12" placeholder="No draft yet. Press Draft.">${body}</textarea>
       <p class="nbcount dim" data-max="${CONNECT_NOTE_MAX}"${ch === 'linkedin_connect_note' ? '' : ' hidden'}></p>
       ${draft?.body && (declined || noteOnly(draft.body) !== String(draft.body).trim())
