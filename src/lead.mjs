@@ -1856,6 +1856,7 @@ async function addresses(db, cfg, args) {
   const { fetchPage, discoverNewsLinks, extractText, NEWS_PATHS } =
     await import('./sources/web.mjs');
 
+  db.prepare('UPDATE orgs SET addresses_checked_at = ? WHERE id = ?').run(new Date().toISOString(), orgId);
   console.log(heading(`${org.name} — looking for one real address`));
   console.log(dim(`${base}, their own pages only, robots respected.\n`));
 

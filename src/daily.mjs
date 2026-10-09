@@ -312,15 +312,18 @@ if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--si
 // 4+ person and none on file, then alternate the channel among those who have
 // one. `addresses` reads the firm's own pages, then at most one press search.
 const addrN = argN('--addresses', 8);
+const ADDR_RECHECK_DAYS = 14;   // a firm that published nothing is not asked again for two weeks
 let assigned = [];
 if (addrN > 0 && !dry) {
   const db = openDb();
   let firms = [];
   try {
     const anyAddr = db.prepare(`SELECT 1 FROM people WHERE org_id = ? AND (email IS NOT NULL OR email_guess IS NOT NULL)`);
+    const since = new Date(Date.now() - ADDR_RECHECK_DAYS * 86_400_000).toISOString();
+    const recent = db.prepare('SELECT 1 FROM orgs WHERE id = ? AND addresses_checked_at > ?');
     const seen = new Set();
     for (const p of strongWritable(db)) {
-      if (p.rating < 4 || seen.has(p.org_id) || anyAddr.get(p.org_id)) continue;
+      if (p.rating < 4 || seen.has(p.org_id) || anyAddr.get(p.org_id) || recent.get(p.org_id, since)) continue;
       seen.add(p.org_id);
       firms.push({ id: p.org_id, name: p.org_name ?? p.org_id });
       if (firms.length >= addrN) break;
@@ -330,6 +333,9 @@ if (addrN > 0 && !dry) {
     const hasDomain = () => q('SELECT domain FROM orgs WHERE id = ?', f.id)[0]?.domain;
     if (!hasDomain()) run(`4d. domain · ${f.name}`, ['lead', '--', 'domains', '--org', f.id]);
     if (hasDomain()) run(`4d. addresses · ${f.name}`, ['lead', '--', 'addresses', '--org', f.id]);
+    // THE LOOKUP'S OWN OUTPUT IS NOT LOGGED, so say what it came to.
+    const got = q(`SELECT COUNT(*) n FROM people WHERE org_id = ? AND (email IS NOT NULL OR email_guess IS NOT NULL)`, f.id)[0].n;
+    console.log(`  ${got ? `${got} address(es) on file` : 'none usable'}`);
   }
   const db2 = openDb();
   try { assigned = assign(db2, candidates(db2)); } finally { db2.close(); }

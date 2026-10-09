@@ -795,6 +795,7 @@ export function openDb(path = DB_PATH, { quiet = true } = {}) {
   const applied = migrate(db);
   addRevenueSource(db);
   addSizeProvenance(db);
+  addAddressCheck(db);
   addNextStep(db);
   addVerdicts(db);
   addGradeClarity(db);
@@ -873,6 +874,16 @@ function addVerdicts(db) {
   // the top of a day's cards. `first` marks those, on a write.
   const cols = db.prepare('PRAGMA table_info(verdicts)').all().map((c) => c.name);
   if (!cols.includes('first')) db.exec('ALTER TABLE verdicts ADD COLUMN first INTEGER NOT NULL DEFAULT 0');
+}
+
+// WHEN A FIRM'S ADDRESSES WERE LAST LOOKED FOR, added 2026-10-09. The morning
+// run looked up the same eight firms every day: a firm that publishes no
+// address still has none tomorrow, so it stayed first in line and the firms
+// behind it were never reached. A lookup records the date; the morning skips a
+// firm looked at recently.
+function addAddressCheck(db) {
+  const cols = db.prepare('PRAGMA table_info(orgs)').all().map((c) => c.name);
+  if (!cols.includes('addresses_checked_at')) db.exec('ALTER TABLE orgs ADD COLUMN addresses_checked_at TEXT');
 }
 
 function addSizeProvenance(db) {
