@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
-import { assign, armOf, channelResults, familyOf } from '../src/channel-test.mjs';
+import { assign, armOf, atFirm, channelResults, familyOf } from '../src/channel-test.mjs';
 
 const fresh = () => {
   const db = new Database(':memory:');
@@ -44,4 +44,13 @@ test('replies count only on mature sends; bounces are counted apart', () => {
   assert.deepEqual(r.all.email, { sent: 3, mature: 2, replied: 1, bounced: 1 });
   assert.deepEqual(r.all.linkedin, { sent: 1, mature: 1, replied: 0, bounced: 0 });
   assert.deepEqual(r.test.email, { sent: 1, mature: 1, replied: 1, bounced: 0 });
+});
+
+test('only an address at the firm\'s own domain puts someone in the test', () => {
+  assert.equal(atFirm('jdoe@acme.com', 'acme.com'), true);
+  assert.equal(atFirm('jdoe@uk.acme.com', 'https://www.acme.com/'), true);
+  assert.equal(atFirm('jdoe@yahoo.com', 'acme.com'), false);
+  assert.equal(atFirm('jdoe@notacme.com', 'acme.com'), false);
+  assert.equal(atFirm('jdoe@acme.com', null), false);
+  assert.equal(atFirm(null, 'acme.com'), false);
 });

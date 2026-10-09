@@ -64,12 +64,25 @@ export function assign(db, candidates, now = new Date().toISOString()) {
  * a firm that could buy. A recruiter is not a pitch: the first run put one in,
  * an inbound contact already in conversation (2026-10-08).
  */
+//
+// AN ADDRESS AT THE FIRM, not merely an address. Added 2026-10-09: a CFO's
+// About section offered a personal Yahoo address "for consulting engagements as
+// well as full time opportunities". Silence there says something about a
+// personal inbox, not about email against LinkedIn, so the email arm counts
+// only addresses on the firm's own domain. The address stays on file.
 const NOT_BUYERS = new Set(['staffing', 'marketplace']);
+const host = (d) => String(d ?? '').toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '');
+export function atFirm(address, domain) {
+  const at = String(address ?? '').toLowerCase().split('@')[1];
+  const d = host(domain);
+  return Boolean(at && d) && (at === d || at.endsWith(`.${d}`));
+}
 export function candidates(db) {
   const addr = db.prepare('SELECT email, email_guess FROM people WHERE id = ?');
-  const kind = db.prepare('SELECT kind FROM orgs WHERE id = ?');
-  return strongWritable(db).filter((p) => p.rating >= 4 && !NOT_BUYERS.has(kind.get(p.org_id)?.kind))
-    .filter((p) => { const a = addr.get(p.person_id); return Boolean(a?.email || a?.email_guess); })
+  const org = db.prepare('SELECT kind, domain FROM orgs WHERE id = ?');
+  return strongWritable(db).filter((p) => p.rating >= 4 && !NOT_BUYERS.has(org.get(p.org_id)?.kind))
+    .filter((p) => { const a = addr.get(p.person_id); const d = org.get(p.org_id)?.domain;
+      return atFirm(a?.email, d) || atFirm(a?.email_guess, d); })
     .map((p) => p.person_id);
 }
 
