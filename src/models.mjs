@@ -121,6 +121,18 @@ function enqueue(req) {
   });
 }
 
+// HALF A CHARACTER IS A 400. LinkedIn profiles are often written in Unicode's
+// mathematical bold (𝗕𝗼𝗿𝗻), two code units per letter; any slice through one
+// leaves a lone surrogate, and the API rejects the whole body as invalid JSON
+// ("unexpected end of hex escape", 2026-10-09, a draft whose examples quoted
+// such a profile). Every string in the request is repaired in place, whatever
+// slice made it.
+function wellFormed(x) {
+  if (Array.isArray(x)) { for (let i = 0; i < x.length; i++) x[i] = typeof x[i] === 'string' ? x[i].toWellFormed() : wellFormed(x[i]); }
+  else if (x && typeof x === 'object') { for (const k of Object.keys(x)) x[k] = typeof x[k] === 'string' ? x[k].toWellFormed() : wellFormed(x[k]); }
+  return x;
+}
+
 async function flushBatch() {
   const items = batchQueue.splice(0);
   if (!items.length) return;
@@ -239,6 +251,8 @@ export async function complete(db, runId, {
       ? parts.map((text) => ({ type: 'text', text, cache_control }))
       : parts.join('');
   }
+
+  wellFormed(req);
 
   let res;
   let batched = false;

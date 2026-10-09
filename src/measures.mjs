@@ -4,7 +4,7 @@
 // Searches pages all read these functions, so the numbers on a page and in a
 // terminal can never disagree. Pure reads: nothing here writes to the book.
 
-import { changed, armOf } from './voice-examples.mjs';
+import { changed, armOf, RECENT_VERSION } from './voice-examples.mjs';
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
@@ -197,7 +197,14 @@ export function draftArms(db) {
   if (!has) return [];
   const rows = db.prepare(`SELECT id, person_id, body, sent_text, revised_from, examples FROM drafts ORDER BY id`).all();
   const arms = new Map();
-  const arm = (r) => r.examples == null ? 'before' : (armOf(r.examples) ?? 'fixed');
+  // `recent` before RECENT_VERSION dropped any note with a long ask behind it,
+  // most of what he revised; it is counted apart, not with the arm as it runs now.
+  const arm = (r) => {
+    if (r.examples == null) return 'before';
+    const a = armOf(r.examples) ?? 'fixed';
+    if (a !== 'recent') return a;
+    try { return (JSON.parse(r.examples).v ?? 1) >= RECENT_VERSION ? 'recent' : 'recent_v1'; } catch { return 'recent_v1'; }
+  };
   const get = (a) => arms.get(a) ?? arms.set(a, { arm: a, drafted: 0, sent: 0, unchanged: 0, revisions: 0, deltas: [] }).get(a);
   for (const r of rows) {
     const a = get(arm(r));
@@ -209,7 +216,7 @@ export function draftArms(db) {
     a.revisions += rows.filter((x) => x.person_id === r.person_id && x.id <= r.id
       && x.revised_from != null && arm(x) === arm(r)).length;
   }
-  return ['before', 'fixed', 'picked', 'edits', 'recent'].filter((a) => arms.has(a)).map((a) => {
+  return ['before', 'fixed', 'picked', 'edits', 'recent_v1', 'recent'].filter((a) => arms.has(a)).map((a) => {
     const x = arms.get(a);
     return { arm: a, drafted: x.drafted, sent: x.sent, unchanged: x.unchanged,
       changed: median(x.deltas), revisionsPerSent: x.sent ? x.revisions / x.sent : null };

@@ -2025,7 +2025,7 @@ ${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.
 function draftArmsPanel(db) {
   const arms = draftArms(db);
   if (!arms.length) return '';
-  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent: 'your latest notes, with what they were written from' };
+  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from' };
   const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
   return `<section class="panel"><h2>Is drafting learning from you?</h2>
 <p class="lead">New drafts alternate between the fixed example notes in <code>voice.md</code> and your latest

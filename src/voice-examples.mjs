@@ -318,9 +318,13 @@ export function renderEdits(x, i) {
 
 export const RECENT_PROMPT = 'prompts/voice-recent.md';
 export const RECENT_K = 15;
+// 2: notes whose asks are not portable are kept, without those asks
+// (2026-10-09). The Scoreboard counts the arm afresh from this version.
+export const RECENT_VERSION = 2;
 const PROFILE_CHARS = 2500;
 
-const cut = (t, n) => { const x = String(t ?? '').replace(/\s+\n/g, '\n').trim(); return x.length > n ? `${x.slice(0, n)} [...]` : x; };
+// Never through a surrogate pair: half a bold letter is invalid JSON (src/models.mjs).
+const cut = (t, n) => { const x = String(t ?? '').replace(/\s+\n/g, '\n').trim(); return x.length > n ? `${x.slice(0, n).toWellFormed().replace(/\uFFFD$/, '')} [...]` : x; };
 
 /** The drafter's NOTES section: its reasoning, written for the operator. */
 export function draftNotes(raw) {
@@ -378,11 +382,16 @@ export function recentExamples(db, { personId, channel, superseded = [], neverCl
     if (out.length >= k) break;
     if (seen.has(r.person_id)) continue;
     seen.add(r.person_id);
-    const asks = asked.all(r.person_id, r.id).map((x) => x.revise_note.trim());
-    if (!asks.every(portable)) continue;
+    // THE NOTE STAYS, ONLY THE INSTRUCTION GOES. Until 2026-10-09 one long ask
+    // dropped the whole note, and his asks run long because they quote the
+    // draft: 9 of the 13 notes sent on 2026-10-08 never reached a later draft,
+    // the most revised among them. What he sent is his own text and safe to
+    // show; an ask that is not `portable` is still never shown to anyone else.
+    const all = asked.all(r.person_id, r.id).map((x) => x.revise_note.trim());
+    const asks = all.filter(portable);
     const sent = updateWording(r.sent_text, superseded).trim();
     if (neverClaimHits(sent, neverClaim).length) continue;
-    out.push({ ...r, sent, asks, delta: changed(r.body, r.sent_text) });
+    out.push({ ...r, sent, asks, asksWithheld: all.length - asks.length, delta: changed(r.body, r.sent_text) });
   }
   return out.reverse();   // oldest first, so the latest is nearest the task
 }
@@ -422,7 +431,7 @@ export function voiceFor(db, { arm, voiceText, prompts = {}, personId, channel, 
     // The prose (shape and prohibitions) stays; the recent notes replace the fixed ones.
     const text = [splitVoice(voiceText).prose, '---', String(prompts.recent ?? '').trim(), '',
       ...xs.map((x, i) => renderRecent(db, x, i, superseded))].join('\n\n');
-    return { text, record: { arm, shown: xs.map((x) => x.id) } };
+    return { text, record: { arm, v: RECENT_VERSION, shown: xs.map((x) => x.id) } };
   }
   const picks = arm === 'edits' ? pickEdits(db, opts) : pickExamples(db, opts);
   if (picks.length < MIN_POOL) {

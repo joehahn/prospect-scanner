@@ -677,7 +677,7 @@ async function main() {
   console.log(dim(`${revise ? `revising ${crossChannel ? `the ${prior.channel} ` : ''}v${prior.version} for` : 'drafting for'} ${person.name} ` +
     `at ${org.name} · ${channel} · ${service?.id ?? 'no service'} · ${model} · effort ${effort}`));
   if (revise) console.log(dim(`  asked for: ${revise}`));
-  console.log(dim(`  examples: ${voice.record.arm}${voice.record.shown ? ` (${voice.record.shown.length} chosen sent notes${voice.record.edits ? `, ${voice.record.edits} edits` : ''} + ${voice.record.anchors} anchors)` : ''}${voice.record.fell_back ? ` — ${voice.record.fell_back}` : ''}`));
+  console.log(dim(`  examples: ${voice.record.arm}${voice.record.shown ? ` (${voice.record.shown.length} chosen sent notes${voice.record.edits ? `, ${voice.record.edits} edits` : ''}${voice.record.anchors ? ` + ${voice.record.anchors} anchors` : ''})` : ''}${voice.record.fell_back ? ` — ${voice.record.fell_back}` : ''}`));
 
   // A connection note has LinkedIn's hard cap (draft-cold-note v24 says what to do with it).
   const capNote = channel === 'linkedin_connect_note'

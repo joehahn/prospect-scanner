@@ -86,3 +86,28 @@ test('a note recorded as sent today joins the example pool tomorrow, not mid-day
     db.close(); rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a note with a long ask behind it is kept, without that ask', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { openDb } = await import('../src/db.mjs');
+  const { recentExamples } = await import('../src/voice-examples.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'pool-ask-'));
+  const db = openDb(join(dir, 'test.db'));
+  try {
+    db.pragma('foreign_keys = OFF');
+    db.prepare(`INSERT INTO people (id, org_id, name) VALUES ('target', 'org-t', 'T')`).run();
+    const add = db.prepare(`INSERT INTO drafts (id, person_id, org_id, channel, version, model, body,
+      sent_text, created_at, revise_note) VALUES (?, 'a', 'org-a', 'email', 1, 'm', 'DRAFT\n---\nhi', ?, '2026-10-02T10:00:00Z', ?)`);
+    add.run(1, null, 'x'.repeat(250));            // a long ask, quoting the draft
+    add.run(2, null, 'say I build AI');           // a short one
+    add.run(3, 'hi there', null);                 // what was sent
+    const [x] = recentExamples(db, { personId: 'target', channel: 'email' });
+    assert.equal(x.id, 3);
+    assert.deepEqual(x.asks, ['say I build AI']);
+    assert.equal(x.asksWithheld, 1);
+  } finally {
+    db.close(); rmSync(dir, { recursive: true, force: true });
+  }
+});
