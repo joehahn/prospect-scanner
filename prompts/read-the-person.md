@@ -1,6 +1,14 @@
 # What is this person trying to do?
 
-**Version 6, 2026-09-27.**
+**Version 7, 2026-10-09.**
+
+*v7: the seat's circumstance counts as evidence, a circumstance is not a
+judgment, and the offer is chosen for the goal. A finance executive hired into a
+new leadership team after a bankruptcy and an acquisition, whose own profile
+names turnaround work, was read entirely from one conference talk on risk; the
+read then ruled out the bankruptcy as unsayable and AI framing as unwanted, and
+the drafter, bound by both, could only write about the talk. The operator: the
+facts on his card suggested AI for a business that needs a good turnaround.*
 
 *v6: the operator's own words about this person now come first. v5 never saw
 them, and read a director with a team and AI agents under way as one person
@@ -71,11 +79,25 @@ candidates at scale — their writing, their code, their record — to find who 
 invest in the place and stay. That is applied AI on a problem she has told
 everyone she has.
 
+**THE SEAT'S CIRCUMSTANCE IS EVIDENCE TOO (v7).** Why this person is in this
+seat now is often the plainest statement of the goal there is: hired into a new
+leadership team after a bankruptcy, appointed to own a mandate just announced,
+in the second year after an acquisition. Count it with everything else. Several
+dated facts about the situation outweigh one conference session, whose topic is
+often the organiser's choice rather than the speaker's preoccupation. A talk
+that bears on the circumstance is the lede for it; a talk that does not is one
+fact among many.
+
 **The test: is the subject of this read the thing they talk about most?** If you
 have landed on something mentioned once because it sounded closer to the offer,
 you have chosen the evidence to fit the sale.
 
 ### 1. `trying_to_do` — what are they working toward?
+
+Begin it with where the goal comes from, because that decides how a note may
+use it: **stated** (they or the firm said it, in the evidence), **inferred**
+(at least two dated facts point the same way; their ids go in `basis`), or **role
+only** (nothing but the title suggests it, which also makes `confidence` thin).
 
 Not their job description. The thing they are pushing for that is not finished.
 A remit is "runs supply chain". A goal is "doubling output across two new plants
@@ -187,6 +209,17 @@ frames their work as mission. Efficiency to someone hiring. Capability to someon
 who already has it and said so. A number you cannot source. Name it plainly so
 the drafter avoids it.
 
+**A circumstance is not a judgment (v7).** A turnaround after a bankruptcy, an
+integration after an acquisition, a growth push the firm announced: these are
+facts about the situation, often in their own words, and the note may name them.
+Do not put the circumstance itself in this field. What belongs here is any view
+of how well they are handling it.
+
+**Never rule out the work itself.** Every note offers applied AI, so "no AI or
+technology framing" leaves the drafter nothing to write. If their words show no
+appetite for technology talk, say how to frame it instead: as the business
+result they care about, in their function's vocabulary.
+
 **One is always true and does not need saying here: never imply their systems,
 data or team are a mess.** The drafter is bound by that already. What belongs in
 this field is the version specific to THIS person — the particular compliment
@@ -216,6 +249,15 @@ the note; it does not soften it. A person who is the wrong recipient is still
 worth knowing, and says so elsewhere.
 
 ---
+
+## `suggests_package` — the offer that is the next step toward the goal
+
+*v7.* Choose it from the live packages after the four questions, never before:
+the one that is the most logical next step for this person toward
+`trying_to_do`, judged by each package's `for` line, the seat, and whether the
+firm has AI staff of its own. Hours on a live project need a team or a project
+to join; where there is neither, a scoped build or a first conversation is the
+step.
 
 ## Reasoning from sparse clues is the point
 

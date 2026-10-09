@@ -182,7 +182,7 @@ function thesisFor(targeting, verticalId) {
     + bits.join('\n\n').slice(0, 4000);
 }
 
-function contextFor(db, person) {
+function contextFor(db, person, saidBefore = null) {
   const ev = db.prepare(`
     SELECT id, kind, claim, source_url, provenance, body
       FROM evidence WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL))
@@ -210,8 +210,8 @@ function contextFor(db, person) {
     person.degree ? `LinkedIn degree: ${person.degree}` : '',
     person.in_seat_since ? `In seat since: ${person.in_seat_since}` : '',
     ``,
-    ...(operatorSaidLines(db, person.id)
-      ? [`## What the operator said about this person (first-hand; outranks inference)`, operatorSaidLines(db, person.id), ``] : []),
+    ...(operatorSaidLines(db, person.id, saidBefore)
+      ? [`## What the operator said about this person (first-hand; outranks inference)`, operatorSaidLines(db, person.id, saidBefore), ``] : []),
     ...(boardLines(db, person.id)
       ? [`## Boards this person sits on now (each a company they can introduce the operator to)`, boardLines(db, person.id), ``] : []),
     `## Everything on file`,
@@ -242,7 +242,7 @@ function show(db, personId) {
   return r;
 }
 
-async function readOne(db, runId, person, cfg, prompt, model, packages, targeting, rules = '') {
+async function readOne(db, runId, person, cfg, prompt, model, packages, targeting, rules = '', saidBefore = null) {
   // THE THESIS THE FIRM WAS SELECTED UNDER. `thesisFor` was written on
   // 2026-09-24 with a long note explaining why this stage needs it, `targeting`
   // was threaded all the way down to here to supply it -- and nothing ever
@@ -263,7 +263,7 @@ async function readOne(db, runId, person, cfg, prompt, model, packages, targetin
     // been paid for. The ceiling is shared between adaptive thinking and output,
     // so a longer input costs headroom twice.
     model, maxTokens: 24000, schema: SCHEMA, system: prompt + rules,
-    messages: [{ role: 'user', content: `${contextFor(db, person)}\n\n## Live packages\n${packages}`
+    messages: [{ role: 'user', content: `${contextFor(db, person, saidBefore)}\n\n## Live packages\n${packages}`
       + thesisFor(targeting, vertical)
       + priorRejections(db, person.id) }],
   });
@@ -363,7 +363,9 @@ async function main() {
   const worker = async () => {
     for (let i = next++; i < people.length; i = next++) {
       const p = people[i];
-      const d = await readOne(db, runId, p, cfg, prompt, model, packages, targeting, rules);
+      // --said-before <iso>, for a blind replay: the read hears only what the
+      // operator had said by then, as `draft --pool-before` does.
+      const d = await readOne(db, runId, p, cfg, prompt, model, packages, targeting, rules, str(args['said-before']));
       spent += d.cost_usd;
       if (d.confidence === 'thin') thin++;
       console.log(`  ${d.confidence === 'strong' ? bold('STRONG') : dim('thin  ')} `
