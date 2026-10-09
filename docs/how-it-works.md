@@ -185,6 +185,10 @@ before it is shown. A revise instruction that is long or quotes a prospect's own
 is withheld; the note it shaped is still shown. Each draft records which set it came from, and the Scoreboard
 compares how much of each set's drafts the operator changes before sending.
 
+**Phrases the operator has retired** are listed in the voice file. Wording repeated
+note after note makes every note read as the same template, so a draft that uses one
+is flagged in the terminal and on its card, to be reworded before it goes out.
+
 A separate call **checks every factual claim** in the draft against the evidence on
 file and flags any it cannot trace. The operator revises in plain words ("drop the
 number, lead with the diligence angle"); every version is kept.
