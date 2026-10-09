@@ -113,8 +113,29 @@ function parseArgs(argv) {
 }
 
 /** Everything the model is allowed to know. Nothing is asserted that is not in here. */
-function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '', cutoff = null) {
-  const bizOffer = service ? loadBusiness(cfg, targeting).offers.find((o) => o.name === service.name) : null;
+function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '', cutoff = null, saidBefore = null) {
+  const bizOffers = loadBusiness(cfg, targeting).offers;
+  // One offer as the drafter reads it: price, who it is for, the operator's
+  // pitch and its page, from config/business.yml where the offer is there.
+  const fmtOffer = (svc) => {
+    const biz = bizOffers.find((o) => o.name === svc.name);
+    return `${svc.name} (${svc.id})
+${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
+   svc.price_usd_month && `Price: $${svc.price_usd_month.toLocaleString('en-US')}/month`,
+   svc.rate_usd_hour && `Rate: $${svc.rate_usd_hour}/hour`,
+   svc.duration && `Turnaround: ${svc.duration}`,
+   (biz?.for ?? svc.best_for) && `Best for: ${biz?.for ?? svc.best_for}`,
+   biz?.pitch && `Pitch, in the operator's words: ${biz.pitch}`,
+   // THE LINK. A note pitching one offer links to that offer's own page when
+   // business.yml names one, so the reader lands on what the note sold rather
+   // than on a home page written for a different buyer.
+   biz?.url && `Link for this offer (use it in place of the firm's address): ${biz.url}`,
+   svc.note && `Note: ${svc.note}`].filter(Boolean).join('\n')}`;
+  };
+  // EVERY LIVE OFFER, so the storyline can choose (draft-cold-note v28). The
+  // offer chosen upstream came from the read or the router before anyone had
+  // put the facts together; it is the default, not the answer.
+  const live = (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live' && x.id !== service?.id);
   const evidence = db.prepare(`
     SELECT kind, claim, source_url, retrieved_at, provenance, body
     FROM evidence WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL))
@@ -224,9 +245,9 @@ ${[person.decision_role && `Decision role: ${person.decision_role}`,
 ${boardLines(db, person.id) ? `
 ## BOARDS THIS PERSON SITS ON NOW (from their firm's own site; each is a company they can introduce you to)
 ${boardLines(db, person.id)}
-` : ''}${operatorSaidLines(db, person.id) ? `
+` : ''}${operatorSaidLines(db, person.id, saidBefore) ? `
 ## WHAT THE OPERATOR SAID ABOUT THIS PERSON (first-hand; outranks the read)
-${operatorSaidLines(db, person.id)}
+${operatorSaidLines(db, person.id, saidBefore)}
 ` : ''}
 ## EVIDENCE (every claim you make must trace to one of these)
 ${evidence.length ? evidence.map(fmtEv).join('\n\n') : '(none — see the instruction about drafting nothing)'}
@@ -300,23 +321,13 @@ ${prior.length
       (o.message_text ? `\n  WHAT WAS SENT:\n${o.message_text.split('\n').map((l) => `    ${l}`).join('\n')}` : '')).join('\n')
   : '(no prior contact)'}
 
-## THE SERVICE BEING PITCHED
-${service ? `${service.name} (${service.id})
-${[service.price_usd && `Price: $${service.price_usd.toLocaleString('en-US')} fixed`,
-   service.price_usd_month && `Price: $${service.price_usd_month.toLocaleString('en-US')}/month`,
-   service.rate_usd_hour && `Rate: $${service.rate_usd_hour}/hour`,
-   service.duration && `Turnaround: ${service.duration}`,
-   // WHO IT IS FOR AND WHY THIS ONE, from config/business.yml where the offer
-   // is there (matched by name); the old best_for otherwise.
-   (bizOffer?.for ?? service.best_for) && `Best for: ${bizOffer?.for ?? service.best_for}`,
-   bizOffer?.pitch && `Pitch, in the operator's words: ${bizOffer.pitch}`,
-   // THE LINK. A note pitching one offer links to that offer's own page when
-   // business.yml names one, so the reader lands on what the note sold rather
-   // than on a home page written for a different buyer.
-   bizOffer?.url && `Link for this offer (use it in place of the firm's address): ${bizOffer.url}`,
-   service.note && `Note: ${service.note}`].filter(Boolean).join('\n')}` : '(none specified)'}
+## THE OFFER CHOSEN BEFORE YOU (the default: keep it unless your storyline points to another)
+${service ? fmtOffer(service) : '(none specified)'}
 
-## THE PITCH (name this one and no other)
+## THE OTHER OFFERS YOU MAY CHOOSE INSTEAD
+${live.length ? live.map(fmtOffer).join('\n\n') : '(none)'}
+
+## THE ARGUMENT FOR THE DEFAULT OFFER (one pitch per note: this one, unless your storyline chose another offer)
 ${line ? `${line.id} — ${line.name} [${line.status}]
 Sells: ${line.sells}
 The buyer's problem: ${line.buyer_problem}
@@ -621,7 +632,13 @@ async function main() {
   // now run in `rank`, free and deterministic, before draft is ever called.
   //
   // `--effort high` is still there for a case that earns it.
-  const effort = args.effort && args.effort !== true ? String(args.effort) : 'medium';
+  //
+  // HIGH AGAIN from 2026-10-09, with draft-cold-note v28. The note is now
+  // built from a storyline (goal, lede, bridge, offer) worked out across the
+  // whole dossier, which is the deliberation the checks above no longer need
+  // and the note does. Nine of one day's notes replayed at high cost $1.26,
+  // about $0.14 each.
+  const effort = args.effort && args.effort !== true ? String(args.effort) : 'high';
 
   // --revise rewrites the latest version rather than starting over. The dossier
   // still goes in, because an instruction like "shorter" must not be allowed to
@@ -671,7 +688,11 @@ async function main() {
   const cutoff = poolBefore
     ? db.prepare(`SELECT MIN(created_at) t FROM drafts WHERE person_id = ?`).get(personId)?.t?.slice(0, 10) ?? null
     : null;
-  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff);
+  // A replay hears only what he had said before this person's first draft.
+  const saidBefore = poolBefore
+    ? db.prepare(`SELECT MIN(created_at) t FROM drafts WHERE person_id = ? AND id >= ?`).get(personId, poolBefore)?.t ?? null
+    : null;
+  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff, saidBefore);
 
   const runId = startRun(db, 'draft', { model, notes: `${personId} ${channel} ${serviceId ?? ''}` });
   console.log(dim(`${revise ? `revising ${crossChannel ? `the ${prior.channel} ` : ''}v${prior.version} for` : 'drafting for'} ${person.name} ` +
@@ -725,8 +746,23 @@ async function main() {
   // --no-store: a replay for measurement (src/replay-drafts.mjs). The call is
   // costed in `runs` like any other; the note is printed and never stored, so
   // it reaches no card and no Scoreboard count.
+  // WHICH OFFER THE STORYLINE CHOSE (draft-cold-note v28). Read from its own
+  // section and stripped from the body like SUBJECT; a name that is not a live
+  // offer leaves the default in place, said out loud.
+  let offerId = serviceId;
+  const offerMatch = res.text.match(/^OFFER\s*\n-+\s*\n\s*([\w-]+)/m);
+  if (offerMatch) {
+    const pick = offerMatch[1].trim();
+    const ok = (cfg.packages ?? []).some((x) => x.id === pick && (x.status ?? 'live') === 'live');
+    if (ok && pick !== serviceId) console.log(dim(`  offer chosen by the storyline: ${pick} (the default was ${serviceId ?? 'none'})`));
+    if (!ok) console.log(dim(`  the storyline named "${pick}", which is not a live offer; keeping ${serviceId ?? 'none'}`));
+    if (ok) offerId = pick;
+    res.text = res.text.replace(/^OFFER\s*\n-+\s*\n.*\n+/m, '');
+  }
+
   if (args['no-store']) {
     finishRun(db, runId, { cost_usd: res.cost_usd ?? 0 });
+    console.log(`\n${res.text}\n`);
     console.log(`REPLAY ${JSON.stringify({ arm: voice.record.arm, examples: voice.record,
       cost_usd: res.cost_usd, body: noteBody(res.text) })}`);
     db.close();
@@ -818,7 +854,7 @@ async function main() {
       prompt_file, model, tokens_in, tokens_out, cost_usd, created_at, run_id,
       revised_from, revise_note, subject, examples)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-    .run(org.id, personId, channel, version, body, serviceId, PROMPT_FILE, model,
+    .run(org.id, personId, channel, version, body, offerId, PROMPT_FILE, model,
          res.usage.input_tokens, res.usage.output_tokens, res.cost_usd,
          new Date().toISOString(), runId, prior?.id ?? null, revise, subject,
          JSON.stringify(voice.record));
@@ -979,7 +1015,7 @@ async function main() {
     `$${(res.cost_usd ?? 0).toFixed(4)} · ${model} · prompt ${PROMPT_FILE}`));
   console.log(dim('Nothing was sent. Edit this, send it yourself, then record what you ' +
     `actually sent:\n  npm run lead -- sent --person ${personId} --channel ${channel} ` +
-    `--service ${serviceId ?? '<id>'} --file sent.txt`));
+    `--service ${offerId ?? '<id>'} --file sent.txt`));
 
   finishRun(db, runId, { cost_usd: res.cost_usd ?? 0 });
   db.close();

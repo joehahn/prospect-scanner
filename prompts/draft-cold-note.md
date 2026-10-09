@@ -1,4 +1,12 @@
-# draft-cold-note — v27, 2026-10-04
+# draft-cold-note — v28, 2026-10-09
+
+*v28: the note is built from a storyline worked out first (goal, lede, bridge,
+offer), and the storyline chooses the offer. Until now the recipe filled slots:
+an opening picked from the evidence and an offer fixed by the channel, chosen
+apart. A CFO hired into a post-bankruptcy leadership team was opened on his
+risk-management talk and offered "an AI project that needs attention
+yesterday", while the NOTES under it described the turnaround. The operator:
+"the drafter might lack a goal."*
 
 *v27: the link is the offer's own page when the dossier gives one, not the home
 page, which is written for a different buyer.*
@@ -45,6 +53,42 @@ It may carry **an angle**, under a heading saying it is not a trigger: a premise
 found for a prospect the ranker had blocked. Use it as the opening and nothing
 more. It is a reason to write, not evidence the firm is buying.
 
+## The job: one storyline, worked out before a word of the note
+
+A note is one argument, not a lede and an offer that happen to share a page.
+Before drafting, read everything on file about the person, their role and what
+the firm does, and work out:
+
+1. **The goal.** What this person is trying to achieve now. Label where it
+   came from, because that decides how the note may use it:
+   - **stated**: they or the firm said it, quoted in the evidence. The note may
+     name it.
+   - **inferred**: at least two dated facts point the same way (a new seat
+     after an acquisition, a talk on a subject, a mandate announced). The note
+     states the facts and the offer and lets the reader supply the goal, which
+     is his job and he knows it. Where a sentence must name it, write it as a
+     guess ("I'd guess…") or in the reader's own words from the evidence.
+   - **role only**: nothing but the title suggests it. Too weak to steer; use
+     the default offer and say so.
+   A guess about what someone wants is allowed. A guess about what is true is
+   not: constraint 1 below still governs every fact in the note.
+2. **The lede.** Something they said or did recently that bears on that goal:
+   their words, a talk and its abstract, a post, the AI subjects they follow.
+   A recent fact that has nothing to do with the goal is not a lede, however
+   fresh. If none bears on it, open on the circumstance itself.
+3. **The bridge.** Why an AI consultant and builder is the natural next step
+   from that lede toward that goal. One plain clause; the reader should not
+   have to work it out.
+4. **The offer.** Of the offers in the dossier, the one that is the most
+   logical next step for this person toward this goal, judged by each offer's
+   "Best for" line, the person's seat and whether the firm has AI staff of its
+   own. The offer chosen before you is the default: keep it unless the
+   storyline points to another, and say why either way.
+
+Then write the note so each beat serves that line, and nothing else. Put the
+storyline first in NOTES, so the operator can check the reasoning before the
+wording.
+
 ## Absolute constraints
 
 1. **Every factual claim about the recipient or their firm must trace to a piece
@@ -90,8 +134,9 @@ recipe, when there is one, is written into `prompts/voice.md` by hand from those
 notes and appears below this file at runtime. *(v25: the `voice` stage that
 proposed recipes was retired; the operator chose examples over rules.)*
 
-**If a recipe appears in the voice rules, follow it exactly and ignore the
-default below.** It beats anything here, because it came from notes that were
+**If a recipe appears in the voice rules, follow its beats exactly and ignore
+the default below**, filled from the storyline: the situation is the lede, the
+claim is the bridge, the offer is the one the storyline chose. It beats anything here, because it came from notes that were
 really sent by the person whose name is on this one.
 
 ### The default, for a corpus with no recipe yet
@@ -135,6 +180,11 @@ nothing about their firm. "Your transformation is stalled on systems" is a claim
 about a business you have not seen.
 
 ## Never suggest their house is a mess
+
+*A circumstance is not a judgment (v28).* A turnaround after a bankruptcy, an
+integration after an acquisition, a growth push the firm announced: these are
+facts about the situation, often in the reader's own words, and may be named
+plainly. What stays forbidden is any view of how well they are handling it.
 
 Not their systems, data, team, processes or in-house judgment. Not directly, not
 as a general truth they are then exempted from, not as the setup for a
@@ -180,8 +230,8 @@ A **connection note** (`linkedin_connect_note`) has a hard character limit, give
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. The reason to connect and
 the offer, nothing else. *(v24.)* **If the voice rules give a connection-note shape,
-follow it instead of the five beats, including the offer it names over the one the
-read chose.** Put only the note under DRAFT: its length, if worth saying, goes in
+follow it instead of the five beats.** Its offer is the one your storyline chose
+(v28; until then the shape's own offer overrode everything). Put only the note under DRAFT: its length, if worth saying, goes in
 NOTES. *(v26.)*
 
 ## The subject line, where the channel has one
@@ -192,10 +242,14 @@ is their news, and it spends the one line you have on something they have.
 
 ## Output format
 
-Return exactly two sections, or three where the channel carries a subject, and
+Return exactly these sections, SUBJECT only where the channel carries one, and
 nothing else.
 
 ```
+OFFER
+-----
+<the id of the offer the note pitches, exactly as the dossier gives it in parentheses>
+
 SUBJECT
 -------
 <one line, email and linkedin_inmail only — omit this section otherwise>
@@ -206,6 +260,8 @@ DRAFT
 
 NOTES
 -----
+- STORYLINE: goal (stated | inferred | role only, with the facts behind it) ->
+  lede -> bridge -> offer, and the offers you did not choose and why
 - <which evidence each factual claim rests on, one line each, with the URL>
 - <anything you deliberately left out, and why>
 - <your own honest read on whether this note should be sent at all>

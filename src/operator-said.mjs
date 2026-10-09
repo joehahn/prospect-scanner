@@ -17,8 +17,12 @@
 
 const has = (db, t) => db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(t);
 
-/** What he has said about one person, oldest first: verdict reasons and revise notes. */
-export function operatorSaid(db, personId) {
+/**
+ * What he has said about one person, oldest first: verdict reasons and revise notes.
+ * `before` (an ISO time), for a replay: only what he had said by then, so a
+ * note redrafted for comparison is not handed the corrections it is compared to.
+ */
+export function operatorSaid(db, personId, before = null) {
   const out = [];
   if (has(db, 'verdicts')) {
     for (const v of db.prepare(`SELECT verdict, first, reason, created_at FROM verdicts
@@ -35,12 +39,12 @@ export function operatorSaid(db, personId) {
         said: String(r.revise_note).trim() });
     }
   }
-  return out.sort((a, b) => a.at.localeCompare(b.at));
+  return out.filter((x) => !before || x.at < before).sort((a, b) => a.at.localeCompare(b.at));
 }
 
 /** The same, as lines for a prompt; empty string when he has said nothing. */
-export function operatorSaidLines(db, personId) {
-  return operatorSaid(db, personId).map((x) => (x.kind === 'verdict'
+export function operatorSaidLines(db, personId, before = null) {
+  return operatorSaid(db, personId, before).map((x) => (x.kind === 'verdict'
     ? `- ${x.at.slice(0, 10)}, marked "${x.call}": "${x.said}"`
     : `- ${x.at.slice(0, 10)}, editing an earlier ${x.channel} draft (it became v${x.version}): "${x.said}"`)).join('\n');
 }
