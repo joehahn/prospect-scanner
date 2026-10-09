@@ -132,8 +132,10 @@ The hardest part is the note itself: saying the one thing that matters to this
 person, and offering the one thing that fits best. What works is a five-beat recipe taken
 from notes I actually sent: their situation, stated as a plain fact; one line
 claiming the work that matches it; the credential; what I sell; a soft ask. Before a
-word is drafted, the AI works out what the prospect is trying to do and which offer
-fits, and anything I have said about them outranks its guesses. Then every claim in
+word is drafted, the AI works out what the prospect is trying to do, says whether it
+is stated or inferred, and builds one storyline from there: a lede that bears on that
+goal, why an AI consultant is the next step, and the offer that follows. Anything I
+have said about them outranks its guesses. Then every claim in
 the draft is checked against its source.
 
 ## License

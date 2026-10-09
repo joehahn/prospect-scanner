@@ -159,7 +159,15 @@ Top to bottom:
 ## The read and the draft
 
 Before drafting, a **read** works out what the person is trying to do, what is in the
-way, and which offer would help. The **drafter** writes from that; from examples of
+way, and which offer would help. It labels the goal by where it came from: **stated**
+(they or the firm said it), **inferred** (at least two dated facts point the same
+way, among them why the person is in the seat now) or **role only**. The **drafter**
+then works out a storyline before writing a word: that goal, a lede from something
+the person said or did recently that bears on it, the bridge to the operator's work,
+and the offer that is the logical next step, chosen from every live offer. The
+storyline heads the draft's notes, so the reasoning can be checked before the
+wording, and the offer it chose is the one the draft records. An inferred goal
+steers the note without being asserted in it. The drafter writes from the read; from examples of
 the operator's own sent notes; from the boards a partner sits on; and from anything
 the operator has said about the person, in a verdict or a revise instruction, which
 outranks the model's inference.
@@ -173,8 +181,8 @@ the drafter's reasoning at the time, what the operator asked to change, and what
 out. That second set moves with every note sent, so drafting follows the operator's
 current voice; its size is capped, so cost per draft does not grow with the history.
 Retired wording in an old note (`you.superseded_wording` in `business.yml`) is updated
-before it is shown, and a note whose revise instructions quote a prospect's own page
-is never shown. Each draft records which set it came from, and the Scoreboard
+before it is shown. A revise instruction that is long or quotes a prospect's own page
+is withheld; the note it shaped is still shown. Each draft records which set it came from, and the Scoreboard
 compares how much of each set's drafts the operator changes before sending.
 
 A separate call **checks every factual claim** in the draft against the evidence on
@@ -186,13 +194,16 @@ gap between drafted and sent is kept for every note, and replies are linked to t
 note that drew them.
 
 **The channel is tested the same way.** Every person rated 4+ who can be written to
-and has an address on file, published or guessed from a published pattern, is
+and has an address at the firm's own domain, published or guessed from a published
+pattern, is
 assigned email or LinkedIn, alternately, and the card suggests that channel. The
 operator still chooses; what was actually sent is what is counted. The Scoreboard
 compares reply rates on sends at least fourteen days old, with bounces counted apart
 from silence, since a note that never arrived says nothing about the channel. The
 alternation is what makes it fair: email otherwise goes wherever an address happens
-to be published, and those people are not like the rest.
+to be published, and those people are not like the rest. A personal address, such as
+one a profile offers for job inquiries, stays on file but does not qualify: silence in
+a personal inbox says nothing about the channel.
 
 ## Steps and their commands
 
