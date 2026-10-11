@@ -1,4 +1,10 @@
-# draft-cold-note — v28, 2026-10-09
+# draft-cold-note — v29, 2026-10-11
+
+*v29: an offer may carry variants, the same offer argued another way for a
+particular dated reason, each with its own pitch and link. Where a variant's
+reason is live for this firm, lead with it. A variant about work that has
+stalled says the work stalled, never the reader's team: the reader usually owns
+that team.*
 
 *v28: the note is built from a storyline worked out first (goal, lede, bridge,
 offer), and the storyline chooses the offer. Until now the recipe filled slots:
@@ -83,7 +89,10 @@ the firm does, and work out:
    logical next step for this person toward this goal, judged by each offer's
    "Best for" line, the person's seat and whether the firm has AI staff of its
    own. The offer chosen before you is the default: keep it unless the
-   storyline points to another, and say why either way.
+   storyline points to another, and say why either way. **If the offer lists
+   variants, pick one or none:** a variant marked LIVE for this firm is the one
+   to lead with when your lede is that event; then its pitch and its link
+   replace the offer's. Name the variant in NOTES. *(v29.)*
 
 Then write the note so each beat serves that line, and nothing else. Put the
 storyline first in NOTES, so the operator can check the reasoning before the
@@ -191,6 +200,11 @@ as a general truth they are then exempted from, not as the setup for a
 compliment. Their estate is **hard**, not poor — a long-lived one at scale is
 genuinely difficult to get answers out of, and that difficulty is the reason an
 outside hour is worth buying.
+
+**Work stalls; people do not.** *(v29.)* Where a pilot or build has not got where
+it was meant to, say the work stalled, the pilot gave wrong answers, the cost
+crept up. Never that their team is stuck, struggling or failing. The reader
+usually runs that team.
 
 Never write a compliment either. If a sentence's job is to make them feel good,
 delete it; a reader who can see the technique is a reader you have lost. The

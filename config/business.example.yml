@@ -73,6 +73,13 @@ offers:
     unit: "per hour, no minimum"
     for: "a team with engineers but no security lead, facing a customer questionnaire or an audit"
     pitch: "A senior security person by the hour, out of a services budget rather than a hire."
+    # Optional: the same offer argued another way, led with when one of its
+    # events (names from `events:` below) is live for the firm. Its pitch and
+    # url stand in for the offer's in that note.
+    variants:
+      - name: "A second opinion after a scare"
+        events: ["founder wrote about a security scare"]
+        pitch: "A senior security person to find out what actually happened and what to fix first, by the hour."
 
 # The size of firm you serve by default. A target below can override it.
 size:

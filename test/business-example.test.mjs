@@ -13,6 +13,7 @@ const { forbiddenTerms } = await import(R + 'src/leaks.mjs');
 
 const EXAMPLE = R + 'config/business.example.yml';
 let fail = 0;
+const raw0 = () => readFileSync(EXAMPLE, 'utf8');
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}`); if (!ok) fail++; };
 
 // 1. It is valid, by the same validator a real business.yml meets.
@@ -27,6 +28,19 @@ check(b.offers.length >= 2 && b.offers.every((o) => o.name && o.price != null &&
 check(b.targets.length >= 2 && b.targets.every((t) => t.name && t.description), 'every target has a name and a description');
 check(b.events.every((e) => e.name && e.description), 'every event has a name and a description');
 check(b.targets.some((t) => t.size), 'a target can override the default size band');
+
+// 2b. A variant must name an event the file declares, or it can never be live.
+check(b.offers.some((o) => o.variants?.length), 'an offer can carry a variant');
+{
+  const { writeFileSync, mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const bad = mkdtempSync(tmpdir() + '/biz-') + '/business.yml';
+  writeFileSync(bad, raw0().replace('events: ["founder wrote about a security scare"]',
+    'events: ["no such event"]'));
+  let err = '';
+  try { readBusinessFile(bad); } catch (e) { err = e.message; }
+  check(/names event "no such event"/.test(err), 'a variant naming an undeclared event is refused');
+}
 
 // 3. What the judge would be shown is about THIS business.
 const text = describeForJudge(b);

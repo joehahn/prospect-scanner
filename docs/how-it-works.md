@@ -166,7 +166,12 @@ then works out a storyline before writing a word: that goal, a lede from somethi
 the person said or did recently that bears on it, the bridge to the operator's work,
 and the offer that is the logical next step, chosen from every live offer. The
 storyline heads the draft's notes, so the reasoning can be checked before the
-wording, and the offer it chose is the one the draft records. An inferred goal
+wording, and the offer it chose is the one the draft records. An offer may carry
+variants in `business.yml`, the same offer argued another way for a particular dated
+event, each with its own pitch and link; the drafter is told which variants the firm's
+live events support and leads with one when its lede is that event. Each offer's link
+can be a tracked short link, so clicks from notes are counted apart from other
+traffic. An inferred goal
 steers the note without being asserted in it. The drafter writes from the read; from examples of
 the operator's own sent notes; from the boards a partner sits on; and from anything
 the operator has said about the person, in a verdict or a revise instruction, which

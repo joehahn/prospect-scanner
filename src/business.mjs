@@ -12,6 +12,9 @@
 //               identifying_terms
 //   offers      [{ name, label?, url?, price, unit, for, pitch, replaces? }]   live offers only (replaces: old offer ids, a bridge;
 //               url: the page a note links to for this offer, firm.url when absent)
+//               variants: [{ name, events, pitch, url? }] — the same offer argued another
+//               way, led with when one of `events` (names from `events:`) is live
+//               for the firm; its pitch and url stand in for the offer's
 //   size        { revenue_min_usd, headcount_max, revenue_max_usd }
 //   where       { countries, home_metro, home_metro_towns, home_region }
 //   targets     [{ name, label?, description, examples, where?, size?, replaces? }]  (replaces: old thesis ids, a bridge)
@@ -48,6 +51,16 @@ export function readBusinessFile(path = BUSINESS_PATH) {
   for (const [i, o] of (doc.offers ?? []).entries()) {
     if (!o?.name) bad.push(`offers[${i}].name is required`);
     if (o?.price == null) bad.push(`offers[${i}].price is required (a number)`);
+    for (const [j, v] of (o?.variants ?? []).entries()) {
+      if (!v?.name || !v?.pitch || !Array.isArray(v?.events) || !v.events.length) {
+        bad.push(`offers[${i}].variants[${j}] needs a name, a pitch and a list of events`);
+      }
+      for (const e of v?.events ?? []) {
+        if (!(doc.events ?? []).some((x) => x?.name === e)) {
+          bad.push(`offers[${i}].variants[${j}] names event "${e}", which is not in events:`);
+        }
+      }
+    }
   }
   for (const [i, t] of (doc.targets ?? []).entries()) {
     if (!t?.name || !t?.description) bad.push(`targets[${i}] needs a name and a description`);
@@ -94,7 +107,8 @@ export function loadBusiness(cfg, targeting = null, { path = BUSINESS_PATH } = {
     firm: doc.firm,
     budget: doc.outreach_budget_per_month ?? {},
     you: doc.you ?? {},
-    offers: doc.offers.map((o) => ({ ...o, for: clean(o.for), pitch: o.pitch ? clean(o.pitch) : null })),
+    offers: doc.offers.map((o) => ({ ...o, for: clean(o.for), pitch: o.pitch ? clean(o.pitch) : null,
+      variants: (o.variants ?? []).map((v) => ({ ...v, pitch: clean(v.pitch) })) })),
     size: doc.size ?? {},
     where: doc.where ?? {},
     targets: (doc.targets ?? []).map((t) => ({ ...t, description: clean(t.description), examples: t.examples ?? [] })),

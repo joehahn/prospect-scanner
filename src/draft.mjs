@@ -130,8 +130,20 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
    // business.yml names one, so the reader lands on what the note sold rather
    // than on a home page written for a different buyer.
    biz?.url && `Link for this offer (use it in place of the firm's address): ${biz.url}`,
-   svc.note && `Note: ${svc.note}`].filter(Boolean).join('\n')}`;
+   svc.note && `Note: ${svc.note}`,
+   // VARIANTS: the same offer argued another way, chosen by the dated reason. The
+   // storyline picks; this says which ones the firm's live events support.
+   ...(biz?.variants ?? []).map((v) => {
+     const live = v.events.filter((e) => liveEvents.has(e.replace(/\s+/g, '_')));
+     return `Variant "${v.name}" — lead with this instead when the dated reason is: ${v.events.join('; ')}. `
+       + `${live.length ? `LIVE for this firm (${live.join('; ')}).` : 'Not live for this firm.'}\n`
+       + `  Pitch, in the operator's words: ${v.pitch}`
+       + (v.url ? `\n  Link for this variant (use it in place of the offer's): ${v.url}` : '');
+   })].filter(Boolean).join('\n')}`;
   };
+  const liveEvents = new Set(db.prepare(
+    `SELECT DISTINCT trigger_id FROM signals WHERE org_id = ? AND retracted_at IS NULL
+       AND (decays_at IS NULL OR decays_at > date('now'))`).all(org.id).map((r) => r.trigger_id));
   // EVERY LIVE OFFER, so the storyline can choose (draft-cold-note v28). The
   // offer chosen upstream came from the read or the router before anyone had
   // put the facts together; it is the default, not the answer.
