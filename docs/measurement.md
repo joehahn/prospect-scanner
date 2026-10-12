@@ -65,6 +65,15 @@ note, and replies are linked to the note that drew them. Drafts alternate betwee
 the fixed example notes and the operator's latest sent notes with what they were
 written from; the Scoreboard shows, for each, the median share of words changed
 before sending, how many went out as drafted, and revisions asked for per sent note.
+First messages after an accepted connection have their own shape and their own
+examples, so they get their own row and stay out of that comparison.
+
+**Whether the grader predicts the rewrites.** The grader's sixth question, whether
+the approach fits the person, is advisory until it earns more. The Scoreboard splits
+sent drafts by whether the grader flagged them, once on its rules and once on the
+approach, and shows the median share of words the operator changed and how many he
+rewrote. If flagged drafts are the rewritten ones, a flag is worth acting on before
+the operator sees the draft; if the rows look alike, it is noise.
 
 **Which examples teach the drafter best, tested offline first.** `npm run replay`
 redrafts recent sent notes with each candidate set of examples, using only notes sent

@@ -260,6 +260,8 @@ CREATE TABLE IF NOT EXISTS draft_grades (
   channel_rules_items TEXT,
   clarity             INTEGER,           -- every reference lands; the sentences connect
   clarity_items       TEXT,
+  strategy            INTEGER,           -- advisory, not in clean: the approach fits the person (v5)
+  strategy_items      TEXT,
   fits_channel        INTEGER,           -- code, not model: length limits
   clean               INTEGER,           -- every dimension above passed
   cost_usd            REAL,
@@ -811,6 +813,10 @@ function addGradeClarity(db) {
   if (!cols.length) return;
   if (!cols.includes('clarity')) db.exec('ALTER TABLE draft_grades ADD COLUMN clarity INTEGER');
   if (!cols.includes('clarity_items')) db.exec('ALTER TABLE draft_grades ADD COLUMN clarity_items TEXT');
+  // STRATEGY, added 2026-10-12 with grade-draft v5. Advisory, and outside
+  // `clean`: whether the offer and the hook fit the person, not the wording.
+  if (!cols.includes('strategy')) db.exec('ALTER TABLE draft_grades ADD COLUMN strategy INTEGER');
+  if (!cols.includes('strategy_items')) db.exec('ALTER TABLE draft_grades ADD COLUMN strategy_items TEXT');
 }
 
 /** Open a run row. Every stage records one, LLM or not, so cost is never retrofitted. */

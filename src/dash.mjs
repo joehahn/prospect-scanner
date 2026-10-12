@@ -20,7 +20,7 @@ import { openDb } from './db.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
-import { scoreboard, searchFunnel, spend, draftArms, timingText } from './measures.mjs';
+import { scoreboard, searchFunnel, spend, draftArms, gradePredictsEdits, timingText } from './measures.mjs';
 import { armOf, channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
@@ -2053,6 +2053,7 @@ the write above the skip. 1.00 is perfect, 0.50 a coin. Blind calls were made be
 <tbody>${row('all your calls since each judgment', sb.forward)}${row('blind calls only', sb.blind)}</tbody></table>
 <p class="dim">Changed your mind after seeing the judge: ${sb.changed}.</p></section>
 ${draftArmsPanel(db)}
+${gradePredictsPanel(db)}
 ${channelPanel(db)}`;
 }
 
@@ -2081,6 +2082,23 @@ ${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.
 // FIXED EXAMPLES OR PICKED ONES? New drafts alternate between the hand-picked
 // notes in voice.md and notes chosen for each recipient from what was sent
 // (src/voice-examples.mjs). Less changing before a note goes out is better.
+// DOES THE GRADER PREDICT YOUR REWRITES? Added 2026-10-12. The strategy
+// question is advisory until this says flagged drafts are the rewritten ones.
+function gradePredictsPanel(db) {
+  const rows = gradePredictsEdits(db);
+  if (!rows.some((r) => r.sent)) return '';
+  const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
+  return `<section class="panel"><h2>Does the grader predict your rewrites?</h2>
+<p class="lead">Sent drafts, split by whether the grader flagged them before you edited. If flagged drafts are the
+ones you rewrite, a flag is worth acting on before you see the draft; if the two rows look alike, it is noise.
+<b>Rules</b> is the grader's five checks; <b>approach</b> is its advisory strategy question (from 2026-10-12).
+"Rewritten" means a quarter or more of the words changed. About 20 sent drafts per row before a gap means anything.</p>
+<table><thead><tr><th>check</th><th></th><th>sent</th><th>words changed (median)</th><th>rewritten</th></tr></thead><tbody>
+${rows.map((r) => `<tr><td>${esc(r.check)}</td><td>${esc(r.label)}</td><td>${r.sent}</td><td><b>${pct(r.changed)}</b></td>
+  <td>${r.rewritten} of ${r.sent}</td></tr>`).join('')}
+</tbody></table></section>`;
+}
+
 function draftArmsPanel(db) {
   const arms = draftArms(db);
   if (!arms.length) return '';
@@ -2184,10 +2202,24 @@ function retiredLine(draft) {
     hits.map((h) => `&ldquo;${esc(h)}&rdquo;`).join(', ')}</div>` : '';
 }
 
+// THE APPROACH, NOT THE RULES (grade-draft v5, 2026-10-12). Advisory and
+// outside `clean`, so it shows on its own, even on a draft that is otherwise clean.
+function strategyBox(g) {
+  if (!g || g.strategy !== 0) return '';
+  let list = [];
+  try { list = JSON.parse(g.strategy_items ?? '[]'); } catch { /* older pass */ }
+  return `<div class="gradebox"><b>The grader questions the approach</b> <span class="dim">(advisory)</span><ul>${
+    list.map((it) => `<li><b>${esc(it.rule)}:</b> &ldquo;${esc(it.quote)}&rdquo; <span class="dim">— ${esc(it.why)}</span></li>`).join('')
+      || '<li>no reason given</li>'}</ul></div>`;
+}
+
 function gradeLine(draft) {
   const g = draft?.id ? GRADES.get(draft.id) : null;
   if (!g) return { mark: '', html: '' };
-  if (g.clean === 1) return { mark: ' <span class="dim">· checked ✔</span>', html: '' };
+  const strat = strategyBox(g);
+  if (g.clean === 1) {
+    return { mark: ` <span class="dim">· checked ✔${g.strategy === 0 ? ', approach questioned' : ''}</span>`, html: strat };
+  }
   const items = [];
   for (const [dim, label] of GRADE_DIMS) {
     if (g[dim] !== 0) continue;
@@ -2198,7 +2230,7 @@ function gradeLine(draft) {
   }
   return { mark: ' <b class="gradefail">· check ✘</b>',
     html: `<div class="gradebox"><b>The grader flagged this draft</b> <span class="dim">(${esc(g.grader_model)}, ${
-      esc(String(g.graded_at).slice(0, 10))})</span><ul>${items.join('')}</ul></div>` };
+      esc(String(g.graded_at).slice(0, 10))})</span><ul>${items.join('')}</ul></div>${strat}` };
 }
 
 function noteBox(p, draft, { channel: preferred = null, email = null, guess = null } = {}) {

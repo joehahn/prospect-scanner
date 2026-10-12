@@ -227,3 +227,30 @@ export function draftArms(db) {
       changed: median(x.deltas), revisionsPerSent: x.sent ? x.revisions / x.sent : null };
   });
 }
+
+/**
+ * DOES THE GRADER PREDICT WHAT HE REWRITES? Added 2026-10-12 with the advisory
+ * strategy question (grade-draft v5). For every sent draft with a grade, the
+ * share of words he changed, split by whether the grader flagged it: once on
+ * `clean` (the rules) and once on `strategy` (the approach). If flagged drafts
+ * are the ones he rewrites, the flag is worth acting on before he sees the
+ * draft; if not, it is noise. Latest grade per draft; drafts graded before v5
+ * have no strategy verdict and count only toward `clean`.
+ */
+export function gradePredictsEdits(db) {
+  const has = db.prepare(`SELECT 1 FROM pragma_table_info('draft_grades') WHERE name = 'strategy'`).get();
+  if (!has) return [];
+  const rows = db.prepare(`SELECT d.body, d.sent_text, g.clean, g.strategy FROM drafts d
+      JOIN draft_grades g ON g.id = (SELECT MAX(id) FROM draft_grades x
+                                      WHERE x.draft_id = d.id AND x.graded_text = 'draft')
+     WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''`).all();
+  const out = [];
+  for (const [check, col] of [['rules (clean)', 'clean'], ['approach (strategy)', 'strategy']]) {
+    for (const [label, flagged] of [['flagged', 0], ['not flagged', 1]]) {
+      const xs = rows.filter((r) => r[col] === flagged).map((r) => changed(r.body, r.sent_text));
+      out.push({ check, label, sent: xs.length, changed: median(xs),
+        rewritten: xs.filter((x) => x >= 0.25).length });
+    }
+  }
+  return out;
+}

@@ -372,6 +372,8 @@ function runDraft(args, person) {
   // GRADED ON THE CLICK, added 2026-10-05 when the morning run stopped drafting:
   // every draft now starts here, and the grader (a model other than the
   // drafter) flags a failing note on its card before it is sent.
+  // Since 2026-10-12 `draft` grades its own draft before it exits, so the
+  // command line gets the same grade; this catches only a draft that skipped it.
   try { execFileSync('npm', ['run', 'grade', '--silent', '--', '--person', person], { cwd: ROOT, encoding: 'utf8' }); }
   catch (e) { console.log(`  grade failed for ${person}: ${String(e.stderr || e.message).slice(0, 160)}`); }
   execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });

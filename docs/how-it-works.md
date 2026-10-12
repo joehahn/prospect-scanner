@@ -156,6 +156,11 @@ Top to bottom:
 - **Status,** where it applies: *In flight* once a note is sent, or *Cooling off* when
   someone else at the firm was written to recently.
 
+The main page opens on **Accepted, not yet written to**: everyone who accepted a
+connection request in the last fourteen days and has had nothing since, each with the
+latest unsent draft and a copy button. *In flight* shows everyone written to, whatever
+their seat.
+
 ## The read and the draft
 
 Before drafting, a **read** works out what the person is trying to do, what is in the
@@ -194,8 +199,26 @@ compares how much of each set's drafts the operator changes before sending.
 note after note makes every note read as the same template, so a draft that uses one
 is flagged in the terminal and on its card, to be reworded before it goes out.
 
+**The first message after an accepted connection** follows its own rules. It continues
+the thread of the note they accepted, one step on, rather than restating it or changing
+the subject; it offers one idea worth having, pitched at the reader's level; and its ask
+fits the seat. Someone with a mandate and a team for the work is asked whether it fits
+now, or whom to talk to. Someone who routes work, such as a deal partner, is offered
+three sentences to forward, with no price. These messages learn only from earlier ones
+of their kind, and are counted apart from the comparison of example sets.
+
+Every note, cold or not, is pitched at the reader's level and proposes custom work
+where packaged software does not reach: the unstructured material around a team's
+systems, and the routine calls made from it, drafted for a person to approve.
+
 A separate call **checks every factual claim** in the draft against the evidence on
-file and flags any it cannot trace. The operator revises in plain words ("drop the
+file, including a recorded acceptance, and flags any it cannot trace. Then a **grader**,
+a different model, reads the note on six questions: is every claim on file; does it
+hand the reader their own facts back; does it claim anything the operator never
+claims; does it break a channel rule; does every reference land; and, advisory, does
+the approach fit the person (not their own job, the right ask for a buyer or a router,
+at their level, not something a product already does, a lede that is theirs). Its
+flags appear on the card with the words that failed. The operator revises in plain words ("drop the
 number, lead with the diligence angle"); every version is kept.
 
 **Sent** records the note exactly as the operator sent it, on the channel used. The

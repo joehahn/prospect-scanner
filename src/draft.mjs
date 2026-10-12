@@ -880,7 +880,7 @@ async function main() {
     'SELECT COALESCE(MAX(version), 0) v FROM drafts WHERE person_id = ? AND channel = ?')
     .get(personId, channel).v) + 1;
 
-  db.prepare(`INSERT INTO drafts (org_id, person_id, channel, version, body, package_id,
+  const stored = db.prepare(`INSERT INTO drafts (org_id, person_id, channel, version, body, package_id,
       prompt_file, model, tokens_in, tokens_out, cost_usd, created_at, run_id,
       revised_from, revise_note, subject, examples)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
@@ -897,6 +897,27 @@ async function main() {
   //
   // Half a second, measured, and it runs after the row is stored so a failed
   // rebuild cannot lose a draft.
+  // GRADED WHERE IT IS WRITTEN (2026-10-12). Only the Draft button graded, so
+  // a note drafted here reached the operator with no grade at all. The grader
+  // is a different model, and its strategy question is advisory: a flag on the
+  // card, measured against what he rewrites. `--no-grade` skips it.
+  if (!args['no-grade']) {
+    const draftId = Number(stored.lastInsertRowid);
+    try {
+      execFileSync('npm', ['run', 'grade', '--silent', '--', '--draft', String(draftId)],
+        { cwd: ROOT, encoding: 'utf8' });
+      const g = db.prepare(`SELECT clean, strategy, strategy_items FROM draft_grades
+          WHERE draft_id = ? ORDER BY id DESC LIMIT 1`).get(draftId);
+      if (g) {
+        console.log(dim(`  grader: ${g.clean ? 'clean' : 'flagged (see the card)'}`
+          + `${g.strategy === 0 ? '; questions the approach:' : ''}`));
+        if (g.strategy === 0) {
+          for (const it of JSON.parse(g.strategy_items ?? '[]')) console.log(`    ${it.rule}: ${it.why}`);
+        }
+      }
+    } catch (e) { console.log(dim(`  (not graded: ${String(e.stderr || e.message).slice(0, 160)})`)); }
+  }
+
   if (!args['no-dash']) {
     try {
       execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });

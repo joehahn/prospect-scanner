@@ -13,6 +13,9 @@
 //   never_claim    nothing on operator.never_claim, literally or paraphrased
 //   channel_rules  the operator's own rules, where one note can break them
 //   clarity        every reference lands ("those tools" names something)
+//   strategy       ADVISORY, outside `clean`: the offer and the hook fit the
+//                  person -- not their own job, the right ask for a buyer or a
+//                  router, at their level, not what a product already does
 //   fits_channel   a connect note fits LinkedIn's limit (code)
 //
 // CLASSIFIERS ARE NONDETERMINISTIC. The same note can pass on one call and fail
@@ -47,7 +50,10 @@ import { retense } from './events.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/grade-draft.md';
-const DIMENSIONS = ['claims', 'recital', 'never_claim', 'channel_rules', 'clarity'];
+const DIMENSIONS = ['claims', 'recital', 'never_claim', 'channel_rules', 'clarity', 'strategy'];
+// The ones that make a note `clean`. Strategy is a judgment about the approach,
+// measured against what the operator rewrites before it is trusted as a defect.
+const CLEAN_DIMENSIONS = DIMENSIONS.filter((d) => d !== 'strategy');
 
 const ITEMS = {
   type: 'array',
@@ -102,6 +108,26 @@ function evidenceFor(db, d) {
       + (e.body && String(e.body).trim().length > 80
         ? `\n${retense(String(e.body).trim()).slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
     .join('\n');
+}
+
+/**
+ * What question 6 needs and the note does not carry: who they are, what kind of
+ * firm, which offer the draft pitches, and what was sent them before, with how
+ * it was received. Prior contact is this person's at any firm, so an employer
+ * change does not hide an accepted connection.
+ */
+function recipientFor(db, d) {
+  const p = db.prepare(`SELECT p.name, p.title, o.name AS org, o.kind FROM people p
+      LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id = ?`).get(d.person_id) ?? {};
+  const prior = db.prepare(`SELECT channel, sent_at, status, message_text FROM outreach
+      WHERE person_id = ? AND sent_at <= substr(?, 1, 10) AND id IS NOT ?
+      ORDER BY sent_at, id`).all(d.person_id, d.created_at, d.outreach_id);
+  return [`- ${p.name ?? '?'}, ${p.title ?? 'title unknown'}, at ${p.org ?? '?'} (firm kind: ${p.kind ?? 'unknown'})`,
+    `- Offer pitched: ${d.package_id ?? 'none recorded'}`,
+    prior.length ? '- Prior contact with this person:' : '- No prior contact with this person.',
+    ...prior.map((o) => `  - ${o.sent_at} ${o.channel}, status ${o.status ?? '?'}`
+      + (o.message_text ? `: "${String(o.message_text).replace(/\s+/g, ' ').trim()}"` : '')),
+  ].join('\n');
 }
 
 function pick(db, args, model, version, which) {
@@ -159,14 +185,16 @@ function report(db) {
     rules: fails(rs, 'channel_rules'),
     clear: fails(rs, 'clarity'),
     length: fails(rs, 'fits_channel'),
+    strategy: rs.filter((r) => r.strategy === 0).length,
   })), [
     { key: 'grader', label: 'GRADER' }, { key: 'drafter', label: 'DRAFTER' },
     { key: 'text', label: 'TEXT' }, { key: 'notes', label: 'NOTES' }, { key: 'passes', label: 'PASSES' },
     { key: 'clean', label: 'CLEAN' }, { key: 'claims', label: 'CLAIMS✘' },
     { key: 'recital', label: 'RECITAL✘' }, { key: 'never', label: 'NEVER✘' },
     { key: 'rules', label: 'RULES✘' }, { key: 'clear', label: 'CLEAR✘' }, { key: 'length', label: 'LENGTH✘' },
+    { key: 'strategy', label: 'STRATEGY?' },
   ]));
-  console.log(dim('  ✘ columns count failing passes, not notes.'));
+  console.log(dim('  ✘ columns count failing passes, not notes. STRATEGY? is advisory and not part of CLEAN.'));
 
   // AGREEMENT. For every note graded more than once by the same grader and
   // prompt, does each dimension get the same verdict on every pass?
@@ -221,8 +249,9 @@ async function main() {
   const names = new Map(db.prepare('SELECT id, name FROM people').all().map((p) => [p.id, p.name]));
   const ins = db.prepare(`INSERT INTO draft_grades (draft_id, graded_text, grader_model, prompt_file,
       prompt_version, claims, claims_items, recital, recital_items, never_claim, never_claim_items,
-      channel_rules, channel_rules_items, clarity, clarity_items, fits_channel, clean, cost_usd, run_id, graded_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      channel_rules, channel_rules_items, clarity, clarity_items, strategy, strategy_items,
+      fits_channel, clean, cost_usd, run_id, graded_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
 
   let cost = 0;
   let done = 0;
@@ -233,6 +262,7 @@ async function main() {
     const said = operatorSaidLines(db, d.person_id);
     const content = `## The note (channel: ${d.channel})\n\n`
       + `${d.subject ? `Subject: ${d.subject}\n\n` : ''}${text}\n\n`
+      + `## The recipient and the offer (for question 6)\n\n${recipientFor(db, d)}\n\n`
       + `## The evidence on file\n\n${evidenceFor(db, d) || '(none)'}`
       + (said ? `\n\n## What the operator knows first-hand (counts as evidence)\n\n${said}` : '');
 
@@ -257,17 +287,21 @@ async function main() {
         never_claim: g.never_claim.verdict === 'pass' && !literal.length ? 1 : 0,
         channel_rules: g.channel_rules.verdict === 'pass' ? 1 : 0,
         clarity: g.clarity.verdict === 'pass' ? 1 : 0,
+        strategy: g.strategy.verdict === 'pass' ? 1 : 0,
       };
-      const clean = Object.values(v).every(Boolean) && fits ? 1 : 0;
+      const clean = CLEAN_DIMENSIONS.every((k) => v[k]) && fits ? 1 : 0;
       ins.run(d.id, which, model, PROMPT_FILE, version,
         v.claims, JSON.stringify(g.claims.items), v.recital, JSON.stringify(g.recital.items),
         v.never_claim, JSON.stringify(never), v.channel_rules, JSON.stringify(g.channel_rules.items),
-        v.clarity, JSON.stringify(g.clarity.items), fits, clean, res.cost_usd ?? null, runId, new Date().toISOString());
+        v.clarity, JSON.stringify(g.clarity.items), v.strategy, JSON.stringify(g.strategy.items),
+        fits, clean, res.cost_usd ?? null, runId, new Date().toISOString());
       const mark = (ok) => (ok ? '✔' : '✘');
       lines.push(`    ${clean ? '✔ clean' : '✘'}  claims ${mark(v.claims)} recital ${mark(v.recital)} ` +
-        `never ${mark(v.never_claim)} rules ${mark(v.channel_rules)} clear ${mark(v.clarity)} length ${mark(fits)}`);
+        `never ${mark(v.never_claim)} rules ${mark(v.channel_rules)} clear ${mark(v.clarity)} length ${mark(fits)}`
+        + `   strategy ${v.strategy ? '✔' : '?'}`);
       for (const [dimName, items] of [['claims', g.claims.items], ['recital', g.recital.items],
-        ['never', never], ['rules', g.channel_rules.items], ['clarity', g.clarity.items]]) {
+        ['never', never], ['rules', g.channel_rules.items], ['clarity', g.clarity.items],
+        ['strategy', g.strategy.items]]) {
         for (const it of items) lines.push(dim(`      ${dimName}: "${it.quote}" — ${it.why}`));
       }
     }
