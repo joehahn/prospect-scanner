@@ -117,6 +117,34 @@ const NO_CUTOFF = '9999';
 
 const inPool = (channel) => `d.channel IN (${poolOf(channel).map(() => '?').join(', ')})`;
 
+// FOLLOW-UPS LEARN FROM FOLLOW-UPS (2026-10-12). The first message after an
+// accepted connection note has its own shape (prompts/draft-cold-note.md v30):
+// it continues the thread they accepted, carries no price for someone who
+// routes work, and runs 50 to 80 words. Mixed into the email/InMail pool it was
+// two examples among a dozen cold notes, too few to teach the shape and enough
+// to bend cold notes toward it, so each kind learns only from its own.
+//
+// The one definition, used by the drafter, the pools and the Scoreboard: a
+// message, not a connection note, to someone whose connection note was
+// accepted, with nothing else sent to them between that note and this draft.
+const LATER = (nx, acc) => `(${nx}.sent_at > ${acc}.sent_at OR (${nx}.sent_at = ${acc}.sent_at AND ${nx}.id > ${acc}.id))`;
+export const FOLLOWUP_SQL = (a) => `(${a}.channel <> 'linkedin_connect_note' AND EXISTS (
+    SELECT 1 FROM outreach acc WHERE acc.person_id = ${a}.person_id
+       AND acc.channel = 'linkedin_connect_note' AND acc.status = 'accepted'
+       AND acc.sent_at <= substr(${a}.created_at, 1, 10)
+       AND NOT EXISTS (SELECT 1 FROM outreach nx WHERE nx.person_id = acc.person_id AND ${LATER('nx', 'acc')}
+             AND nx.sent_at <= substr(${a}.created_at, 1, 10) AND nx.id IS NOT ${a}.outreach_id)))`;
+
+/** Is a draft written now to this person, on this channel, a follow-up in the sense above? */
+export function isFollowup(db, personId, channel) {
+  if (channel === 'linkedin_connect_note') return false;
+  return Boolean(db.prepare(`SELECT 1 FROM outreach acc WHERE acc.person_id = ?
+      AND acc.channel = 'linkedin_connect_note' AND acc.status = 'accepted'
+      AND NOT EXISTS (SELECT 1 FROM outreach nx WHERE nx.person_id = acc.person_id AND ${LATER('nx', 'acc')})`)
+    .get(personId));
+}
+const sameKind = (followup) => `${followup ? '' : 'NOT '}${FOLLOWUP_SQL('d')}`;
+
 /**
  * An instruction that can be shown while drafting to someone else: short, and
  * quoting nothing from the recipient's own pages. Brackets and "profile says"
@@ -133,7 +161,7 @@ export function portable(ask) {
  * the dossier as prior contact, and an example is not evidence.
  */
 export function pickExamples(db, { personId, channel, packageId, superseded = [], neverClaim = [],
-  k = PICKED_K, before = null, recordedBefore = null } = {}) {
+  k = PICKED_K, before = null, recordedBefore = null, followup = false } = {}) {
   // SAME KIND OF CHANNEL ONLY (poolOf). A connection note is 300 characters and
   // an InMail is three paragraphs; in the first replay a connection note shown
   // InMails came back longer and further from what was sent.
@@ -142,7 +170,7 @@ export function pickExamples(db, { personId, channel, packageId, superseded = []
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
        AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
-       AND ${RECORDED}
+       AND ${RECORDED} AND ${sameKind(followup)}
      ORDER BY d.id DESC`).all(personId, me.person.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel),
        recordedBefore ?? NO_CUTOFF);
   // ^ `before`, for a replay: only notes drafted before the one being replayed,
@@ -365,13 +393,13 @@ export function factsThen(db, d) {
 
 /** The K latest sent notes on this channel's pool (poolOf), with everything they were written from. */
 export function recentExamples(db, { personId, channel, superseded = [], neverClaim = [], before = null,
-  recordedBefore = null, k = RECENT_K } = {}) {
+  recordedBefore = null, k = RECENT_K, followup = false } = {}) {
   const me = db.prepare('SELECT org_id FROM people WHERE id = ?').get(personId);
   if (!me) return [];
   const rows = db.prepare(`SELECT d.id, d.person_id, d.org_id, d.channel, d.package_id, d.body, d.sent_text, d.created_at
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
        AND d.person_id IS NOT NULL AND d.person_id <> ? AND d.org_id <> ? AND d.id < ? AND ${inPool(channel)}
-       AND ${RECORDED}
+       AND ${RECORDED} AND ${sameKind(followup)}
      ORDER BY d.id DESC`).all(personId, me.org_id, before ?? Number.MAX_SAFE_INTEGER, ...poolOf(channel),
        recordedBefore ?? NO_CUTOFF);
   const asked = db.prepare(`SELECT revise_note FROM drafts WHERE person_id = ? AND id <= ?
@@ -419,14 +447,15 @@ export function renderRecent(db, x, i, superseded = []) {
  *   recent  its prose, and the RECENT_K latest sent notes with what they were written from
  */
 export function voiceFor(db, { arm, voiceText, prompts = {}, personId, channel, packageId,
-  superseded = [], neverClaim = [], before = null, recordedBefore = null }) {
+  superseded = [], neverClaim = [], before = null, recordedBefore = null, followup = false }) {
   if (!['picked', 'edits', 'recent'].includes(arm)) return { text: voiceText, record: { arm: 'fixed' } };
-  const opts = { personId, channel, packageId, superseded, neverClaim, before, recordedBefore };
+  const opts = { personId, channel, packageId, superseded, neverClaim, before, recordedBefore, followup };
+  const kind = followup ? 'follow-up' : '';
   if (arm === 'recent') {
     const xs = recentExamples(db, opts);
     if (xs.length < MIN_POOL) {
       return { text: voiceText, record: { arm: 'fixed', wanted: arm,
-        fell_back: `only ${xs.length} sent ${poolOf(channel).join('/')} notes to choose from` } };
+        fell_back: `only ${xs.length} sent ${kind ? `${kind} ` : ''}${poolOf(channel).join('/')} notes to choose from` } };
     }
     // The prose (shape and prohibitions) stays; the recent notes replace the fixed ones.
     const text = [splitVoice(voiceText).prose, '---', String(prompts.recent ?? '').trim(), '',
@@ -436,7 +465,7 @@ export function voiceFor(db, { arm, voiceText, prompts = {}, personId, channel, 
   const picks = arm === 'edits' ? pickEdits(db, opts) : pickExamples(db, opts);
   if (picks.length < MIN_POOL) {
     return { text: voiceText, record: { arm: 'fixed', wanted: arm,
-      fell_back: `only ${picks.length} sent ${channel} notes to choose from` } };
+      fell_back: `only ${picks.length} sent ${kind ? `${kind} ` : ''}${channel} notes to choose from` } };
   }
   const { prose, notes } = splitVoice(voiceText);
   const anchors = notes.slice(0, ANCHORS);

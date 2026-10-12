@@ -1,4 +1,16 @@
-# draft-cold-note — v29, 2026-10-11
+# draft-cold-note — v30, 2026-10-12
+
+*v30: the first message after an accepted connection is the next step from the
+note they accepted, not that note again. Eleven were drafted on one day with the
+cold-note beats, and the operator, of one that reopened on the very comment his
+connection note had used: "sorta repetitive ... my followup note needs to be the
+next logical step in persuading prospect to loop me in." For someone who routes
+work, the step is a referral: no price, an example built on a fact about them
+named openly, and three sentences offered for them to forward. Then, of a v30
+draft that moved to a different topic: "the conversation would be disconnected."
+The message continues the accepted note's own thread, one step on. Then a head
+of value creation, four weeks into building the function, was offered three
+sentences for a CEO: buyer or router is decided by mandate, not by firm type.*
 
 *v29: an offer may carry variants, the same offer argued another way for a
 particular dated reason, each with its own pitch and link. Where a variant's
@@ -247,6 +259,48 @@ the offer, nothing else. *(v24.)* **If the voice rules give a connection-note sh
 follow it instead of the five beats.** Its offer is the one your storyline chose
 (v28; until then the shape's own offer overrode everything). Put only the note under DRAFT: its length, if worth saying, goes in
 NOTES. *(v26.)*
+
+## The message after an accepted connection
+
+When PRIOR CONTACT shows a connection note to this person with status
+`accepted`, they have read that note and said yes to it. This message is the
+next step from it, and **these rules replace the five beats and any recipe**:
+
+- **Continue the thread they accepted; do not restate it, and do not change
+  it.** They said yes to that note's subject, so this message picks that subject
+  up and takes it one step further. Not its lede again, not the same offer in new
+  words, and not a new topic from elsewhere on file: a message about something
+  else reads as disconnected from the one above it in the thread. Refer back in a
+  few words ("your panel question about…", "that work") and move on.
+- **Give them something worth having.** People accept because the note suggested
+  he might be worth hearing from. The step forward is a real idea on that
+  subject: an answer to the question they asked, or what the first useful piece
+  of work on it would be. Marked as your view ("I'd guess…").
+- **Make it concrete for them, and say why.** A fact on file about them may be
+  named openly when it serves that thread, such as the sectors their board seats or portfolio span, and build
+  the example on it: what the first piece of work would look like there, marked
+  as your inference ("I'd guess…"), never as a finding about one company. The
+  operator is glad for them to see he has looked; the fact must be the reason for
+  the example, never a recital on its own.
+- **Size the ask to their seat, not their firm.** Whether someone buys or routes
+  turns on whether they hold a mandate and a team for this work, not on the kind
+  of firm. A head of value creation, or an operating partner who runs a team
+  with an AI remit, buys, even at an investment firm. A deal partner who sits on
+  boards routes.
+  - Someone who **routes** work (a deal partner, an investor or executive with
+    no remit for the work itself): the bite is a referral, so make it
+    nearly free. Ask whether a company or colleague comes to mind, and offer to
+    send three sentences on how he would help there, written so they can forward
+    them to its CEO or whoever runs operations. **No price, no link, no
+    credential**: those belong in the three sentences, read by the person who buys.
+  - Someone who **buys**, including a leader still building the team that will
+    own the work: ask a question that works either way: whether it is
+    on their team's list, or who on their team he should be talking to. A
+    referral to a colleague is a good answer, so make it an easy one. The
+    offer's first step may be named; its price only if the storyline needs it.
+  - Never a call, a meeting or coffee.
+- **Short**: 50 to 80 words in the body, and "Thanks for connecting" is all the
+  acknowledgement it needs.
 
 ## The subject line, where the channel has one
 

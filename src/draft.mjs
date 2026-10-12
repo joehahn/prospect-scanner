@@ -38,7 +38,7 @@ import { neverClaimHits } from './never-claim.mjs';
 import { noteBody, unbold, retiredPhrases, retiredHits } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
-import { voiceFor, chooseArm, splitVoice, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
+import { voiceFor, chooseArm, splitVoice, isFollowup, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-cold-note.md';
@@ -679,7 +679,10 @@ async function main() {
   // `--examples fixed|picked|edits|recent` forces one.
   const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
   const voiceText = readVoice();
-  const voice = voiceFor(db, { arm, voiceText,
+  // The first message after an accepted connection learns only from others like
+  // it, and skips the cold-note beat checks (voice-examples.mjs, FOLLOWUP_SQL).
+  const followup = isFollowup(db, personId, channel);
+  const voice = voiceFor(db, { arm, voiceText, followup,
     prompts: { picked: readPrompt(PICKED_PROMPT), edits: readPrompt(EDITS_PROMPT), recent: readPrompt(RECENT_PROMPT) },
     personId, channel, packageId: serviceId, superseded: cfg.operator?.superseded_wording,
     neverClaim: cfg.operator?.never_claim,
@@ -847,7 +850,18 @@ async function main() {
     // the page could neither support a claim nor be seen to be recited.
     // What the operator said counts as evidence for the check: he knows it
     // first-hand, and a note may rest on it (never attribute it to him).
-    const said = operatorSaidLines(db, personId);
+    // THE ACCEPTANCE IS A RECORD, NOT A PROFILE FACT (2026-10-12). It lives in
+    // `responses`, so the check saw only a pasted profile from before it, still
+    // reading "2nd", and flagged every "Thanks for connecting" as unsourced.
+    const accepted = db.prepare(`SELECT o.sent_at, r.responded_at FROM responses r
+        JOIN outreach o ON o.id = r.outreach_id
+       WHERE o.person_id = ? AND o.channel = 'linkedin_connect_note' AND r.sentiment = 'accepted'
+       ORDER BY r.responded_at DESC LIMIT 1`).get(personId);
+    const said = [operatorSaidLines(db, personId),
+      accepted ? `- Recorded by the operator: they accepted the connection note sent ${accepted.sent_at}`
+        + ` (accepted ${accepted.responded_at}). They are a 1st-degree connection now; any profile`
+        + ' text showing an earlier degree predates this.' : '']
+      .filter(Boolean).join('\n');
     const chk = await complete(db, runId, {
       model: cfg.models.draft ?? cfg.models.default, maxTokens: 6000,
       schema: CLAIM_SCHEMA, system: checkPrompt,
@@ -961,11 +975,17 @@ async function main() {
   const bridgeEarly = hasBridge && bridgeAt / Math.max(prose.length, 1) <= 0.55;
 
   const recipeMisses = [];
-  if (!namesThem) {
+  // AFTER AN ACCEPTED CONNECTION THE BEATS DO NOT APPLY (v30, 2026-10-12). The
+  // note they accepted already carried the opener and the bridge; repeating
+  // either is the defect this message exists to avoid, so neither is checked.
+  const afterAccept = followup;
+  if (afterAccept) { /* see prompts/draft-cold-note.md, "The message after an accepted connection" */ }
+  else if (!namesThem) {
     recipeMisses.push('beat 1: the opener shares no term with the evidence on file — it is a '
       + `maxim, not their situation: "${opener.slice(0, 88)}"`);
   }
-  if (!hasBridge) {
+  if (afterAccept) { /* as above */ }
+  else if (!hasBridge) {
     recipeMisses.push('beat 2: no bridge — nothing says flatly that this is what he does');
   } else if (!bridgeEarly) {
     recipeMisses.push(`beat 2: the bridge arrives ${Math.round(100 * bridgeAt / prose.length)}% `

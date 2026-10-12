@@ -25,7 +25,7 @@ import { armOf, channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
-import { retiredPhrases, retiredHits } from './checks.mjs';
+import { noteBody, retiredPhrases, retiredHits } from './checks.mjs';
 import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -659,8 +659,10 @@ function collect(db, cfg, targeting) {
   const inFlight = people
     .filter((p) => !seenInFlight.has(p.person_id) && seenInFlight.add(p.person_id))
     .filter((p) => contactedPeople.has(p.person_id)
-      && !killedOrgs.has(p.org_id) && !suppressed.has(p.person_id) && !held.has(p.person_id)
-      && seatOk(p))
+      && !killedOrgs.has(p.org_id) && !suppressed.has(p.person_id) && !held.has(p.person_id))
+    // No seat test here (dropped 2026-10-12). The seat decides who is worth
+    // writing to; for someone already written to that is settled, and the test
+    // hid four people who had just accepted a connection, drafts and all.
     .map((p) => {
       const firm = firms.find((f) => f.org_id === p.org_id);
       const mine = (outreachByOrg.get(p.org_id) ?? [])
@@ -767,6 +769,7 @@ details.back summary { cursor:pointer; font-size:12.5px; color:var(--text2);
   list-style:revert; user-select:none; }
 details.back summary:hover { color:var(--text); }
 details.raw { margin:6px 0 10px; }
+.wrapped { white-space:pre-wrap; overflow-wrap:anywhere; max-width:72ch; font-size:13.5px; line-height:1.5; margin:6px 0; }
 .colleague { border-left:2px solid var(--line); padding:2px 0 2px 10px; margin:9px 0; }
 details.raw summary { cursor:pointer; font-size:12px; color:var(--acc); user-select:none;
   list-style:revert; }
@@ -1332,6 +1335,61 @@ function draftPanel(p, d) {
  * in-flight section is a list of people with no indication of what was said to
  * them or when, which is the only reason to be looking at it.
  */
+// ACCEPTED, NOT YET WRITTEN TO. Added 2026-10-12. Eleven people accepted a
+// connection note in one week and none got a first message, because nothing
+// gathered them: In flight sorts by last send, and four of the eleven had no
+// card at all, their titles failing the seat filter. An acceptance is the one
+// moment a 1st-degree message is free and expected, so it gets its own list.
+// Fourteen days, because an acceptance months old with nothing since is not a
+// warm opening any more.
+const ACCEPTED_WINDOW_DAYS = 14;
+
+function acceptedPanel(db, d) {
+  const since = new Date(Date.now() - ACCEPTED_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+  const rows = db.prepare(`
+    SELECT p.id AS person_id, p.name, p.title, p.profile_url, g.name AS org_name,
+           x.sent_at, MAX(r.responded_at) AS accepted_at
+      FROM responses r JOIN outreach x ON x.id = r.outreach_id
+      JOIN people p ON p.id = x.person_id JOIN orgs g ON g.id = p.org_id
+     WHERE r.sentiment = 'accepted' AND r.responded_at >= ?
+       AND NOT EXISTS (SELECT 1 FROM outreach y WHERE y.person_id = p.id AND y.sent_at > x.sent_at)
+       AND NOT EXISTS (SELECT 1 FROM do_not_contact n WHERE n.person_id = p.id)
+     GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since);
+  if (!rows.length) return '';
+  const draftOf = db.prepare(`SELECT id, version, channel, body, created_at FROM drafts
+     WHERE person_id = ? AND outreach_id IS NULL AND sent_recorded_at IS NULL ORDER BY id DESC LIMIT 1`);
+  const carded = new Set((d.inFlight ?? []).map((p) => p.person_id));
+  const items = rows.map((r) => {
+    const dr = draftOf.get(r.person_id);
+    const who = carded.has(r.person_id)
+      ? `<a href="#p-${esc(r.person_id)}">${esc(r.name)}</a>`
+      : `${esc(r.name)} <span class="dim">(no card in this run)</span>`;
+    // The message alone, wrapped: the stored body carries the drafter's NOTES
+    // too, and a <pre> of it ran far off the right edge of the page.
+    const msg = dr ? noteBody(dr.body) : '';
+    const notes = dr ? (dr.body.split(/^NOTES\s*$/m)[1] ?? '').replace(/^-+\s*\n/, '').trim() : '';
+    const draft = dr
+      ? `<details class="raw"><summary>Draft v${dr.version}, ${esc(dr.channel)}, ${
+          esc(String(dr.created_at).slice(0, 10))}</summary>
+         <button class="copy" data-copy="${esc(msg)}">copy</button>
+         <div class="wrapped">${esc(msg)}</div>
+         ${notes ? `<details><summary>Drafter&rsquo;s notes</summary><div class="wrapped dim">${esc(notes)}</div></details>` : ''}
+         <p class="dim">Sent unedited: <code>npm run lead -- sent --person ${esc(r.person_id)} --channel ${
+           esc(dr.channel)} --as-drafted</code></p></details>`
+      : `<p class="dim">No draft yet: <code>npm run draft -- --person ${esc(r.person_id)} --channel linkedin</code></p>`;
+    return `<tr><td><b>${esc(String(r.accepted_at).slice(0, 10))}</b></td>
+      <td>${who}<br><span class="dim">${esc(r.title ?? '')}</span></td>
+      <td>${esc(r.org_name)}<br>${searchLink(r.name, r.org_name, r.profile_url)}</td>
+      <td>${draft}</td></tr>`;
+  }).join('\n');
+  return `<section class="panel"><h2>Accepted, not yet written to</h2>
+<p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days and have had
+nothing since. A first 1st-degree message is free and expected now. Each row carries the latest unsent draft.</p>
+<table><thead><tr><th>Accepted</th><th>Person</th><th>Firm</th><th>Draft</th></tr></thead><tbody>
+${items}
+</tbody></table></section>`;
+}
+
 function inFlightPanel(p) {
   if (!p.lastSent) return '';
   const o = p.lastSent;
@@ -2026,7 +2084,7 @@ ${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.
 function draftArmsPanel(db) {
   const arms = draftArms(db);
   if (!arms.length) return '';
-  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from' };
+  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from', followup: 'first message after an accepted connection (own pool, outside the comparison)' };
   const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
   return `<section class="panel"><h2>Is drafting learning from you?</h2>
 <p class="lead">New drafts alternate between the fixed example notes in <code>voice.md</code> and your latest
@@ -2905,6 +2963,7 @@ ${tile({ label: 'AI spend, all time', value: `$${Number(sp.total).toFixed(2)}`, 
 </div>`;
   write(pageOf('index'), 'Prospects', `
 ${costTiles}
+${acceptedPanel(db, d)}
 <section class="panel"><h2>Everyone in the book</h2>
 <p class="lead">${openAll.length} people not yet written to, ${nJudged} of them rated by the judge, best
 first; the rest follow, not yet judged. Filter by offer, target, geography or status above. The
