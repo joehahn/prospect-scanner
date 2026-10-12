@@ -164,7 +164,9 @@ their seat.
 ## The read and the draft
 
 Before drafting, a **read** works out what the person is trying to do, what is in the
-way, and which offer would help. It labels the goal by where it came from: **stated**
+way, and which offer would help. It starts as soon as a profile is pasted for someone
+the judge says to write to, so it is usually done by the time the operator presses
+Draft; a profile pasted after a read was made sends the person back to be read again. It labels the goal by where it came from: **stated**
 (they or the firm said it), **inferred** (at least two dated facts point the same
 way, among them why the person is in the seat now) or **role only**. The **drafter**
 then works out a storyline before writing a word: that goal, a lede from something

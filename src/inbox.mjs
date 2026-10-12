@@ -19,8 +19,8 @@
 // Usage:  npm run inbox           then open the printed URL
 
 import { createServer } from 'node:http';
-import { execFileSync } from 'node:child_process';
-import { writeFileSync, mkdtempSync, readFileSync, existsSync, statSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { writeFileSync, mkdtempSync, readFileSync, existsSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -208,6 +208,40 @@ function serveDash(req, res, url) {
 }
 
 /** Ingest, then re-rank and rebuild so the card the operator is looking at is current. */
+// READ ON PASTE, not on the click (2026-10-12). The read took 75 of the 140
+// seconds between pressing Draft and seeing a note, and it was waiting on
+// nothing but the profile, which arrives here. So a paste for someone the judge
+// says to write to starts the read in the background, while the operator pastes
+// the next profile. A marker file says one is running; the Draft button waits
+// on it rather than starting a second, paid, identical read.
+const READ_WAIT_MS = 180_000;
+const readMark = (person) => join(tmpdir(), `prospect-scanner-read-${person.replace(/[^\w-]/g, '_')}.pending`);
+
+function readInBackground(db, person) {
+  const write = db.prepare(`SELECT COUNT(*) n FROM judgments WHERE person_id = ? AND verdict = 'write'
+      AND batch = (SELECT MAX(batch) FROM judgments WHERE person_id = ?)`).get(person, person).n;
+  if (write < 2) return false;   // most of three runs say write, or it is not worth a read yet
+  const hadRead = db.prepare('SELECT 1 FROM reads WHERE person_id = ? AND rejected_at IS NULL').get(person);
+  const mark = readMark(person);
+  writeFileSync(mark, new Date().toISOString());
+  spawn('sh', ['-c', 'npm run read --silent -- --person "$1" $2; rm -f "$3"', 'sh',
+    person, hadRead ? '--redo' : '', mark], { cwd: ROOT, detached: true, stdio: 'ignore' }).unref();
+  console.log(`  reading ${person} in the background`);
+  return true;
+}
+
+/** Block until a background read for this person finishes, or give up after READ_WAIT_MS. */
+function awaitBackgroundRead(person) {
+  const mark = readMark(person);
+  if (!existsSync(mark)) return;
+  if (Date.now() - statSync(mark).mtimeMs > READ_WAIT_MS) { rmSync(mark, { force: true }); return; }
+  console.log(`  waiting for the background read of ${person}`);
+  const tick = new Int32Array(new SharedArrayBuffer(4));
+  const until = Date.now() + READ_WAIT_MS;
+  while (existsSync(mark) && Date.now() < until) Atomics.wait(tick, 0, 0, 500);
+  rmSync(mark, { force: true });
+}
+
 function ingest(fields) {
   const text = (fields.text ?? '').trim();
   if (!text) throw new Error('Nothing pasted.');
@@ -265,7 +299,8 @@ function ingest(fields) {
   }
   execFileSync('npm', ['run', 'rank', '--silent'], { cwd: ROOT, encoding: 'utf8' });
   execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
-  return { personId, url, out: out.trim(), rejudged: Boolean(waiting) };
+  const reading = readInBackground(db, personId);
+  return { personId, url, out: out.trim(), rejudged: Boolean(waiting), reading };
 }
 
 // DRAFT / REVISE / SENT, from the card. Each shells out to the stage that owns
@@ -317,8 +352,13 @@ function note(fields) {
   //
   // Only when one is missing. A read the operator has already seen, or rejected
   // and re-run, is not re-derived behind his back.
+  awaitBackgroundRead(person);
   const lastRead = db.prepare(`SELECT MAX(created_at) at FROM reads
       WHERE person_id = ? AND rejected_at IS NULL`).get(person)?.at;
+  // ...and when a profile was pasted after it: the read never saw that page.
+  const lastPaste = db.prepare(`SELECT MAX(retrieved_at) at FROM evidence
+      WHERE person_id = ? AND kind = 'operator_profile'`).get(person)?.at;
+  const pastedSince = lastRead && lastPaste && lastPaste > lastRead;
   // ...and when he has said something about them since the read, because what
   // he said now outranks it (prompts/read-the-person.md v6).
   const lastSaid = operatorLastSaid(db, person);
@@ -327,7 +367,7 @@ function note(fields) {
   // current as the instructions it was made under.
   const promptNewer = lastRead
     && statSync(resolve(ROOT, 'prompts/read-the-person.md')).mtime.toISOString() > lastRead;
-  if ((!lastRead || saidSince || promptNewer) && act !== 'revise') {
+  if ((!lastRead || saidSince || promptNewer || pastedSince) && act !== 'revise') {
     console.log(`  ${lastRead ? 'read out of date' : 'no read'} for ${person} — reading before drafting`);
     try {
       execFileSync('npm', ['run', 'read', '--silent', '--', '--person', person, ...(lastRead ? ['--redo'] : [])],
