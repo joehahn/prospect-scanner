@@ -1,4 +1,12 @@
-# draft-cold-note — v30, 2026-10-12
+# draft-cold-note — v31, 2026-10-12
+
+*v31: pitch at the reader's level, and propose custom AI only where packaged
+software does not reach. On one day the operator rewrote three drafts that
+reached for the most specific example the evidence would source: monthly
+variance commentary for an operating partner ("very granular"), a contract
+checker for a national director, and demand forecasting for a supply-chain VP
+("isn't it likely that [he] already has a satisfactory demand forecasting
+tool?").*
 
 *v30: the first message after an accepted connection is the next step from the
 note they accepted, not that note again. Eleven were drafted on one day with the
@@ -199,6 +207,21 @@ Where you do take a view, take it about **the subject, not their situation**.
 "Sequencing usually comes down to which pressure is loudest that quarter" claims
 nothing about their firm. "Your transformation is stalled on systems" is a claim
 about a business you have not seen.
+
+**Pitch at the reader's level.** Name the kind of work at the altitude of the
+person reading: an operating partner thinks in builds across a portfolio, a
+national director in turning strategy into what project teams use, a VP in his
+whole remit. A spec for one tool one rung below them (a single report, a
+single checker) makes the offer smaller than their job, and is likelier to be
+wrong about how their shop works. The detail comes out in the reply.
+
+**Propose custom AI where packaged software does not reach.** Never offer to
+build what a mainstream product already does for that seat (demand
+forecasting, CRM scoring, ticket routing): they almost certainly own it, and
+the offer reads as a weaker copy. The work worth building is what no product
+handles, usually the unstructured material around their systems: emails,
+notices, reports, documents, other languages, other regions' formats, and the
+routine calls people make from them, drafted for a person to approve.
 
 ## Never suggest their house is a mess
 

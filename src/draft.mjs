@@ -162,10 +162,14 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
     SELECT s.trigger_id, s.detected_at, s.weight, e.claim, e.source_url
     FROM signals s LEFT JOIN evidence e ON e.id = s.evidence_id
      WHERE s.org_id = ? AND s.retracted_at IS NULL`).all(org.id);
+  // THE FIRM'S AND THE PERSON'S OWN, wherever it was sent (2026-10-12). After
+  // `lead move` a connection note stays filed under the old employer, so a
+  // firm-only lookup showed a just-accepted connection as "no prior contact"
+  // and the draft came back as a cold note.
   const prior = db.prepare(`
     SELECT channel, sent_at, service_pitched, status, subject, message_text
-    FROM outreach WHERE org_id = ? AND (? IS NULL OR sent_at < ?) ORDER BY sent_at DESC`)
-    .all(org.id, cutoff, cutoff);
+    FROM outreach WHERE (org_id = ? OR person_id = ?) AND (? IS NULL OR sent_at < ?) ORDER BY sent_at DESC`)
+    .all(org.id, person.id, cutoff, cutoff);
   // ^ `cutoff`, for a replay: the note being replayed must not be in its own dossier.
 
   // THE BEST SENTENCE IN THE DATABASE WAS IN A TABLE THIS STAGE NEVER OPENED.
