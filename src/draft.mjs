@@ -34,6 +34,7 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, buyerForOrg, packa
 import { loadTargeting } from './targeting.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
+import { canonicalSections } from './note-text.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { noteBody, unbold, retiredPhrases, retiredHits } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
@@ -768,6 +769,7 @@ async function main() {
   // WHICH OFFER THE STORYLINE CHOSE (draft-cold-note v28). Read from its own
   // section and stripped from the body like SUBJECT; a name that is not a live
   // offer leaves the default in place, said out loud.
+  res.text = canonicalSections(res.text);
   let offerId = serviceId;
   const offerMatch = res.text.match(/^OFFER\s*\n-+\s*\n\s*([\w-]+)/m);
   if (offerMatch) {

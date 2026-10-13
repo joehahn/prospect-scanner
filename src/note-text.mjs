@@ -16,6 +16,20 @@
 // 2026-10-07 had one of the variants.
 const HEADING = /^\s*\**DRAFT\**\s*\n-+\s*\n/m;
 
+/**
+ * The drafter's four headings in the one form every parser expects: the name
+ * alone on its line, a row of dashes under it. Models drift from that: bold
+ * (**OFFER**), a colon, a markdown #, or no dashes at all. On 2026-10-13 an email
+ * came back as "**OFFER**" then "SUBJECT" with no dashes, so the offer and the
+ * subject were never read and the subject was lost. Applied once, where the
+ * reply comes in, so no parser downstream has to know the variants.
+ */
+export function canonicalSections(text) {
+  return String(text ?? '').replace(
+    /^[ \t]*#*[ \t]*\**(OFFER|SUBJECT|DRAFT|NOTES)\**[ \t]*:?[ \t]*\n(?:[ \t]*-{3,}[ \t]*\n)?/gm,
+    '$1\n-----\n');
+}
+
 export function noteOnly(body) {
   const cut = String(body ?? '').split(/^NOTES\s*$/m)[0];
   const stripped = cut.replace(HEADING, '').trim();
