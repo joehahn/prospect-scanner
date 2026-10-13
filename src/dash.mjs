@@ -2264,7 +2264,9 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
   const body = esc(declined ? '' : (draft?.body ? noteOnly(draft.body) : ''));
   const subject = esc(draft?.subject ?? '');
   const svc = esc(draft?.package_id ?? p.service_id ?? '');
-  const ch = draft?.channel ?? preferred ?? 'linkedin_inmail';
+  // A draft already sent does not choose the next channel: after an accepted
+  // connection note the box offered another connection note, and Draft wrote one.
+  const ch = (draft?.sent_text ? null : draft?.channel) ?? preferred ?? 'linkedin_inmail';
   const sel = (v, label) => `<option value="${v}"${ch === v ? ' selected' : ''}>${label}</option>`;
   // WHO IT GOES TO, when it is an email: the address on file, or the guessed one
   // marked as a guess, with a copy button for the mail client.

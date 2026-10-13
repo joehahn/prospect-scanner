@@ -1202,6 +1202,8 @@ function accepted(db, args) {
   db.prepare(`INSERT INTO responses (outreach_id, responded_at, sentiment, outcome, notes)
               VALUES (?, ?, 'accepted', 'connection request accepted', NULL)`).run(o.id, date);
   if (o.status === 'sent_no_reply') db.prepare(`UPDATE outreach SET status = 'accepted' WHERE id = ?`).run(o.id);
+  // Connected now, so the card offers a 1st-degree message rather than another request.
+  db.prepare(`UPDATE people SET degree = 1 WHERE id = ?`).run(personId);
   console.log(`recorded: ${bold(o.name)} accepted the connection request sent ${o.sent_at} (outreach #${o.id})`);
   console.log(dim('  not a reply, and not counted as one; a message to them now goes as a 1st-degree message'));
 }
