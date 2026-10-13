@@ -1000,7 +1000,7 @@ async function main() {
   const bridgeEarly = hasBridge && bridgeAt / Math.max(prose.length, 1) <= 0.55;
 
   const recipeMisses = [];
-  // AFTER AN ACCEPTED CONNECTION THE BEATS DO NOT APPLY (v30, 2026-10-12). The
+  // AFTER AN ACCEPTED CONNECTION THE BEATS DO NOT APPLY (v30; the plain note since v32). The
   // note they accepted already carried the opener and the bridge; repeating
   // either is the defect this message exists to avoid, so neither is checked.
   const afterAccept = followup;

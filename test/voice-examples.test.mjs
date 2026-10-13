@@ -112,7 +112,7 @@ test('a note with a long ask behind it is kept, without that ask', async () => {
   }
 });
 
-test('a follow-up after an accepted connection learns only from follow-ups, and a cold note never from them', async () => {
+test('a follow-up after an accepted connection learns only from plain-note follow-ups, and a cold note never from them', async () => {
   const { mkdtempSync, rmSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
@@ -122,21 +122,25 @@ test('a follow-up after an accepted connection learns only from follow-ups, and 
   const db = openDb(join(dir, 'test.db'));
   try {
     db.pragma('foreign_keys = OFF');
-    for (const id of ['target', 'cold', 'warm', 'again']) {
+    for (const id of ['target', 'cold', 'warm', 'again', 'old']) {
       db.prepare(`INSERT INTO people (id, org_id, name) VALUES (?, ?, ?)`).run(id, `org-${id}`, id);
     }
     const out = db.prepare(`INSERT INTO outreach (id, org_id, person_id, channel, sent_at, status) VALUES (?, ?, ?, ?, ?, ?)`);
-    out.run(1, 'org-warm', 'warm', 'linkedin_connect_note', '2026-10-01', 'accepted');
-    out.run(2, 'org-warm', 'warm', 'linkedin_message', '2026-10-05', 'sent_no_reply');
-    out.run(3, 'org-again', 'again', 'linkedin_connect_note', '2026-10-01', 'accepted');
-    out.run(4, 'org-again', 'again', 'linkedin_message', '2026-10-02', 'sent_no_reply');   // the follow-up already went
-    out.run(5, 'org-again', 'again', 'linkedin_message', '2026-10-05', 'sent_no_reply');   // so this is a second message
-    out.run(6, 'org-target', 'target', 'linkedin_connect_note', '2026-10-01', 'accepted');
+    out.run(1, 'org-warm', 'warm', 'linkedin_connect_note', '2026-10-14', 'accepted');
+    out.run(2, 'org-warm', 'warm', 'linkedin_message', '2026-10-16', 'sent_no_reply');
+    out.run(3, 'org-again', 'again', 'linkedin_connect_note', '2026-10-14', 'accepted');
+    out.run(4, 'org-again', 'again', 'linkedin_message', '2026-10-15', 'sent_no_reply');   // the follow-up already went
+    out.run(5, 'org-again', 'again', 'linkedin_message', '2026-10-16', 'sent_no_reply');   // so this is a second message
+    out.run(6, 'org-target', 'target', 'linkedin_connect_note', '2026-10-14', 'accepted');
+    // A follow-up from before the plain note (FOLLOWUP_SINCE): the old shape, not taught.
+    out.run(7, 'org-old', 'old', 'linkedin_connect_note', '2026-10-09', 'accepted');
+    out.run(8, 'org-old', 'old', 'linkedin_message', '2026-10-12', 'sent_no_reply');
     const add = db.prepare(`INSERT INTO drafts (id, person_id, org_id, channel, version, model, body, sent_text,
       created_at, outreach_id) VALUES (?, ?, ?, 'linkedin_message', 1, 'm', 'DRAFT\n---\nhi', 'hi', ?, ?)`);
-    add.run(10, 'cold', 'org-cold', '2026-10-05T10:00:00Z', null);
-    add.run(11, 'warm', 'org-warm', '2026-10-05T10:00:00Z', 2);
-    add.run(12, 'again', 'org-again', '2026-10-05T10:00:00Z', 5);
+    add.run(10, 'cold', 'org-cold', '2026-10-16T10:00:00Z', null);
+    add.run(11, 'warm', 'org-warm', '2026-10-16T10:00:00Z', 2);
+    add.run(12, 'again', 'org-again', '2026-10-16T10:00:00Z', 5);
+    add.run(13, 'old', 'org-old', '2026-10-12T10:00:00Z', 8);
     const ids = (followup) => recentExamples(db, { personId: 'target', channel: 'linkedin_message', followup })
       .map((x) => x.id);
     assert.deepEqual(ids(true), [11]);

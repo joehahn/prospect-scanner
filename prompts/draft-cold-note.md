@@ -1,4 +1,17 @@
-# draft-cold-note — v31, 2026-10-12
+# draft-cold-note — v32, 2026-10-13
+
+*v32: the message after an accepted connection is one plain note, not a tactic.
+In one sitting the operator turned down, for people who had accepted without a
+word, the drafter's next step on the accepted note's topic ("didnt get a
+response"), a referral ask ("even easier to ignore"), a question with options
+("assigning homework"), a one-line question about the person's upcoming talk
+("so vague that it seems fishy or a bot"), and an offer of a one-page checklist
+("fishy"). His own record explains it: no stranger had yet answered any of his
+messages with interest; the answers came from people who already knew him. A
+stranger's silence is missing trust, and a message engineered to get a reply
+reads as engineered. So: say plainly who he is, why this person, and leave the
+door open. Whatever they hear from him next comes from his posts and comments,
+not from this stage.*
 
 *v31: pitch at the reader's level, and propose custom AI only where packaged
 software does not reach. On one day the operator rewrote three drafts that
@@ -286,44 +299,32 @@ NOTES. *(v26.)*
 ## The message after an accepted connection
 
 When PRIOR CONTACT shows a connection note to this person with status
-`accepted`, they have read that note and said yes to it. This message is the
-next step from it, and **these rules replace the five beats and any recipe**:
+`accepted`, they said yes to connecting and said nothing else. This message is
+**one plain note**, and **these rules replace the five beats and any recipe**:
 
-- **Continue the thread they accepted; do not restate it, and do not change
-  it.** They said yes to that note's subject, so this message picks that subject
-  up and takes it one step further. Not its lede again, not the same offer in new
-  words, and not a new topic from elsewhere on file: a message about something
-  else reads as disconnected from the one above it in the thread. Refer back in a
-  few words ("your panel question about…", "that work") and move on.
-- **Give them something worth having.** People accept because the note suggested
-  he might be worth hearing from. The step forward is a real idea on that
-  subject: an answer to the question they asked, or what the first useful piece
-  of work on it would be. Marked as your view ("I'd guess…").
-- **Make it concrete for them, and say why.** A fact on file about them may be
-  named openly when it serves that thread, such as the sectors their board seats or portfolio span, and build
-  the example on it: what the first piece of work would look like there, marked
-  as your inference ("I'd guess…"), never as a finding about one company. The
-  operator is glad for them to see he has looked; the fact must be the reason for
-  the example, never a recital on its own.
-- **Size the ask to their seat, not their firm.** Whether someone buys or routes
-  turns on whether they hold a mandate and a team for this work, not on the kind
-  of firm. A head of value creation, or an operating partner who runs a team
-  with an AI remit, buys, even at an investment firm. A deal partner who sits on
-  boards routes.
-  - Someone who **routes** work (a deal partner, an investor or executive with
-    no remit for the work itself): the bite is a referral, so make it
-    nearly free. Ask whether a company or colleague comes to mind, and offer to
-    send three sentences on how he would help there, written so they can forward
-    them to its CEO or whoever runs operations. **No price, no link, no
-    credential**: those belong in the three sentences, read by the person who buys.
-  - Someone who **buys**, including a leader still building the team that will
-    own the work: ask a question that works either way: whether it is
-    on their team's list, or who on their team he should be talking to. A
-    referral to a colleague is a good answer, so make it an easy one. The
-    offer's first step may be named; its price only if the storyline needs it.
-  - Never a call, a meeting or coffee.
-- **Short**: 50 to 80 words in the body, and "Thanks for connecting" is all the
-  acknowledgement it needs.
+- **Say why he asked to connect, plainly.** Open on it, in his voice and in
+  words of your own each time ("a plain note on why I asked to connect" is the
+  idea, not a formula: an opener every one of these notes shares is itself the
+  mail-merge tell). Not "Thanks for connecting": that is the line automation
+  tools send the moment a request is accepted.
+- **Who he is and what he does for someone in their seat**, in one sentence: the
+  kind of work, at the level they work at, and the offer's first step in a
+  phrase (how it is bought, not its price). Sized to their seat as anywhere
+  else: a COO hears about operations, not a field-level task.
+- **An open door, and nothing to do.** "Nothing needed now. If that kind of help
+  is ever useful at <their firm>, I'd be glad to hear from you." He is not asking
+  for a reply, a referral, a call or a meeting, and the note must not be built
+  to extract one.
+- **No tactic.** No question engineered to be easy to answer, no offer to send a
+  resource, no hook on their talk or post, no restating the connection note's
+  lede. A note that would read the same from a sales tool is wrong however well
+  it scores.
+- A fact on file may set the sentence's subject ("manufacturing and supply-chain
+  teams", "portfolio companies") but is never recited back to them.
+- **Short**: 40 to 70 words in the body. Greeting, the note, his first name.
+
+NOTES carries the storyline as usual, and says which of their facts set the
+subject sentence.
 
 ## The subject line, where the channel has one
 

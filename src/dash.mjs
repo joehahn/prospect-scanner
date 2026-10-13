@@ -1384,7 +1384,9 @@ function acceptedPanel(db, d) {
   }).join('\n');
   return `<section class="panel"><h2>Accepted, not yet written to</h2>
 <p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days and have had
-nothing since. A first 1st-degree message is free and expected now. Each row carries the latest unsent draft.</p>
+nothing since. Each gets one plain note (who you are, why them, an open door) and nothing after it: silence
+is not something to fix, and what they hear from you next is your posts and your comments on theirs. Each row
+carries the latest unsent draft.</p>
 <table><thead><tr><th>Accepted</th><th>Person</th><th>Firm</th><th>Draft</th></tr></thead><tbody>
 ${items}
 </tbody></table></section>`;
@@ -2115,7 +2117,7 @@ ${rows.map((r) => `<tr><td>${esc(r.check)}</td><td>${esc(r.label)}</td><td>${r.s
 function draftArmsPanel(db) {
   const arms = draftArms(db);
   if (!arms.length) return '';
-  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from', followup: 'first message after an accepted connection (own pool, outside the comparison)' };
+  const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from', followup: 'first message after an accepted connection, until 2026-10-13 (re-pitch or referral ask)', followup_plain: 'first message after an accepted connection: the plain note (own pool, outside the comparison)' };
   const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
   return `<section class="panel"><h2>Is drafting learning from you?</h2>
 <p class="lead">New drafts alternate between the fixed example notes in <code>voice.md</code> and your latest

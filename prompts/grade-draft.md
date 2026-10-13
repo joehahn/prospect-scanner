@@ -1,4 +1,8 @@
-# grade-draft — v5, 2026-10-12
+# grade-draft — v6, 2026-10-13
+
+*v6: after an accepted connection the right note is now one plain note
+(draft-cold-note v32): who he is, why them, an open door. A tactic there is the
+defect, where until now the defect was leaving the accepted note's thread.*
 
 *v5: a sixth question, strategy: is this the right note for this person? On one
 day the operator changed the offer or the hook on every cold note he sent, and
@@ -141,7 +145,7 @@ problem sits in.
   team for the work (a head of value creation, an operating partner who runs a
   team, a functional executive) buys; a deal partner or board member routes.
   Fail asking a buyer only to forward the note, or asking someone who routes to
-  buy for himself.
+  buy for himself. Not after an accepted connection: that note asks nothing.
 - **Below their level.** The proposed work is a single task or tool one rung
   below the reader's job (a report for an operating partner, one checker for a
   national director), when their job is a portfolio, a function or a region.
@@ -154,6 +158,9 @@ problem sits in.
 - **A hard first conversation.** The work proposed would plainly need regulated
   or confidential data an outside consultant cannot casually touch (patient
   records, payment data, data under GDPR) and the note gives no sign of it.
-- **The thread they accepted.** Where prior contact shows an accepted connection
-  note, the note changes the subject instead of continuing that note's thread,
-  or simply restates it.
+- **A tactic after an accepted connection.** Where prior contact shows an
+  accepted connection note, the right note is a plain one: why he asked to
+  connect, what he does for someone in their seat, and an open door with nothing
+  to do. Flag a note that instead carries a tactic: a question engineered to be
+  easy to answer, an offer to send a resource, a hook on their talk or post, a
+  referral, call or meeting ask, or the connection note's pitch restated.

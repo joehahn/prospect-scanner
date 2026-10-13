@@ -118,7 +118,7 @@ const NO_CUTOFF = '9999';
 const inPool = (channel) => `d.channel IN (${poolOf(channel).map(() => '?').join(', ')})`;
 
 // FOLLOW-UPS LEARN FROM FOLLOW-UPS (2026-10-12). The first message after an
-// accepted connection note has its own shape (prompts/draft-cold-note.md v30):
+// accepted connection note has its own shape (prompts/draft-cold-note.md v30, the plain note since v32):
 // it continues the thread they accepted, carries no price for someone who
 // routes work, and runs 50 to 80 words. Mixed into the email/InMail pool it was
 // two examples among a dozen cold notes, too few to teach the shape and enough
@@ -143,7 +143,14 @@ export function isFollowup(db, personId, channel) {
       AND NOT EXISTS (SELECT 1 FROM outreach nx WHERE nx.person_id = acc.person_id AND ${LATER('nx', 'acc')})`)
     .get(personId));
 }
-const sameKind = (followup) => `${followup ? '' : 'NOT '}${FOLLOWUP_SQL('d')}`;
+// THE PLAIN NOTE (draft-cold-note v32, 2026-10-13) replaced the re-pitch and the
+// referral ask. Follow-ups drafted before it are the old shape and would teach
+// it back, so the follow-up pool starts here; until it holds MIN_POOL sent
+// notes, follow-ups draft from the fixed voice.
+export const FOLLOWUP_SINCE = '2026-10-13T16:00:00Z';
+const sameKind = (followup) => (followup
+  ? `${FOLLOWUP_SQL('d')} AND d.created_at >= '${FOLLOWUP_SINCE}'`
+  : `NOT ${FOLLOWUP_SQL('d')}`);
 
 /**
  * An instruction that can be shown while drafting to someone else: short, and

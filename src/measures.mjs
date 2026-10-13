@@ -4,7 +4,7 @@
 // Searches pages all read these functions, so the numbers on a page and in a
 // terminal can never disagree. Pure reads: nothing here writes to the book.
 
-import { changed, armOf, RECENT_VERSION, FOLLOWUP_SQL } from './voice-examples.mjs';
+import { changed, armOf, RECENT_VERSION, FOLLOWUP_SQL, FOLLOWUP_SINCE } from './voice-examples.mjs';
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
@@ -198,13 +198,13 @@ export function draftArms(db) {
   // A follow-up after an accepted connection is counted apart: it has its own
   // shape and its own example pool, so in either arm it would move the
   // comparison for reasons that are not the comparison (voice-examples.mjs).
-  const rows = db.prepare(`SELECT id, person_id, body, sent_text, revised_from, examples,
+  const rows = db.prepare(`SELECT id, person_id, body, sent_text, revised_from, examples, created_at,
       ${FOLLOWUP_SQL('drafts')} AS followup FROM drafts ORDER BY id`).all();
   const arms = new Map();
   // `recent` before RECENT_VERSION dropped any note with a long ask behind it,
   // most of what he revised; it is counted apart, not with the arm as it runs now.
   const arm = (r) => {
-    if (r.followup) return 'followup';
+    if (r.followup) return r.created_at >= FOLLOWUP_SINCE ? 'followup_plain' : 'followup';
     if (r.examples == null) return 'before';
     const a = armOf(r.examples) ?? 'fixed';
     if (a !== 'recent') return a;
@@ -221,7 +221,7 @@ export function draftArms(db) {
     a.revisions += rows.filter((x) => x.person_id === r.person_id && x.id <= r.id
       && x.revised_from != null && arm(x) === arm(r)).length;
   }
-  return ['before', 'fixed', 'picked', 'edits', 'recent_v1', 'recent', 'followup'].filter((a) => arms.has(a)).map((a) => {
+  return ['before', 'fixed', 'picked', 'edits', 'recent_v1', 'recent', 'followup', 'followup_plain'].filter((a) => arms.has(a)).map((a) => {
     const x = arms.get(a);
     return { arm: a, drafted: x.drafted, sent: x.sent, unchanged: x.unchanged,
       changed: median(x.deltas), revisionsPerSent: x.sent ? x.revisions / x.sent : null };
