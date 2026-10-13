@@ -158,8 +158,8 @@ Top to bottom:
 
 The main page opens on **Accepted, not yet written to**: everyone who accepted a
 connection request in the last fourteen days and has had nothing since, each with the
-latest unsent draft and a copy button. *In flight* shows everyone written to, whatever
-their seat.
+latest unsent draft and a copy button. Each gets one note, and silence after it is not
+chased. *In flight* shows everyone written to, whatever their seat.
 
 ## The read and the draft
 
@@ -201,13 +201,13 @@ compares how much of each set's drafts the operator changes before sending.
 note after note makes every note read as the same template, so a draft that uses one
 is flagged in the terminal and on its card, to be reworded before it goes out.
 
-**The first message after an accepted connection** follows its own rules. It continues
-the thread of the note they accepted, one step on, rather than restating it or changing
-the subject; it offers one idea worth having, pitched at the reader's level; and its ask
-fits the seat. Someone with a mandate and a team for the work is asked whether it fits
-now, or whom to talk to. Someone who routes work, such as a deal partner, is offered
-three sentences to forward, with no price. These messages learn only from earlier ones
-of their kind, and are counted apart from the comparison of example sets.
+**The first message after an accepted connection** is one plain note: why the operator
+asked to connect, what he does for someone in that seat, and an open door with nothing
+to do. It carries no tactic: no question built to be easy to answer, no offer to send
+something, no hook on a talk or post, no referral or meeting ask, and no restating of
+the note they accepted. One note, then nothing more; what the person sees next is the
+operator's own posts and comments. These messages learn only from earlier ones of their
+kind, and the Scoreboard counts them apart from the comparison of example sets.
 
 Every note, cold or not, is pitched at the reader's level and proposes custom work
 where packaged software does not reach: the unstructured material around a team's
