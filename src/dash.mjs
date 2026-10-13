@@ -1518,16 +1518,29 @@ function profilePanel(p, d) {
 // LinkedIn search finds "Northwind Islamic Bank" and misses "... (NIB)".
 // The firm as LinkedIn search matches it: no bracketed abbreviations, no legal
 // suffix. "Northwind Islamic Bank" finds the bank; "... (NIB)" does not.
+//
+// ONE BODY, NOT ITS ADDRESS (2026-10-13). LinkedIn matches every word, and
+// agenda-style names carry more than any profile does: "Office of Information
+// Technology, Northwind Lottery Commission" finds nobody where the commission
+// alone finds its CIO. So a comma-separated name keeps one part: legal suffixes
+// ("Inc.", "SSB", "National Association") and "State of X" go, and a leading
+// office or division gives way to the body it sits in when that is named in
+// more than one word ("..., Washington, DC" is a place, not a body).
 function searchFirm(org) {
-  return String(org ?? '').replace(/\([^)]*\)/g, ' ')
-    .replace(/,?\s+(inc|llc|ltd|plc|corp|corporation|co|a\/s|ag|sa|se|nv|group|holdings)\.?$/i, '')
-    .replace(/\s+/g, ' ').trim();
+  const parts = String(org ?? '').replace(/\([^)]*\)/g, ' ').split(',')
+    .map((s) => s.replace(/\s+/g, ' ').trim())
+    .filter((s) => s && !/^(inc|llc|ltd|plc|corp|co|ssb|n\.?a|national association|(state|commonwealth) of .+)\.?$/i.test(s));
+  const unit = /^(office|division) of /i;
+  const firm = parts.length > 1 && unit.test(parts[0]) && parts[1].split(' ').length > 1 ? parts[1] : (parts[0] ?? '');
+  return firm.replace(/\s+(inc|llc|ltd|plc|corp|corporation|co|a\/s|ag|sa|se|nv|group|holdings)\.?$/i, '').trim();
 }
 
-// The name as a search box wants it: no "Dr."/"Mr."/"Ms.", no trailing degrees.
+// The name as a search box wants it: no "Dr."/"Mr."/"Ms.", no trailing degrees,
+// no middle initial, which a speaker list prints and a profile often omits.
 function searchName(name) {
   return String(name ?? '').replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '')
-    .replace(/,?\s+(ph\.?\s?d|md|mba|cpa|jr|sr|iii|ii)\.?$/i, '').trim();
+    .replace(/,?\s+(ph\.?\s?d|md|mba|cpa|jr|sr|iii|ii)\.?$/i, '')
+    .replace(/\s+[A-Z]\.(?=\s)/g, '').trim();
 }
 
 // NAME, THEN FIRM, ONE CLICK TO COPY, for pasting into LinkedIn's search box.
