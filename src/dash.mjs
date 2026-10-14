@@ -2292,6 +2292,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
       <div class="nbrow">
         <select name="channel">${sel('email', 'Email')}${sel('linkedin_inmail', 'InMail (also a free Open Profile message)')}${
           sel('linkedin_connect_note', 'Connection request note')}${sel('linkedin_message', 'Message to a 1st-degree connection')}</select>
+        <button type="submit" name="do" value="draft">${draft ? 'Draft again' : 'Draft'}</button>
         <input name="subject" placeholder="subject" value="${subject}">
       </div>
       <p class="nbto"${ch === 'email' ? '' : ' hidden'}>To: ${to}</p>
@@ -2307,7 +2308,6 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
         <button type="submit" name="do" value="revise">Go</button>
       </div>
       <div class="nbrow">
-        <button type="submit" name="do" value="draft">${draft ? 'Draft again' : 'Draft'}</button>
         <button type="submit" name="do" value="sent" class="sent">Sent as ${esc(({ email: 'Email', linkedin_inmail: 'InMail', linkedin_connect_note: 'Connection note', linkedin_message: 'LinkedIn message' })[ch] ?? ch)}</button>
         ${ch === 'linkedin_inmail' ? '<label class="nbnote"><input type="checkbox" name="free" value="1"> free (Open Profile, no credit spent)</label>' : ''}
         <span class="nbnote">Sent records the box above exactly as it stands — edit it first.</span>
