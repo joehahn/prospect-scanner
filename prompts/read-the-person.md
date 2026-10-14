@@ -1,6 +1,8 @@
 # What is this person trying to do?
 
-**Version 7, 2026-10-09.**
+**Version 8, 2026-10-14.**
+
+*v8: a figure from a regulatory filing is why a firm is on the list, not what anyone there is working toward. A bank's efficiency ratio, against peers its size, was read as its COO's goal ("bring the ratio back in line with peer banks"), and the note opened by quoting the ratio to him. The ratio was high because of the business the bank's parent runs, not because anyone was pressing him about it.*
 
 *v7: the seat's circumstance counts as evidence, a circumstance is not a
 judgment, and the offer is chosen for the goal. A finance executive hired into a
@@ -87,6 +89,13 @@ dated facts about the situation outweigh one conference session, whose topic is
 often the organiser's choice rather than the speaker's preoccupation. A talk
 that bears on the circumstance is the lede for it; a talk that does not is one
 fact among many.
+
+**A FILED FIGURE IS NOT A GOAL (v8).** A number from a regulatory filing about
+the firm (a ratio, a peer ranking, an asset threshold crossed) says the firm may
+be under pressure. It does not say what this person is working toward, and on its
+own it is never `trying_to_do`. Firms differ in what they are built to do, and a
+figure far from peers often describes that rather than any pressure. Use it as
+background for timing; build the goal from what the person and the firm say.
 
 **The test: is the subject of this read the thing they talk about most?** If you
 have landed on something mentioned once because it sounded closer to the offer,
@@ -214,6 +223,9 @@ integration after an acquisition, a growth push the firm announced: these are
 facts about the situation, often in their own words, and the note may name them.
 Do not put the circumstance itself in this field. What belongs here is any view
 of how well they are handling it.
+
+**A filed figure about their firm is always in this field (v8).** Name it: the
+note must not quote it, compare them with peers, or mention that it moved.
 
 **Never rule out the work itself.** Every note offers applied AI, so "no AI or
 technology framing" leaves the drafter nothing to write. If their words show no

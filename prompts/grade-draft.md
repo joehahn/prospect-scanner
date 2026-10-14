@@ -1,4 +1,6 @@
-# grade-draft — v6, 2026-10-13
+# grade-draft — v7, 2026-10-14
+
+*v7: a figure from a regulatory filing about their firm, quoted to them, is a recital whatever the note builds on it. v6 passed a note to a bank's COO that opened on the bank's efficiency ratio, because the offer did follow from it.*
 
 *v6: after an accepted connection the right note is now one plain note
 (draft-cold-note v32): who he is, why them, an open door. A tactic there is the
@@ -95,7 +97,10 @@ Fail it when:
 - the link to the proposal is left vague ("when one of those tools needs
   building…") rather than stated;
 - it recites who they are rather than what they want: their title, career
-  history, highlights or awards, handed back as flattery.
+  history, highlights or awards, handed back as flattery;
+- it quotes a figure about their firm from a regulatory filing or a peer
+  comparison (a ratio, a ranking, an asset size, or how one moved). This fails
+  even when the proposal follows from it.
 
 A talk or session they are giving or gave, named as the reason for writing, also
 passes, as does a sentence naming what they are plausibly working toward, written

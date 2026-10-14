@@ -1,4 +1,6 @@
-# draft-cold-note — v32, 2026-10-13
+# draft-cold-note — v33, 2026-10-14
+
+*v33: never quote a figure from a regulatory filing about their firm. A draft to a bank's COO opened "saw [the bank]'s efficiency ratio came down from 90.8% to 84.3%": his own number, to the decimal, from a stranger, reading as a report card on his house. The operator: "kindof rough".*
 
 *v32: the message after an accepted connection is one plain note, not a tactic.
 In one sitting the operator turned down, for people who had accepted without a
@@ -253,6 +255,11 @@ outside hour is worth buying.
 it was meant to, say the work stalled, the pilot gave wrong answers, the cost
 crept up. Never that their team is stuck, struggling or failing. The reader
 usually runs that team.
+
+**A filed figure stays out of the note.** *(v33.)* A ratio, a peer ranking or an
+asset size from a regulatory filing about their firm may be why the operator is
+writing; it is never written. Not quoted, not compared with peers, not mentioned as
+improving. Coming from a stranger it is an examiner's remark, whichever way it moved.
 
 Never write a compliment either. If a sentence's job is to make them feel good,
 delete it; a reader who can see the technique is a reader you have lost. The
