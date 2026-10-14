@@ -168,3 +168,8 @@ triggers:
     kind: urgency
     decay_days: 365
     description: "A bank's assets crossed a regulatory size threshold within the last four quarters"
+  - id: efficiency_lagging_peers
+    weight: 2
+    kind: urgency
+    decay_days: 120
+    description: "A bank's efficiency ratio is in the worst quarter of national peers its size, and was worse than their median a year earlier"

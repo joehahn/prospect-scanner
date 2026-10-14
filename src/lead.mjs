@@ -64,6 +64,10 @@
 //                              Every FDIC-insured bank in an asset band, from the
 //                              quarterly regulatory filing. Enumerates by SIZE; the
 //                              trigger is found afterwards by vet and enrich.
+//   npm run lead -- bank-efficiency [--state "Texas"] [--quarter YYYYMMDD] [--dry]
+//                              Banks in the book against national peers their size,
+//                              from the latest call report: efficiency_lagging_peers
+//                              and crossed_ten_billion_assets. No model calls.
 //   npm run lead -- domains    [--org <id>] [--limit N] [--dry]
 //                              Resolve a discovered firm's NAME to its own website,
 //                              then FETCH that site and check it names the firm before
@@ -2133,6 +2137,129 @@ async function banks(db, cfg, args) {
   }
 }
 
+/**
+ * THE REGISTER'S OWN TRIGGERS, for banks already in the book. `banks` enumerates
+ * by size and writes no signals, and the 45 it filed carried one trigger between
+ * them a fortnight later: a bank this size announces nothing. Its call report is
+ * the one thing it must publish, every quarter, so two reasons to write are read
+ * from that instead.
+ *
+ *   efficiency_lagging_peers   worst quarter of national peers its size, this
+ *                              quarter AND worse than the median a year ago. The
+ *                              second half keeps out a one-quarter spike from
+ *                              merger costs, which is not pressure, only noise.
+ *   crossed_ten_billion_assets  under $10bn four quarters ago, over it now.
+ *
+ * Peers are national size bands, not states: investors and examiners compare a
+ * bank with banks its size. A bank is matched to the book by name AND state,
+ * because one bank name can belong to several banks in different states.
+ *
+ * No model calls. The claim states figures and their source; whether it is a
+ * reason to write, and what a note says about it, is the judge's and the
+ * drafter's call. It is the operator's reason, never the reader's own facts
+ * recited back to them.
+ */
+async function bankEfficiency(db, cfg, args) {
+  const { quarterFinancials, yearEarlier, financialsUrl } = await import('./sources/fdic.mjs');
+  const BANDS = [[1e9, 3e9], [3e9, 10e9], [10e9, 50e9]];
+  const lo = BANDS[0][0], hi = BANDS.at(-1)[1];
+  const now = await quarterFinancials(lo, hi, {
+    repdte: args.quarter && args.quarter !== true ? String(args.quarter) : null });
+  if (now.error) throw new Error(now.error);
+  // A year ago over a wider band: a bank that grew past a floor is still in it.
+  const then = await quarterFinancials(lo / 2, hi, { repdte: yearEarlier(now.repdte) });
+  if (then.error) throw new Error(then.error);
+  const prev = new Map(then.rows.map((r) => [r.cert, r]));
+
+  // Ratios above 150 or at zero are de novo banks and broken quarters, where
+  // revenue is near nothing; they would set the quartile, not sit in it.
+  const sane = (e) => e != null && e > 0 && e < 150;
+  const pct = (xs, p) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(p * (s.length - 1))]; };
+  const bandOf = (usd) => BANDS.find(([a, b]) => usd >= a && usd < b) ?? null;
+  const stats = new Map();
+  for (const band of BANDS) {
+    const cur = now.rows.filter((r) => bandOf(r.assets_usd) === band && sane(r.efficiency)).map((r) => r.efficiency);
+    const old = then.rows.filter((r) => bandOf(r.assets_usd) === band && sane(r.efficiency)).map((r) => r.efficiency);
+    stats.set(band, { n: cur.length, q3: pct(cur, 0.75), median: pct(cur, 0.5), oldMedian: pct(old, 0.5) });
+  }
+
+  const key = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const byKey = new Map(now.rows.map((r) => [`${key(r.name)}|${key(r.state)}`, r]));
+  const state = args.state && args.state !== true ? String(args.state) : null;
+  const orgs = db.prepare(`SELECT id, name, hq FROM orgs WHERE hq IS NOT NULL
+      AND (? IS NULL OR lower(hq) LIKE '%' || lower(?))`).all(state, state);
+
+  const qDate = `${now.repdte.slice(0, 4)}-${now.repdte.slice(4, 6)}-${now.repdte.slice(6)}`;
+  const decay = (id) => cfg.triggers.find((t) => t.id === id)?.decay_days ?? 120;
+  const plus = (d, n) => new Date(Date.parse(d) + n * 864e5).toISOString().slice(0, 10);
+  const bn = (usd) => `$${(usd / 1e9).toFixed(1)}bn`;
+  const insEv = db.prepare(`INSERT INTO evidence (org_id, kind, claim, source_url, retrieved_at, provenance)
+    VALUES (?, 'regulatory_filing', ?, ?, ?, 'retrieved')
+    ON CONFLICT(org_id, kind, source_url, claim) DO UPDATE SET retrieved_at = excluded.retrieved_at
+    RETURNING id`);
+  const insSig = db.prepare(`INSERT INTO signals (org_id, trigger_id, detected_at, decays_at, weight, evidence_id)
+    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(org_id, trigger_id, evidence_id) DO NOTHING`);
+  const weight = (id) => cfg.triggers.find((t) => t.id === id)?.weight ?? 1;
+  const runId = args.dry ? null : startRun(db, 'bank-efficiency', { notes: `FDIC call reports, ${qDate}` });
+  const stamp = new Date().toISOString();
+
+  const out = [];
+  let matched = 0, fired = 0;
+  for (const o of orgs) {
+    const st = String(o.hq).split(',').at(-1).trim();
+    const r = byKey.get(`${key(o.name)}|${key(st)}`);
+    if (!r) continue;
+    matched += 1;
+    const band = bandOf(r.assets_usd);
+    const s = band && stats.get(band);
+    const p = prev.get(r.cert);
+    const lags = s && sane(r.efficiency) && r.efficiency >= s.q3
+      && p && sane(p.efficiency) && p.efficiency >= s.oldMedian;
+    const crossed = p?.assets_usd != null && p.assets_usd < 10e9 && r.assets_usd >= 10e9;
+    const write = (trigger, claim) => {
+      fired += 1;
+      if (args.dry) return;
+      const ev = insEv.get(o.id, claim, financialsUrl(r.cert), stamp);
+      insSig.run(o.id, trigger, qDate, plus(qDate, decay(trigger)), weight(trigger), ev.id);
+    };
+    if (lags) {
+      write('efficiency_lagging_peers',
+        `FDIC call report for ${qDate}: efficiency ratio ${r.efficiency.toFixed(1)}% ` +
+        `(noninterest expense per dollar of revenue; higher is worse), in the worst quarter of ` +
+        `${s.n} US banks with ${bn(band[0])} to ${bn(band[1])} in assets, whose median is ` +
+        `${s.median.toFixed(1)}%. A year earlier it was ${p.efficiency.toFixed(1)}% against a ` +
+        `median of ${s.oldMedian.toFixed(1)}%. Total assets ${bn(r.assets_usd)}.`);
+    }
+    if (crossed) {
+      write('crossed_ten_billion_assets',
+        `FDIC call report for ${qDate}: total assets ${bn(r.assets_usd)}, up from ` +
+        `${bn(p.assets_usd)} four quarters earlier, crossing $10bn.`);
+    }
+    out.push({ name: o.name, st, assets: r.assets_usd, eff: r.efficiency, q3: s?.q3,
+      ago: p?.efficiency, lags, crossed });
+  }
+  if (runId) finishRun(db, runId, { cost_usd: 0, n_in: matched, n_out: fired });
+
+  console.log(heading(`FDIC call reports · ${qDate} · ${now.rows.length} US banks, ` +
+    `${bn(lo)} to ${bn(hi)}`));
+  for (const band of BANDS) {
+    const s = stats.get(band);
+    console.log(dim(`  ${bn(band[0])}–${bn(band[1])}: ${s.n} banks, median ${s.median.toFixed(1)}%, ` +
+      `worst quarter from ${s.q3.toFixed(1)}%`));
+  }
+  console.log(dim(`\n${orgs.length} firm(s) in the book with a location${state ? ` in ${state}` : ''}; ` +
+    `${matched} matched to a filing by name and state.\n`));
+  out.sort((a, b) => (b.eff ?? 0) - (a.eff ?? 0));
+  for (const x of out) {
+    const flag = [x.lags && 'LAGGING', x.crossed && 'CROSSED $10BN'].filter(Boolean).join(' ');
+    console.log(`  ${String(x.name).slice(0, 34).padEnd(35)}${bn(x.assets).padStart(8)}  ` +
+      `${x.eff?.toFixed(1).padStart(5) ?? '    ?'}%  yr ago ${x.ago?.toFixed(1).padStart(5) ?? '    ?'}%  ` +
+      (flag ? bold(flag) : ''));
+  }
+  console.log(dim(`\n${fired} signal(s) ${args.dry ? 'would be written (DRY RUN)' : 'written'}. ` +
+    'A quarter is filed once, so a rerun writes nothing new until the next one.'));
+}
+
 async function domains(db, cfg, args) {
   const rows = db.prepare(`
     SELECT o.id, o.name,
@@ -2282,6 +2409,7 @@ async function main() {
       case 'emails':     await emails(db, args); break;
       case 'addresses': await addresses(db, cfg, args); break;
       case 'banks':     await banks(db, cfg, args); break;
+      case 'bank-efficiency': await bankEfficiency(db, cfg, args); break;
       case 'domains':   await domains(db, cfg, args); break;
       case 'sent':       sent(db, cfg, args); break;
       case 'unsend':     unsend(db, args); break;

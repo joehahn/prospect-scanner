@@ -49,7 +49,7 @@ flowchart TD
 ## Intake: dated events, not lists
 
 A prospect enters because something happened: a new AI leader named, a vendor chosen,
-a fund raised, a conference talk about a problem the operator solves. Five sources:
+a fund raised, a conference talk about a problem the operator solves. Six sources:
 
 - **Measured searches.** Written by a model from the operator's plain-prose targets and
   events, approved once, run weekly. Each run records what it found and what each find
@@ -71,6 +71,11 @@ a fund raised, a conference talk about a problem the operator solves. Five sourc
   looks like the firm of an example prospect the operator named for that target,
   no gate kills it, and it names someone in one of the target's seats. Everyone else at
   an admitted firm is dropped, and every firm turned away keeps its reason.
+- **The bank register.** Banks of the size this book targets announce almost nothing,
+  so they are listed by size from the FDIC's quarterly filings instead, and the
+  filings themselves supply a dated reason: a cost of earning a dollar in the worst
+  quarter of US banks the same size, a year running, or assets that just crossed
+  $10bn. Each fact cites the filing it came from.
 
 Every stored event keeps what its source actually said, not just an event label, and
 `npm run recheck` re-reads older ones against their source and retracts any the words
@@ -251,6 +256,7 @@ daily run strings the routine ones together.
 | Agendas | `npm run events` | speakers and sessions from conference sites | default |
 | Conferences | `npm run conferences` | find new conferences, then read their agendas into the book | cheap |
 | Firm lists | `npm run firms` | a target's firms from rankings and directories, each checked on its own site before it is kept | cheap |
+| Banks | `npm run lead -- banks`, `npm run lead -- bank-efficiency` | every insured bank in an asset band from the FDIC register; then, from each quarter's call reports, banks whose efficiency ratio is in the worst quarter of national peers their size, or whose assets crossed $10bn | none |
 | Vet | `npm run lead -- vet` | the firm's own site, then the gates | cheap |
 | Addresses | `npm run lead -- addresses` | a published address on the firm's own pages (then at most one press search), and the pattern it implies for everyone there, kept as a guess | none |
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
