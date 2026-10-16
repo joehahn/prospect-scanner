@@ -389,12 +389,20 @@ function collect(db, cfg, targeting) {
   // a dated trigger and never show the operator the event, the source, or the
   // fact that a judge had since retracted it.
   const evidenceByOrg = new Map();
+  const evidenceByPerson = new Map();
   for (const e of db.prepare(
     `SELECT org_id, person_id, kind, claim, source_url, provenance, retrieved_at, body
        FROM evidence WHERE claim IS NOT NULL AND TRIM(claim) <> ''
       ORDER BY retrieved_at DESC`).all()) {
     if (!evidenceByOrg.has(e.org_id)) evidenceByOrg.set(e.org_id, []);
     evidenceByOrg.get(e.org_id).push(e);
+    // By person too: a profile pasted at one employer stays filed under that
+    // firm after `lead move`, and a card read by firm alone said "no LinkedIn
+    // profile on file" for someone whose profile was right there.
+    if (e.person_id) {
+      if (!evidenceByPerson.has(e.person_id)) evidenceByPerson.set(e.person_id, []);
+      evidenceByPerson.get(e.person_id).push(e);
+    }
   }
 
   // Drafts, newest version first, with whatever was actually sent alongside.
@@ -546,7 +554,7 @@ function collect(db, cfg, targeting) {
 
   const AXES = [['authority', 'authority'], ['reachability', 'reachability'],
                 ['warmth', 'warmth']];
-  const backstory = { evidenceByOrg, signalsByOrg, outreachByOrg, holdsByPerson, draftsByPerson,
+  const backstory = { evidenceByOrg, evidenceByPerson, signalsByOrg, outreachByOrg, holdsByPerson, draftsByPerson,
                       verdictsByPerson };
 
   const totalSpend = db.prepare('SELECT ROUND(SUM(cost_usd), 2) t FROM runs').get().t ?? 0;
@@ -1341,7 +1349,9 @@ function draftPanel(p, d) {
 // card at all, their titles failing the seat filter. An acceptance is the one
 // moment a 1st-degree message is free and expected, so it gets its own list.
 // Fourteen days, because an acceptance months old with nothing since is not a
-// warm opening any more.
+// warm opening any more. Unless a note was drafted after the acceptance: then
+// the operator has already decided to write, and the row stays until it is
+// sent or the draft is dropped (one fell off two days after it was drafted).
 const ACCEPTED_WINDOW_DAYS = 14;
 
 function acceptedPanel(db, d) {
@@ -1351,7 +1361,10 @@ function acceptedPanel(db, d) {
            x.sent_at, MAX(r.responded_at) AS accepted_at
       FROM responses r JOIN outreach x ON x.id = r.outreach_id
       JOIN people p ON p.id = x.person_id JOIN orgs g ON g.id = p.org_id
-     WHERE r.sentiment = 'accepted' AND r.responded_at >= ?
+     WHERE r.sentiment = 'accepted'
+       AND (r.responded_at >= ? OR EXISTS (SELECT 1 FROM drafts w
+             WHERE w.person_id = p.id AND w.outreach_id IS NULL AND w.sent_recorded_at IS NULL
+               AND substr(w.created_at, 1, 10) >= r.responded_at))
        AND NOT EXISTS (SELECT 1 FROM outreach y WHERE y.person_id = p.id AND y.sent_at > x.sent_at)
        AND NOT EXISTS (SELECT 1 FROM do_not_contact n WHERE n.person_id = p.id)
      GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since);
@@ -1383,7 +1396,7 @@ function acceptedPanel(db, d) {
       <td>${draft}</td></tr>`;
   }).join('\n');
   return `<section class="panel"><h2>Accepted, not yet written to</h2>
-<p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days and have had
+<p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days, or have a note drafted since, and have had
 nothing since. Each gets one plain note (who you are, why them, an open door) and nothing after it: silence
 is not something to fix, and what they hear from you next is your posts and your comments on theirs. Each row
 carries the latest unsent draft.</p>
@@ -1435,8 +1448,7 @@ function addressLine(p) {
  * the card was read out of it.
  */
 function profilePanel(p, d) {
-  const ev = (d.evidenceByOrg.get(p.org_id) ?? [])
-    .filter((e) => e.person_id === p.person_id);
+  const ev = d.evidenceByPerson.get(p.person_id) ?? [];
   const pasted = ev.find((e) => e.kind === 'operator_profile' && (e.body ?? '').trim());
 
   // TWO DIFFERENT LISTS, AND ONLY ONE OF THEM WAS BEING SHOWN. "To move this
@@ -2649,7 +2661,7 @@ function cards(list, cfg, d) {
       ${inFlightPanel(p)}
       ${profilePanel(p, d)}
       ${firmOutreachPanel(p, d)}
-      ${p.needs_profile ? pasteBox(p) : ''}
+      ${pastedOf(d, p.person_id) === 'yes' ? pasteBox(p).replace('<b>Paste a profile</b>', '<b>Paste again</b>') : pasteBox(p)}
       ${draftPanel(p, d)}
 
       ${warnGates.length ? `<div class="warns"><h4>Gate warnings on the firm</h4><ul>${
