@@ -51,6 +51,10 @@
 //                              one person on file twice: every row moves to --into,
 //                              blank fields on --into are filled from --from, and
 //                              --from is removed
+//   npm run lead -- merge-org  --from <org id> --into <org id> | --list
+//                              one firm on file twice: every row naming --from moves
+//                              to --into, blank fields are filled, --from is removed.
+//                              --list shows firms sharing a domain (a tell, not proof)
 //                              Undo a `sent` recorded by mistake. Removes the outreach row,
 //                              unpairs the draft, and frees the person back onto the
 //                              shortlist. `sent` is easy to run while meaning to READ a
@@ -475,6 +479,60 @@ function merge(db, args) {
       + (cols.length ? dim(` · filled ${cols.join(', ')}`) : ''));
   })();
   console.log(dim('  run `npm run rank` so the board sees one person'));
+}
+
+/**
+ * ONE FIRM, TWO RECORDS. Added 2026-10-16: a state agency was on file twice,
+ * once from a news run and once from a conference agenda, with the state CIO
+ * under one and his new deputy under the other. The fourteen days between
+ * notes to one firm is counted per record, so it could not see across them.
+ * Every column that holds an org id is moved over; a row that would collide
+ * with one --into already has is dropped. A shared domain is the usual tell,
+ * but not proof: a whole state government can sit on one domain, and a parent
+ * and its listed subsidiary can share one too. `--list` shows the pairs; which
+ * are one firm is the operator's call.
+ */
+function mergeOrg(db, args) {
+  if (args.list) {
+    const rows = db.prepare(`SELECT domain, GROUP_CONCAT(id || ' (' || name || ')', '  |  ') ids
+        FROM orgs WHERE domain IS NOT NULL AND TRIM(domain) <> ''
+       GROUP BY LOWER(domain) HAVING COUNT(*) > 1 ORDER BY domain`).all();
+    if (!rows.length) { console.log('no two firms share a domain'); return; }
+    for (const r of rows) console.log(`${bold(r.domain)}  ${r.ids}`);
+    console.log(dim(`\n${rows.length} domain(s) shared. Merge the ones that are one firm:` +
+      ' npm run lead -- merge-org --from <id> --into <id>'));
+    return;
+  }
+  const from = String(requireArg(args, 'from', 'merge-org'));
+  const into = String(requireArg(args, 'into', 'merge-org'));
+  if (from === into) throw new Error('--from and --into are the same firm');
+  const a = db.prepare('SELECT * FROM orgs WHERE id = ?').get(from);
+  const b = db.prepare('SELECT * FROM orgs WHERE id = ?').get(into);
+  if (!a) throw new Error(`no org "${from}"`);
+  if (!b) throw new Error(`no org "${into}"`);
+  const cols = [];
+  for (const { name: t } of db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name <> 'orgs'`).all()) {
+    for (const { name: c } of db.prepare(`PRAGMA table_info(${t})`).all()) {
+      if (['org_id', 'company_id', 'investor_id'].includes(c)) cols.push([t, c]);
+    }
+  }
+  db.transaction(() => {
+    const moved = [];
+    for (const [t, c] of cols) {
+      const n = db.prepare(`UPDATE OR IGNORE ${t} SET ${c} = ? WHERE ${c} = ?`).run(into, from).changes;
+      const left = db.prepare(`DELETE FROM ${t} WHERE ${c} = ?`).run(from).changes;
+      if (n || left) moved.push(`${t} ${n}${left ? ` (${left} duplicate dropped)` : ''}`);
+    }
+    // Blank fields on the kept record take the other's value; nothing is overwritten.
+    const fill = db.prepare('PRAGMA table_info(orgs)').all().map((c) => c.name)
+      .filter((c) => !['id', 'name'].includes(c) && b[c] == null && a[c] != null);
+    for (const c of fill) db.prepare(`UPDATE orgs SET ${c} = ? WHERE id = ?`).run(a[c], into);
+    db.prepare('DELETE FROM orgs WHERE id = ?').run(from);
+    console.log(`merged ${bold(a.name)} (${from}) into ${bold(b.name)} (${into})`
+      + (moved.length ? dim(` · moved ${moved.join(', ')}`) : '')
+      + (fill.length ? dim(` · filled ${fill.join(', ')}`) : ''));
+  })();
+  console.log(dim('  run `npm run rank` so the board sees one firm'));
 }
 
 function unsend(db, args) {
@@ -2414,6 +2472,7 @@ async function main() {
       case 'sent':       sent(db, cfg, args); break;
       case 'unsend':     unsend(db, args); break;
       case 'merge':      merge(db, args); break;
+      case 'merge-org':  mergeOrg(db, args); break;
       case 'accepted':   accepted(db, args); break;
       case 'reply':      reply(db, args); break;
       case 'list': case undefined: list(db, args); break;

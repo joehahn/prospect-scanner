@@ -682,7 +682,8 @@ async function main() {
   // Scoreboard can say whether the challenger beats the fixed set
   // (src/voice-examples.mjs).
   // `--examples fixed|picked|edits|recent` forces one.
-  const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
+  const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null,
+    claim: !args['no-store'] });
   const voiceText = readVoice();
   // The first message after an accepted connection learns only from others like
   // it, and skips the cold-note beat checks (voice-examples.mjs, FOLLOWUP_SQL).

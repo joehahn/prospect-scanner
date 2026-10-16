@@ -40,6 +40,18 @@ test('new drafts alternate fixed and the challenger; a revision keeps its arm; a
   assert.equal(chooseArm(db, { override: 'picked' }), 'picked');
 });
 
+test('drafts started together still alternate: the arm is claimed before the draft is stored', () => {
+  const db = new Database(':memory:');
+  db.exec('CREATE TABLE drafts (id INTEGER PRIMARY KEY, revised_from INTEGER, examples TEXT)');
+  db.prepare('INSERT INTO drafts (id, examples) VALUES (1, ?)').run('{"arm":"fixed"}');
+  // Six drafts begin before any is stored: each must see the claims before it.
+  const arms = Array.from({ length: 6 }, () => chooseArm(db, { claim: true }));
+  assert.deepEqual(arms, [LIVE_CHALLENGER, 'fixed', LIVE_CHALLENGER, 'fixed', LIVE_CHALLENGER, 'fixed']);
+  // A replay that stores nothing takes no turn.
+  assert.equal(chooseArm(db), LIVE_CHALLENGER);
+  assert.equal(chooseArm(db, { claim: true }), LIVE_CHALLENGER);
+});
+
 test('an instruction quoting a prospect\'s own page never travels to another draft', async () => {
   const { portable } = await import('../src/voice-examples.mjs');
   assert.equal(portable('drop the number, lead with the diligence angle'), true);

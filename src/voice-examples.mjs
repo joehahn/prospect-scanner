@@ -82,16 +82,32 @@ export const LIVE_CHALLENGER = 'recent';
  * The arm for a new draft. A revision keeps the arm of the version it revises,
  * so a revised note is attributed to the examples it started from. A new note
  * takes the arm the last new note did not, which keeps the two arms level.
+ *
+ * CLAIMED, NOT INFERRED (2026-10-16). The arm used to be read off the last
+ * stored draft, but a draft is stored a minute after its arm is chosen, so six
+ * drafts started together all saw the same last draft and all took `fixed`.
+ * With `claim`, the choice is written to `arm_claims` inside one write lock,
+ * so the next draft sees it whether or not this one has finished. A replay
+ * that stores nothing passes no claim and takes no turn.
  */
-export function chooseArm(db, { prior = null, override = null } = {}) {
+export function chooseArm(db, { prior = null, override = null, claim = false } = {}) {
   if (['fixed', 'picked', 'edits', 'recent'].includes(override)) return override;
   if (prior) {
     const row = db.prepare('SELECT examples FROM drafts WHERE id = ?').get(prior.id);
     return armOf(row?.examples) ?? 'fixed';
   }
-  const last = db.prepare(`SELECT examples FROM drafts
-    WHERE examples IS NOT NULL AND revised_from IS NULL ORDER BY id DESC LIMIT 1`).get();
-  return armOf(last?.examples) === LIVE_CHALLENGER ? 'fixed' : LIVE_CHALLENGER;
+  const next = (lastArm) => (lastArm === LIVE_CHALLENGER ? 'fixed' : LIVE_CHALLENGER);
+  const lastDraft = () => armOf(db.prepare(`SELECT examples FROM drafts
+    WHERE examples IS NOT NULL AND revised_from IS NULL ORDER BY id DESC LIMIT 1`).get()?.examples);
+  if (!claim) return next(lastDraft());
+  db.exec(`CREATE TABLE IF NOT EXISTS arm_claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, arm TEXT NOT NULL, claimed_at TEXT NOT NULL)`);
+  return db.transaction(() => {
+    const last = db.prepare('SELECT arm FROM arm_claims ORDER BY id DESC LIMIT 1').get()?.arm ?? lastDraft();
+    const arm = next(last);
+    db.prepare('INSERT INTO arm_claims (arm, claimed_at) VALUES (?, ?)').run(arm, new Date().toISOString());
+    return arm;
+  }).immediate();
 }
 
 export function armOf(json) {
