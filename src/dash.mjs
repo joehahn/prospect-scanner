@@ -1945,11 +1945,14 @@ from <code>npm run daily</code>.</p>
 
 // SPEND: what the project has spent on AI, from `runs` (measures.mjs). Charts
 // follow the dataviz method: one series each, so one colour and no legend (the
-// title names it); one axis per chart, cumulative and daily kept apart; the
+// title names it), except Figures 4 and 5, whose bands are the point and carry a
+// legend; one axis per chart, cumulative and daily kept apart; the
 // accent validated against each surface (#3b5ba9 light, #6f8cdb dark); hover on
 // every mark; and the tables below are the readable version of both.
+const STAGE_DAYS = 45;
+const MIN_WEEK_SENDS = 5;
 function spendPage(db) {
-  const s = spend(db);
+  const s = spend(db, { stageDaysBack: STAGE_DAYS });
   const usd = (x) => `$${Number(x ?? 0).toFixed(2)}`;
   const k = (x) => (x == null ? '—' : x >= 1e6 ? `${(x / 1e6).toFixed(1)}M` : x >= 1e3 ? `${Math.round(x / 1e3)}k` : String(x));
   const perDay = s.daily.length ? s.total / s.daily.length : 0;
@@ -1964,21 +1967,31 @@ ${tile({ label: 'Search credits, all time', value: String(s.credits), sub: 'coun
 <p class="lead">Every model call records its model, tokens and cost in <code>runs</code> as it happens. That covers the
 pipeline's own calls; the Claude Code sessions used to build it are billed separately and are not here.
 Averages ${usd(perDay)} over ${s.daily.length} days with any spend.</p></section>
-<section class="panel"><h2>Cumulative spend</h2><div id="c-cum" style="height:280px"></div></section>
-<section class="panel"><h2>Spend per day</h2><div id="c-day" style="height:240px"></div></section>
-<section class="panel"><h2>Where it goes, by stage</h2><div id="c-stage" style="height:${60 + 26 * s.byStage.length}px"></div>
+<section class="panel"><h2>Figure 1. Cumulative spend</h2><div id="c-cum" style="height:280px"></div></section>
+<section class="panel"><h2>Figure 2. Spend per day</h2><div id="c-day" style="height:240px"></div></section>
+<section class="panel"><h2>Figure 3. Where it goes, by stage</h2><div id="c-stage" style="height:${60 + 26 * s.byStage.length}px"></div>
 <p class="dim">Tokens are counted per call from 2026-10-01; cost covers every run since the start.</p>
-<table><thead><tr><th>stage</th><th class="num">runs</th><th class="num">tokens in</th><th class="num">tokens out</th><th class="num">cost</th></tr></thead>
+<details><summary>By stage, as a table</summary><table><thead><tr><th>stage</th><th class="num">runs</th><th class="num">tokens in</th><th class="num">tokens out</th><th class="num">cost</th></tr></thead>
 <tbody>${s.stages.map((r) => `<tr><td><code>${esc(r.stage)}</code></td><td class="num">${r.runs}</td><td class="num">${k(r.n_in)}</td>
-<td class="num">${k(r.n_out)}</td><td class="num">${usd(r.usd)}</td></tr>`).join('')}</tbody></table></section>
+<td class="num">${k(r.n_out)}</td><td class="num">${usd(r.usd)}</td></tr>`).join('')}</tbody></table></details></section>
+<section class="panel"><h2>Figure 4. Spend per day, by stage, last ${STAGE_DAYS} days</h2><div id="c-stageday" style="height:340px"></div>
+<p class="dim">The ${s.stageDaily.bands.length - 1} stages costing most over the window have their own band; the rest are
+<i>other</i>. Hover shows the model behind each band that day. A dotted line marks the day a stage's main model
+changed and stayed changed:</p>
+${s.stageDaily.changes.length ? `<ul class="dim">${s.stageDaily.changes.map((c) => `<li>${esc(c.day)} · <code>${esc(c.stage)}</code>:
+<code>${esc(c.from)}</code> → <code>${esc(c.to)}</code></li>`).join('')}</ul>` : '<p class="dim">No model changes in the window.</p>'}</section>
+<section class="panel"><h2>Figure 5. Spend per week, by stage</h2><div id="c-stageweek" style="height:340px"></div>
+<p class="dim">Weeks start Monday; the last bar is the week so far. Same bands and colours as Figure 4, over the
+whole project. A dotted line marks a week in which a model change from Figure 4 took effect.</p></section>
+<section class="panel"><h2>Figure 6. Spend per note sent, by week and stage</h2><div id="c-stagenote" style="height:340px"></div>
+<p class="dim">Figure 5 divided by the notes you sent that week (every channel), so a light week of use does not read
+as a cheap one. Weeks with fewer than ${MIN_WEEK_SENDS} notes sent are left out, since a small count makes the
+ratio meaningless. Dotted lines mark model changes, as in Figure 5. The morning run's stages (judge, read, research) cost the same whether you send or not, so a
+week of few sends carries them over fewer notes; drafting is the part that scales with sending.</p></section>
 <section class="panel"><h2>By model</h2>
 <table><thead><tr><th>model</th><th class="num">runs</th><th class="num">tokens in</th><th class="num">tokens out</th><th class="num">cost</th></tr></thead>
 <tbody>${s.models.map((r) => `<tr><td><code>${esc(r.model)}</code></td><td class="num">${r.runs}</td><td class="num">${k(r.n_in)}</td>
-<td class="num">${k(r.n_out)}</td><td class="num">${usd(r.usd)}</td></tr>`).join('')}</tbody></table>
-<details><summary>Every day, as a table</summary><table><thead><tr><th>day</th><th class="num">spent</th>
-<th class="num">running total</th><th class="num">search credits</th></tr></thead><tbody>${s.daily.map((d, i) =>
-  `<tr><td>${esc(d.day)}</td><td class="num">${usd(d.usd)}</td><td class="num">${usd(s.cumulative[i].usd)}</td>
-<td class="num">${d.credits || ''}</td></tr>`).reverse().join('')}</tbody></table></details></section>`;
+<td class="num">${k(r.n_out)}</td><td class="num">${usd(r.usd)}</td></tr>`).join('')}</tbody></table></section>`;
   const byStage = [...s.byStage].reverse();
   const script = `
 const ink = dark ? '#6f8cdb' : '#3b5ba9';
@@ -1994,6 +2007,62 @@ Plotly.newPlot('c-day', [{ type:'bar', x:${JSON.stringify(s.daily.map((d) => d.d
   layoutFor({margin:{l:56,r:24,t:10,b:38}, bargap:0.15, yaxis:{tickprefix:'$', gridcolor: dark?'#33322f':'#e6e5e1'},
     xaxis:{gridcolor:'rgba(0,0,0,0)'}}),
   {displayModeBar:false,responsive:true});
+{ const pal = dark ? ['#6f8cdb','#e0954f','#5bbf8c','#e07a85','#a98bd4','#c9b75a','#8f8e88']
+                   : ['#3b5ba9','#c46a1f','#2f8a5c','#b13f4c','#7553a3','#8f7f1f','#a3a29c'];
+  const colorOf = (b, i) => (b.stage === 'other' ? pal[6] : pal[i % 6]);
+  const legend = {orientation:'h', y:1.02, yanchor:'bottom', x:0, font:{color: dark ? '#c3c2b7' : '#52514e'}};
+  const yaxis = {tickprefix:'$', gridcolor: dark?'#33322f':'#e6e5e1'};
+  const days = ${JSON.stringify(s.stageDaily.days)};
+  const bands = ${JSON.stringify(s.stageDaily.bands)};
+  const changes = ${JSON.stringify(s.stageDaily.changes)};
+  Plotly.newPlot('c-stageday', bands.map((b, i) => ({ type:'bar', name:b.stage, x:days, y:b.usd,
+      customdata:b.model, marker:{color: colorOf(b, i)},
+      hovertemplate: b.stage === 'other' ? '%{x}<br>other: $%{y:.2f}<extra></extra>'
+        : '%{x}<br>' + b.stage + ': $%{y:.2f}<br>%{customdata}<extra></extra>' })),
+    layoutFor({barmode:'stack', margin:{l:56,r:24,t:44,b:38}, bargap:0.15, hovermode:'closest', legend, yaxis,
+      xaxis:{gridcolor:'rgba(0,0,0,0)'},
+      shapes: changes.map((c) => ({ type:'line', xref:'x', yref:'paper', x0:c.day, x1:c.day, y0:0, y1:1,
+        line:{color: dark?'#8f8e88':'#77766f', width:1, dash:'dot'} })),
+      annotations: changes.map((c, i) => ({ x:c.day, xref:'x', yref:'paper', y: 0.98 - 0.09 * i, xanchor:'left',
+        text:' ' + c.stage + ' → ' + c.to.replace(/^claude-/, ''), showarrow:false,
+        font:{size:11, color: dark ? '#c3c2b7' : '#52514e'} })) }),
+    {displayModeBar:false,responsive:true});
+  const weeks = ${JSON.stringify(s.stageWeekly.weeks)};
+  const wbands = ${JSON.stringify(s.stageWeekly.bands)};
+  const weekOf = (d) => weeks.filter((w) => w <= d).pop();
+  // Model changes on a weekly axis: a dotted line in the week each took effect,
+  // and a label a step lower than the last, since adjacent weeks are a bar apart,
+  // narrower than a label. Weeks not on this axis (Figure 6 drops some) get none.
+  const weekMarks = (axis) => {
+    const on = changes.filter((c) => axis.includes(weekOf(c.day)));
+    return {
+      shapes: [...new Set(on.map((c) => weekOf(c.day)))].map((w) => ({ type:'line', xref:'x', yref:'paper',
+        x0:w, x1:w, y0:0, y1:1, line:{color: dark?'#8f8e88':'#77766f', width:1, dash:'dot'} })),
+      annotations: on.map((c, i) => ({ x:weekOf(c.day), xref:'x', yref:'paper', y: 1.0 - 0.1 * i, xanchor:'left',
+        bgcolor: dark ? '#1f1e1c' : '#fbfbf9',
+        text:' ' + c.stage + ' → ' + c.to.replace(/^claude-/, '') + ' (' + c.day.slice(5) + ')', showarrow:false,
+        font:{size:11, color: dark ? '#c3c2b7' : '#52514e'} })),
+    };
+  };
+  Plotly.newPlot('c-stageweek', wbands.map((b) => ({ type:'bar', name:b.stage, x:weeks, y:b.usd,
+      marker:{color: colorOf(b, bands.findIndex((x) => x.stage === b.stage))},
+      hovertemplate: 'week of %{x}<br>' + b.stage + ': $%{y:.2f}<extra></extra>' })),
+    layoutFor({barmode:'stack', margin:{l:56,r:24,t:44,b:38}, bargap:0.2, hovermode:'closest', legend, yaxis,
+      xaxis:{gridcolor:'rgba(0,0,0,0)', type:'category'},
+      ...weekMarks(weeks) }),
+    {displayModeBar:false,responsive:true});
+  const sent = ${JSON.stringify(s.stageWeekly.sent)};
+  const keep = weeks.map((w, i) => sent[i] >= ${MIN_WEEK_SENDS});
+  const kw = weeks.filter((w, i) => keep[i]);
+  Plotly.newPlot('c-stagenote', wbands.map((b) => ({ type:'bar', name:b.stage, x:kw,
+      y:b.usd.filter((x, i) => keep[i]).map((x, k) => Math.round(x / sent[weeks.indexOf(kw[k])] * 1000) / 1000),
+      customdata:kw.map((w) => sent[weeks.indexOf(w)]),
+      marker:{color: colorOf(b, bands.findIndex((x) => x.stage === b.stage))},
+      hovertemplate: 'week of %{x} · %{customdata} sent<br>' + b.stage + ': $%{y:.2f} a note<extra></extra>' })),
+    layoutFor({barmode:'stack', margin:{l:56,r:24,t:44,b:38}, bargap:0.2, hovermode:'closest', legend, yaxis,
+      xaxis:{gridcolor:'rgba(0,0,0,0)', type:'category',
+        ticktext: kw.map((w) => w + '<br>' + sent[weeks.indexOf(w)] + ' sent'), tickvals: kw}, ...weekMarks(kw) }),
+    {displayModeBar:false,responsive:true}); }
 Plotly.newPlot('c-stage', [{ type:'bar', orientation:'h', y:${JSON.stringify(byStage.map((r) => r.stage))},
   x:${JSON.stringify(byStage.map((r) => r.usd))}, marker:{color:ink},
   text:${JSON.stringify(byStage.map((r) => `$${r.usd.toFixed(2)}`))}, textposition:'outside', cliponaxis:false,

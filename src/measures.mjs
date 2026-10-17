@@ -136,7 +136,7 @@ export function searchFunnel(db) {
  * its cost as it happens (CLAUDE.md: it cannot be retrofitted). Search credits
  * are counted separately; they are not dollars.
  */
-export function spend(db, { topStages = 12 } = {}) {
+export function spend(db, { topStages = 12, stageBands = 6, stageDaysBack = 45 } = {}) {
   const tot = db.prepare(`SELECT ROUND(SUM(cost_usd), 2) usd, SUM(tavily_credits) credits, MIN(started_at) since,
       COUNT(*) runs FROM runs`).get();
   const month = new Date().toISOString().slice(0, 7);
@@ -177,11 +177,70 @@ export function spend(db, { topStages = 12 } = {}) {
     .map((r) => ({ ...r, n_in: null, n_out: null }));
   const modelTok = tok('model');
   for (const r of models) { r.n_in = modelTok.get(r.model)?.n_in ?? null; r.n_out = modelTok.get(r.model)?.n_out ?? null; }
+  // DAILY SPEND BY STAGE, so a model change shows as a step in one band. The
+  // stages costing most over the window keep their own band; the rest share one.
+  // A stage's model is the one carrying most of its spend that day; a change is
+  // marked where it differs from the stage's previous active day and holds on
+  // the next, so one bench run on another model does not mark the chart.
+  const stageDays = db.prepare(`SELECT substr(started_at, 1, 10) day, stage, COALESCE(model, '') model,
+      SUM(cost_usd) usd FROM runs WHERE started_at >= ? GROUP BY 1, 2, 3`)
+    .all(new Date(Date.now() - stageDaysBack * 86_400_000).toISOString().slice(0, 10));
+  const stageTotals = new Map();
+  for (const r of stageDays) stageTotals.set(r.stage, (stageTotals.get(r.stage) ?? 0) + r.usd);
+  const bands = [...stageTotals].sort((a, b) => b[1] - a[1]).slice(0, stageBands).map(([s]) => s);
+  const days = [...new Set(stageDays.map((r) => r.day))].sort();
+  const cell = new Map();   // `${band}|${day}` -> { usd, models: Map(model -> usd) }
+  for (const r of stageDays) {
+    const band = bands.includes(r.stage) ? r.stage : 'other';
+    const key = `${band}|${r.day}`;
+    const c = cell.get(key) ?? { usd: 0, models: new Map() };
+    c.usd += r.usd;
+    if (band !== 'other' && r.model) c.models.set(r.model, (c.models.get(r.model) ?? 0) + r.usd);
+    cell.set(key, c);
+  }
+  const lead = (c) => [...(c?.models ?? [])].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const byStageDaily = [...bands, 'other'].map((band) => ({
+    stage: band,
+    usd: days.map((d) => Math.round((cell.get(`${band}|${d}`)?.usd ?? 0) * 100) / 100),
+    model: days.map((d) => (band === 'other' ? '' : lead(cell.get(`${band}|${d}`)) ?? '')),
+  })).filter((b) => b.usd.some((x) => x > 0));
+  const modelChanges = [];
+  for (const b of byStageDaily) {
+    const active = b.model.map((m, i) => [days[i], m]).filter(([, m]) => m);
+    for (let i = 1; i < active.length - 1; i++) {
+      if (active[i][1] !== active[i - 1][1] && active[i][1] === active[i + 1][1]) {
+        modelChanges.push({ day: active[i][0], stage: b.stage, from: active[i - 1][1], to: active[i][1] });
+      }
+    }
+  }
+  // WEEKLY, over the whole project, in the same bands as the daily chart so a
+  // colour means the same stage on both. Weeks start Monday, on the UTC day.
+  const monday = (day) => {
+    const d = new Date(`${day}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+    return d.toISOString().slice(0, 10);
+  };
+  const weekCell = new Map();
+  for (const r of db.prepare(`SELECT substr(started_at, 1, 10) day, stage, SUM(cost_usd) usd FROM runs GROUP BY 1, 2`).all()) {
+    const key = `${bands.includes(r.stage) ? r.stage : 'other'}|${monday(r.day)}`;
+    weekCell.set(key, (weekCell.get(key) ?? 0) + r.usd);
+  }
+  const weeks = [...new Set([...weekCell.keys()].map((k) => k.split('|')[1]))].sort();
+  // Notes the operator sent each week (every channel), the denominator for cost per note.
+  const sentByWeek = new Map();
+  for (const r of db.prepare(`SELECT substr(sent_at, 1, 10) day, COUNT(*) n FROM outreach
+      WHERE sent_at IS NOT NULL GROUP BY 1`).all()) {
+    const w = monday(r.day); sentByWeek.set(w, (sentByWeek.get(w) ?? 0) + r.n);
+  }
+  const weekBands = [...bands, 'other'].map((band) => ({
+    stage: band, usd: weeks.map((w) => Math.round((weekCell.get(`${band}|${w}`) ?? 0) * 100) / 100),
+  })).filter((b) => b.usd.some((x) => x > 0));
   return { total: tot.usd ?? 0, credits: tot.credits ?? 0, since: String(tot.since ?? '').slice(0, 10), runs: tot.runs,
     month: { label: month, usd: m.usd ?? 0, credits: m.credits ?? 0 }, week: w.usd ?? 0,
     today: { usd: t.usd ?? 0, credits: t.credits ?? 0, runs: t.runs ?? 0,
       asOf: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) },
-    daily, cumulative, stages, byStage: top, models };
+    daily, cumulative, stages, byStage: top, models, stageDaily: { days, bands: byStageDaily, changes: modelChanges },
+    stageWeekly: { weeks, bands: weekBands, sent: weeks.map((w) => sentByWeek.get(w) ?? 0) } };
 }
 
 /**
