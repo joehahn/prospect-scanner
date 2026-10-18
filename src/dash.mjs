@@ -1405,6 +1405,71 @@ ${items}
 </tbody></table></section>`;
 }
 
+// WORTH A COMMENT. Added 2026-10-17. A pasted profile sometimes carries a post
+// the person wrote in the last few days; `comment` drafts two short comments on
+// it. A comment pays off while the post is still in feeds, so a row leaves the
+// list once the post is a week old, posted or not. Below it, the comments he
+// posted, with the two outcomes that say whether this channel works.
+const COMMENT_WINDOW_DAYS = 7;
+
+function commentsPanel(db) {
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'comments'").get()) return '';
+  const since = new Date(Date.now() - COMMENT_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+  const open = db.prepare(`
+    SELECT c.*, p.name, p.title, p.profile_url, g.name AS org_name
+      FROM comments c JOIN people p ON p.id = c.person_id JOIN orgs g ON g.id = p.org_id
+     WHERE c.worthy = 1 AND c.posted_at IS NULL AND c.skipped_at IS NULL
+       AND COALESCE(c.post_date, substr(c.created_at, 1, 10)) >= ?
+       AND c.id = (SELECT MAX(id) FROM comments x WHERE x.person_id = c.person_id)
+     ORDER BY c.post_date DESC`).all(since);
+  const posted = db.prepare(`
+    SELECT c.*, p.name, g.name AS org_name
+      FROM comments c JOIN people p ON p.id = c.person_id JOIN orgs g ON g.id = p.org_id
+     WHERE c.posted_at IS NOT NULL ORDER BY c.posted_at DESC`).all();
+  if (!open.length && !posted.length) return '';
+  const back = '<input type="hidden" name="back" value="">';
+  const draftBlock = (label, text) => text ? `<p><b>${label}</b> <button class="copy" type="button" data-copy="${
+    esc(text)}">copy</button></p><div class="wrapped">${esc(text)}</div>` : '';
+  const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b></td>
+      <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
+        searchLink(c.name, c.org_name, c.profile_url)}</td>
+      <td><p>${esc(c.summary)}</p><p class="dim">Starts: &ldquo;${esc(c.post_excerpt)}&rdquo;</p>
+        <p class="dim">${esc(c.why)}</p>
+        ${draftBlock('A', c.draft_a)}${draftBlock('B', c.draft_b)}
+        <form method="post" action="${SERVER}/comment" class="nb notebox">${back}
+          <input type="hidden" name="id" value="${c.id}">
+          <textarea name="body" rows="4" placeholder="Paste what you posted, as you posted it.">${esc(c.draft_a)}</textarea>
+          <div class="nbrow">
+            <button type="submit" name="do" value="posted" class="sent">Commented</button>
+            <button type="submit" name="do" value="skip">Skip</button>
+            <span class="nbnote">Commented records the box exactly as it stands. Edit it to match what you posted.</span>
+          </div>
+        </form></td></tr>`).join('\n');
+  const replied = posted.filter((c) => c.replied).length;
+  const emailed = posted.filter((c) => c.led_to_email).length;
+  const log = posted.slice(0, 30).map((c) => `<tr><td>${esc(String(c.posted_at).slice(0, 10))}</td>
+      <td>${esc(c.name)}<br><span class="dim">${esc(c.org_name)}</span></td>
+      <td><div class="wrapped">${esc(c.posted_text)}</div></td>
+      <td><form method="post" action="${SERVER}/comment" class="inline">${back}
+        <input type="hidden" name="id" value="${c.id}">
+        ${c.replied ? '<b>replied</b>' : '<button type="submit" name="do" value="replied">They replied</button>'}
+        ${c.led_to_email ? '<b>led to an email</b>' : '<button type="submit" name="do" value="email">Led to an email</button>'}
+      </form></td></tr>`).join('\n');
+  return `<section class="panel"><h2>Worth a comment</h2>
+<p class="lead">A post the person wrote in the last ${COMMENT_WINDOW_DAYS} days, found in a profile you pasted, with two
+short comments drafted from your experience. Find it from the search link, comment, then record what you posted. No pitch and
+no link: your headline beside the comment does that. A row leaves once the post is a week old.</p>
+${open.length ? `<table><thead><tr><th>Posted</th><th>Person</th><th>Post and drafts</th></tr></thead><tbody>
+${items}
+</tbody></table>` : '<p class="dim">Nothing fresh in this week\'s pastes.</p>'}
+${posted.length ? `<details class="raw"><summary>${posted.length} comment${posted.length === 1 ? '' : 's'} posted · ${
+  replied} replied · ${emailed} led to an email</summary>
+<table><thead><tr><th>Posted</th><th>Person</th><th>Comment</th><th>Outcome</th></tr></thead><tbody>
+${log}
+</tbody></table></details>` : ''}
+</section>`;
+}
+
 function inFlightPanel(p) {
   if (!p.lastSent) return '';
   const o = p.lastSent;
@@ -3039,7 +3104,7 @@ function buildAll(db, cfg, targeting) {
 
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
-  write(pageOf('ready'), 'Ready', readyBody, undefined, false,
+  write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('searches'), 'Searches', searchesPage(db));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
@@ -3094,6 +3159,7 @@ ${tile({ label: 'AI spend, all time', value: `$${Number(sp.total).toFixed(2)}`, 
   write(pageOf('index'), 'Prospects', `
 ${costTiles}
 ${acceptedPanel(db, d)}
+${commentsPanel(db)}
 <section class="panel"><h2>Everyone in the book</h2>
 <p class="lead">${openAll.length} people not yet written to, ${nJudged} of them rated by the judge, best
 first; the rest follow, not yet judged. Filter by offer, target, geography or status above. The

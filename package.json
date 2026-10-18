@@ -21,6 +21,7 @@
     "conferences": "node --env-file-if-exists=.env src/conferences.mjs",
     "glean": "node --env-file-if-exists=.env src/glean.mjs",
     "read": "node --env-file-if-exists=.env src/read.mjs",
+    "comment": "node --env-file-if-exists=.env src/comment.mjs",
     "size": "node --env-file-if-exists=.env src/size.mjs",
     "inbox": "node --env-file-if-exists=.env src/inbox.mjs",
     "audit": "node --env-file-if-exists=.env src/audit.mjs",

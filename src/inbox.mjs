@@ -300,7 +300,36 @@ function ingest(fields) {
   execFileSync('npm', ['run', 'rank', '--silent'], { cwd: ROOT, encoding: 'utf8' });
   execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
   const reading = readInBackground(db, personId);
+  commentInBackground(personId);
   return { personId, url, out: out.trim(), rejudged: Boolean(waiting), reading };
+}
+
+// A FRESH POST IN THE PASTE (2026-10-17). `comment` looks at the Activity
+// section and costs nothing unless a post is a week old or less; when one is,
+// it drafts a comment and the main page shows it on the next rebuild.
+function commentInBackground(person) {
+  spawn('sh', ['-c', 'npm run comment --silent -- --person "$1" && npm run dash --silent', 'sh', person],
+    { cwd: ROOT, detached: true, stdio: 'ignore' }).unref();
+}
+
+// COMMENTED / SKIP / REPLIED / EMAIL, from the main page's comment list.
+function commentAction(f) {
+  const id = String(f.id ?? '').trim();
+  const act = String(f.do ?? '').trim();
+  if (!/^\d+$/.test(id)) throw new Error('no comment id');
+  const args = ['run', 'comment', '--silent', '--'];
+  if (act === 'posted') {
+    const body = (f.body ?? '').trim();
+    if (!body) throw new Error('Nothing in the comment box to record as posted.');
+    const file = join(tmp, `comment-${id}.txt`);
+    writeFileSync(file, `${body}\n`);
+    args.push('--posted', id, '--file', file);
+  } else if (['skip', 'replied', 'email'].includes(act)) {
+    args.push(`--${act}`, id);
+  } else throw new Error(`unknown comment action "${act}"`);
+  const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
+  execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+  return out.trim();
 }
 
 // DRAFT / REVISE / SENT, from the card. Each shells out to the stage that owns
@@ -446,6 +475,21 @@ createServer((req, res) => {
         // this is where its verdict surfaces.
         const msg = String(e.stdout || '') + String(e.stderr || e.message);
         send(page(db, { err: `${f.do} refused:\n\n${msg.slice(-3000)}` }));
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/comment') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', () => {
+      const f = Object.fromEntries(new URLSearchParams(raw));
+      try {
+        console.log(`  ${commentAction(f)}`);
+        res.writeHead(303, { location: (f.back ?? '').trim() || '/' }).end();
+      } catch (e) {
+        send(page(db, { err: `comment refused:\n${e.stderr || e.message}` }));
       }
     });
     return;

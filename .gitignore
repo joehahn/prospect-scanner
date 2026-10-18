@@ -40,6 +40,8 @@ data/
 # Offer-selection rules, learned the same way and just as specific to one
 # operator's services. Starter: prompts/read-rules.example.md
 /prompts/read-rules.md
+# Example comments in the operator's voice. Starter: prompts/comment-voice.example.md
+/prompts/comment-voice.md
 
 # Business strategy, not code. A researched proposal for a public-sector source
 # branch. Useful to a competitor, not to a reader of the code.

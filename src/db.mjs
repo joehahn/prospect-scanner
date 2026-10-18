@@ -468,6 +468,34 @@ CREATE TABLE IF NOT EXISTS reads (
 );
 CREATE INDEX IF NOT EXISTS idx_reads_person ON reads(person_id);
 
+-- A PUBLIC COMMENT ON A FRESH POST, found in a profile the operator pasted.
+-- One row per pasted profile that had a post young enough to comment on. The
+-- stage drafts; he posts by hand and records what he posted, or skips it. The
+-- outcome columns are his to fill, so the channel can be read like any other.
+CREATE TABLE IF NOT EXISTS comments (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id        TEXT    NOT NULL REFERENCES people(id),
+  evidence_id      INTEGER NOT NULL REFERENCES evidence(id),   -- the paste it came from
+  worthy           INTEGER NOT NULL,   -- 1 when a post deserves a comment from him
+  post_date        TEXT,               -- the post's date, as worked out from the paste
+  post_excerpt     TEXT,               -- the opening of the post, to find it again
+  summary          TEXT,               -- the post's point in one line
+  why              TEXT,               -- why it is, or is not, worth a comment
+  draft_a          TEXT,
+  draft_b          TEXT,
+  posted_text      TEXT,               -- what he actually posted
+  posted_at        TEXT,
+  skipped_at       TEXT,
+  replied          INTEGER,            -- the poster answered the comment
+  led_to_email     INTEGER,
+  model            TEXT,
+  prompt_file      TEXT,
+  cost_usd         REAL,
+  run_id           INTEGER REFERENCES runs(id),
+  created_at       TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comments_person ON comments(person_id);
+
 -- RULES PROPOSED FROM THE OPERATOR'S OWN CORRECTIONS, and never written into
 -- the voice file until he accepts one. A bad rule silently degrades every note
 -- that follows, and the voice file is the one input no stage can sanity-check.

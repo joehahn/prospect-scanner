@@ -214,6 +214,19 @@ the note they accepted. One note, then nothing more; what the person sees next i
 operator's own posts and comments. These messages learn only from earlier ones of their
 kind, and the Scoreboard counts them apart from the comparison of example sets.
 
+**A comment on a fresh post.** A pasted profile carries its Activity section, and
+now and then a post the person wrote in the last week. Each paste is checked for one
+by its dates alone, which costs nothing; only when one is young enough does a model
+read the section, decide whether the post is worth a public comment (the person's
+own post, from a buyer rather than a vendor, on something the operator can add to
+from experience, and inviting a reply), and draft two comments of two to four
+sentences. They carry no pitch, link or offer, stay within the operator's strengths
+and public proof points, and pass the same never-claim screen as the notes. The
+operator's own posted comments become the drafter's examples. **Worth a comment**,
+at the top of the Ready and main pages, lists them until the post is a week old; the
+operator comments by hand, records what he posted, and later marks whether the
+poster replied or it led to an email.
+
 Every note, cold or not, is pitched at the reader's level and proposes custom work
 where packaged software does not reach: the unstructured material around a team's
 systems, and the routine calls made from it, drafted for a person to approve.
@@ -267,6 +280,7 @@ daily run strings the routine ones together.
 | Research | `npm run research` | a third-party summary of a person from across the web (news, interviews, podcasts, directories), every fact with its page; LinkedIn is blocked at the search tool; the people found are judged again | default |
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check | most capable |
+| Comment | `npm run comment` | on paste: two draft comments on the person's own post from the last week, when one is worth it | most capable |
 | Recheck | `npm run recheck` | stored events re-read against their source | cheap |
 | Replay | `npm run replay` | redraft recent sent notes with each example set, judged blind against what was sent; stores no draft | most capable + grader |
 | Describe | `npm run describe` | each firm in one plain sentence | cheap |
