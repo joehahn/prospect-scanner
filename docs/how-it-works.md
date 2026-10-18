@@ -219,8 +219,10 @@ now and then a post the person wrote in the last week. Each paste is checked for
 by its dates alone, which costs nothing; only when one is young enough does a model
 read the section, decide whether the post is worth a public comment (the person's
 own post, from a buyer rather than a vendor, on something the operator can add to
-from experience, and inviting a reply), and draft two comments of two to four
-sentences. They carry no pitch, link or offer, stay within the operator's strengths
+from experience, and inviting a reply), and draft two comments of one or two plain
+sentences, written for a prospect skimming the operator's activity: one memorable
+result from his work, no jargon, no figure that needs context to mean anything, no
+method. They carry no pitch, link or offer, stay within the operator's strengths
 and public proof points, and pass the same never-claim screen as the notes. The
 operator's own posted comments become the drafter's examples. **Worth a comment**,
 at the top of the Ready and main pages, lists them until the post is a week old; the

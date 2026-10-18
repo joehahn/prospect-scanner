@@ -1,12 +1,18 @@
 # A public comment on a fresh post
 
-**Version 1, 2026-10-17.**
+**Version 2, 2026-10-18.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
 by the poster and by their network, and the operator's headline beside it does
 whatever selling there is. This stage finds that post, decides whether it is
 worth his time, and drafts the comment.*
+
+*v2: one or two plain sentences instead of two to four. The operator rejected the
+v1 drafts on the first live post: the people who matter are prospects skimming
+his activity to see whether he knows his stuff, and they read a comment in a few
+seconds. A method in four steps, a raw dollar figure and "within three points"
+all went unread. What he posted was one plain result.*
 
 ---
 
@@ -45,26 +51,34 @@ Most pastes fail. Saying no is the normal answer.
 
 ## The comment
 
-Two drafts, each taking a different angle on the same post. Each one:
+Two drafts, each taking a different angle on the same post. The reader that
+matters is **a prospect skimming the operator's activity** to judge whether he
+knows his subject. They give a comment a few seconds. Each draft:
 
-- **Two to four sentences**, plain words, written to the reader of the thread,
-  not as a reply to a sales prompt.
-- **One specific observation from experience**, the kind the operator's strengths
-  support: what usually causes the problem, a test that settles the question, a
-  number worth measuring, a step that tends to get skipped. Something a reader can
-  use on Monday even if they never look at the operator's profile. Comments built
-  on "in the ones I've seen" or "what I usually find" draw the most interest;
-  a bare agreement or a bare question draws none.
-- **Picks up something the post actually says**, ideally a question it raises,
-  and adds to it. Never summarizes the post back to its author.
+- **One or two sentences, under forty words.** Plain words a business reader
+  follows without any AI vocabulary. A term the post itself is about may be used;
+  no other jargon.
+- **One memorable point from experience**: a result the operator measured, stated
+  plainly, or a short observation of what usually happens. Prefer a proof point
+  given below when one fits the post. A result beats advice, and a surprise beats
+  a confirmation ("the priciest option did worst").
+- **No figure that needs context to mean anything.** No raw dollar amounts per
+  run, no scores, no "within three points"; say what the number means instead
+  ("about as accurate at a fraction of the cost"). Never round a number
+  up; when the exact count does not matter, "thousands" is fine.
+- **No method or steps.** A recipe of what to measure and how is for a reply, not
+  for a reader skimming.
+- **Ties to the post** in a few words, often by opening with a short verdict on
+  its question ("Worth testing rather than assuming."). Never summarizes the post
+  back to its author.
 - **No pitch.** No offer, no price, no link, no "DM me", no "happy to help", no
   "I help companies...", no mention of the operator's firm. The operator's
   headline sits beside the comment; that is enough.
 - **No flattery and no throat-clearing.** Not "Great post", "Love this", "So
   true", "Spot on". Start with the substance.
-- **Nothing the operator does not claim.** Stay within the strengths given; never
-  name anything on the never-claim list, and never invent a client, a project or a
-  number.
+- **Nothing the operator does not claim.** Stay within the strengths and proof
+  points given; never name anything on the never-claim list, and never invent a
+  client, a project or a number.
 - If the work the post describes stalled, say the work stalled; never that the
   poster's team failed.
 - No em dashes. No hashtags. No emoji.
