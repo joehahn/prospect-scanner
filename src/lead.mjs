@@ -94,6 +94,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { distinctWords, otherOrgInTitle } from './org-match.mjs';
+import { nameParts as personName, samePersonOnFile } from './people-match.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -608,6 +609,32 @@ async function paste(db, cfg, args) {
     : readFileSync(0, 'utf8');
   if (!body.trim()) throw new Error('nothing to paste: stdin was empty and no --file given');
 
+  // A PROFILE PASTED ONTO THE WRONG CARD becomes that person's record: on
+  // 2026-10-16 one director's page went onto a colleague's card at the same
+  // firm, and three days later a note was drafted to the colleague from the
+  // director's career. A person's own profile page names them, so a page that
+  // never mentions the card's surname is someone else; and a profile address
+  // already on another record is that record. Refused, not warned: the paste
+  // box shows the refusal with the text still in it. --force when it really is
+  // them under another name.
+  if (person && (args.kind && args.kind !== true ? String(args.kind) : 'profile') === 'profile' && !args.force) {
+    const parts = personName(person.name);
+    const plain = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    if (parts && !plain(body).includes(parts.last)) {
+      throw new Error(`This page never mentions "${parts.last}", so it is probably not ${person.name}'s profile. ` +
+        'Nothing stored. Paste it on the right card, or run again with --force if it is them under another name.');
+    }
+    if (/linkedin\.com\/in\//i.test(url)) {
+      const slug = (u) => String(u ?? '').toLowerCase().match(/linkedin\.com\/in\/([^/?#]+)/)?.[1];
+      const owner = db.prepare(`SELECT id, name, profile_url FROM people WHERE id <> ? AND profile_url LIKE ?`)
+        .all(person.id, '%linkedin.com/in/%').find((r) => slug(r.profile_url) === slug(url));
+      if (owner) {
+        throw new Error(`That profile is already on file as ${owner.name} (${owner.id}). Nothing stored. ` +
+          `If ${person.name} and ${owner.name} are one person, merge them: npm run lead -- merge --from ${person.id} --into ${owner.id}`);
+      }
+    }
+  }
+
   const kind = args.kind && args.kind !== true ? String(args.kind) : 'profile';
   const claim = args.claim && args.claim !== true
     ? String(args.claim)
@@ -981,12 +1008,17 @@ async function extractProfile(db, cfg, person, body, url, args) {
   const elsewhere = [];
   const partial = [];
   const offTeam = [];
+  const onFile = [];
   for (const o of d.other_people ?? []) {
     if (!o.name) continue;
     if (initialOnly(o.name)) { partial.push(`${o.name} — ${o.title ?? ''}`); continue; }
     const other = namesAnotherFirm(o.title) ?? namesAnotherCompany(o.title);
     if (other) { elsewhere.push(`${o.name} — ${o.title}`); continue; }
     if (team.length && !onTeam(o.name)) { offTeam.push(`${o.name} — ${o.title ?? ''}`); continue; }
+    // ALREADY ON FILE under another spelling ("Ron" for "Ronald"), or at the
+    // firm they really work for. people-match.mjs.
+    const known = samePersonOnFile(db, { name: o.name, title: o.title, orgId: person.org_id });
+    if (known) { onFile.push(`${o.name} — on file as ${known.name}${known.sameOrg ? '' : ` at ${known.org_id}`}`); continue; }
     const changed = insP.run(slugify(o.name), person.org_id, o.name, o.title ?? null,
       o.degree ?? null, `Surfaced from ${person.name}'s profile page. Not researched.`).changes;
     added += changed;
@@ -998,6 +1030,9 @@ async function extractProfile(db, cfg, person, body, url, args) {
   if (partial.length) {
     console.log(dim(`  ${partial.length} name(s) NOT filed — surname shown only as an ` +
       `initial:\n    ${partial.slice(0, 5).join('\n    ')}`));
+  }
+  if (onFile.length) {
+    console.log(dim(`  ${onFile.length} name(s) NOT filed — already on file:\n    ${onFile.slice(0, 5).join('\n    ')}`));
   }
   if (offTeam.length) {
     console.log(dim(`  ${offTeam.length} name(s) NOT filed — not on the firm's own team page:` +
