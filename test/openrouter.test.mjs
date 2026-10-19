@@ -92,6 +92,15 @@ test('no zero-retention endpoint fails plainly and is not loosened', async () =>
   assert.equal(sent.length, 1);
 });
 
+test('a host that is down, or fails mid-answer, is asked again', async () => {
+  script(reply(521, { error: { message: 'Provider returned error' } }), answer('ok'));
+  assert.equal((await ask(startRun(db, 'test'))).text, 'ok');
+  const run = startRun(db, 'test');
+  script(answer('', { choices: [{ message: { content: '' }, finish_reason: 'error' }] }), answer('ok'));
+  assert.equal((await ask(run)).text, 'ok');
+  assert.equal(calls(run), 2);
+});
+
 test('a 200 carrying an upstream error is retried', async () => {
   script(reply(200, { error: { code: 502, message: 'upstream died' } }), answer('ok'));
   assert.equal((await ask(startRun(db, 'test'))).text, 'ok');

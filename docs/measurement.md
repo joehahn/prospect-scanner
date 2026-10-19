@@ -102,6 +102,15 @@ the words do not support, with the reason.
 - **A judge that learns, measured against a formula.** The judge learns from the
   operator's calls rather than from weights and exemptions, and the formula running
   alongside it is the standard it has to beat.
+- **The cheapest judge that agrees with the operator.** On 150 people the operator
+  had already decided about (75 write, 75 skip), Claude Sonnet agreed with him 83-84%
+  of the time and with itself on 96% of write/skip calls. MiniMax M3 agreed with him
+  86-87% and with itself 94%, at a third of Sonnet's batched price per call, so it
+  judges. Haiku 5.5, GPT-5.6 Luna and DeepSeek V4.1 Flash tied Sonnet within noise;
+  GLM-5.3 and Qwen 3.8 fell well short. The host matters as much as the model: the
+  same MiniMax id on a host serving a more compressed copy reasoned a fifth as much
+  and agreed with him 78%, so the judge is pinned to the host that was measured.
+  Calls through OpenRouter go only to hosts that keep and train on nothing.
 - **Quotes, not labels.** Every event found by search keeps what the source said, not
   just the event's name, so a card can show the reason to write in the source's own
   words, and `npm run recheck` can test it.

@@ -25,9 +25,14 @@ const URL_ = 'https://openrouter.ai/api/v1/chat/completions';
 // unless the model is listed here, and an unlisted model gets the bare request.
 // From OpenRouter's /models `supported_parameters`, 2026-10-19, and kept only
 // where the smoke test (scripts/smoke-openrouter.mjs) got an answer with it.
+// `hosts` pins the providers a model may run on, so a measurement and the live
+// stage use the same one: price and behaviour differ by host.
 const CAPABILITIES = {
-  'minimax/minimax-m3':           { reasoning: true },
-  'deepseek/deepseek-v4.1-flash': { reasoning: true },
+  // Pinned to ModelRun (fp8). On CoreWeave (fp4) it reasoned a fifth as much
+  // and its judge verdicts matched the operator 78% against 86% on ModelRun,
+  // 2026-10-19: same id, different model in practice.
+  'minimax/minimax-m3':           { reasoning: true, hosts: ['modelrun'] },
+  'deepseek/deepseek-v4.1-flash': { reasoning: true, hosts: ['baseten'] },   // the host its judge run used
   'openai/gpt-5.6-luna':          { reasoning: true },
   'anthropic/claude-haiku-5.5':   { reasoning: true },
   'z-ai/glm-5.3':                 { reasoning: true },
@@ -59,7 +64,9 @@ export const deps = {
   key: () => process.env.OPENROUTER_API_KEY,
 };
 
-const TRANSIENT = new Set([408, 429, 500, 502, 503, 504]);
+// 520-524 are Cloudflare's "the host behind me is down", which is what a busy
+// open-weight provider returns (ModelRun, 9 of 150 judge calls, 2026-10-19).
+const TRANSIENT = new Set([408, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
 const ATTEMPTS = 3;
 const TIMEOUT_MS = 4 * 60_000;
 const RETRY_AFTER_CAP_MS = 60_000;
@@ -90,7 +97,8 @@ function buildBody({ model, system, messages, maxTokens, effort, thinking, schem
       ...(sys ? [{ role: 'system', content: sys }] : []),
       ...messages.map((m) => ({ role: m.role, content: textOf(m.content) })),
     ],
-    provider: { require_parameters: true, data_collection: 'deny', zdr: true },
+    provider: { require_parameters: true, data_collection: 'deny', zdr: true,
+      ...(caps.hosts ? { only: caps.hosts, allow_fallbacks: false } : {}) },
     usage: { include: true },
   };
   if (thinking && caps.reasoning) body.reasoning = { effort: effort === 'max' ? 'high' : effort };

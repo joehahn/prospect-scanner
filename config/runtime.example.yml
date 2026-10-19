@@ -121,5 +121,9 @@ models:
   # the 20% lower price).
   draft: "claude-opus-5-5"
   cheap: "claude-haiku-4-5"
+  # Optional: the model that judges whom to write to (`npm run judge`). Unset,
+  # it is `default`. An id not starting with claude- runs through OpenRouter
+  # (OPENROUTER_API_KEY); measure one against your own calls before switching.
+  # judge: "minimax/minimax-m3"
   grader: "claude-opus-5"
   bakeoff: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"]

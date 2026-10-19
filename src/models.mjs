@@ -400,7 +400,14 @@ async function completeOpenRouter(db, runId, { model, system, messages, schema, 
     }
     return a;
   };
-  let a = await call(messages);
+  // A host that fails mid-answer returns a 200 with no text and
+  // finish_reason "error", unbilled. That is the host, not the model: recorded,
+  // then asked once more.
+  let a;
+  try { a = await call(messages); } catch (e) {
+    if (!/finish_reason error\)/.test(e.message)) throw e;
+    a = await call(messages);
+  }
   let data = null;
   if (schema) {
     data = parseJson(a.text);

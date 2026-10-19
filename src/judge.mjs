@@ -50,8 +50,12 @@
 //                                             not yet judged
 //   npm run judge -- --scoreboard             judge vs ranker on his forward calls, blind apart
 //                                  [--since <ISO time>]  one round only
+//   --no-store --out file.json                with --ids or --eval: a measurement. Nothing is
+//                                             written to `judgments`, so the Ready page and the
+//                                             cards keep their ratings; each person's ratings
+//                                             go to the file instead (the model bake-off, F3)
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun } from './db.mjs';
@@ -60,6 +64,7 @@ import { loadTargeting } from './targeting.mjs';
 import { loadBusiness, describeForJudge } from './business.mjs';
 import { scoreboard, timingText } from './measures.mjs';
 import { complete, batchMode } from './models.mjs';
+import { isOpenRouter } from './openrouter.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 import { retense } from './events.mjs';
 import { features, similarity } from './similar.mjs';
@@ -263,7 +268,7 @@ function ensureTable(db) {
   if (!cols.includes('target')) db.exec('ALTER TABLE judgments ADD COLUMN target TEXT');
 }
 
-async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, decisions }) {
+async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, decisions, store = true }) {
   const f = features(db, personId);
   if (!f) throw new Error(`no person "${personId}"`);
   const t = timing(db, f);
@@ -273,7 +278,9 @@ async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, deci
   const system = readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8');
   const batch = `${personId}@${new Date().toISOString()}`;
   const results = await Promise.all(Array.from({ length: runs }, () => complete(db, runId, {
-    model, system, schema: SCHEMA, effort: 'medium', maxTokens: 4000,
+    // 8,000: a ceiling, not a target. A reasoning model on OpenRouter spent all
+    // of 4,000 thinking on 4 of 146 people and answered nothing (2026-10-19).
+    model, system, schema: SCHEMA, effort: 'medium', maxTokens: 8000,
     messages: [{ role: 'user', content }] })));
   const targetNames = loadBusiness(cfg, targeting).targets.map((t) => t.name);
   const ins = db.prepare(`INSERT INTO judgments (person_id, org_id, batch, verdict, compelling, target, need,
@@ -287,6 +294,7 @@ async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, deci
     cost += res.cost_usd ?? 0;
     if (!res.data) continue;
     outs.push(res.data);
+    if (!store) continue;
     // `verdict` is kept, derived, so older readers still work: 3 and up is a write.
     const c = Number(res.data.compelling);
     // The target by the business file's own name, matched loosely, or null.
@@ -308,7 +316,8 @@ async function judgeOne(db, cfg, targeting, personId, { runs, model, runId, deci
   const pick = outs.find((o) => Number(o.compelling) === rating) ?? outs[0] ?? {};
   const verdict = rating >= 3 ? 'write' : 'skip';
   const agree = outs.filter((o) => (Number(o.compelling) >= 3) === (verdict === 'write')).length;
-  return { person: f.person, verdict, rating, spread, agree, of: outs.length, pick, t, r, cost, examples: ex.length };
+  return { person: f.person, verdict, rating, spread, agree, of: outs.length, pick, t, r, cost, examples: ex.length,
+    ratings: outs.map((o) => Number(o.compelling)), failed: results.length - outs.length };
 }
 
 // ---- the screen -----------------------------------------------------------
@@ -563,26 +572,34 @@ async function main() {
     + `${decisions.length} past decisions on record`));
   const runId = startRun(db, 'judge', { model });
   const done = [];
+  const failed = [];
   let cost = 0;
   // SEVERAL PEOPLE IN FLIGHT, added 2026-10-01 when the daily run went from
   // three people to everyone new. One at a time, 150 people is twenty minutes
   // against a ten-minute step limit. Each person's runs already go in parallel;
   // better-sqlite3 is synchronous, so the writes serialise in this process.
-  const jobs = batchMode() ? ids.length
+  // Batching is Anthropic's; an OpenRouter judge sent everyone at once would be
+  // ~450 simultaneous calls on one host, so it keeps the ordinary pace.
+  const jobs = batchMode() && !isOpenRouter(model) ? ids.length
     : Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 4) || 4);
   let cursor = 0;
   const worker = async () => {
     for (let i = cursor++; i < ids.length; i = cursor++) {
       try {
-        const j = await judgeOne(db, cfg, targeting, ids[i], { runs, model, runId, decisions });
+        const j = await judgeOne(db, cfg, targeting, ids[i], { runs, model, runId, decisions, store: !args['no-store'] });
         cost += j.cost;
         done.push(j);
         console.log(line(j));
-      } catch (e) { console.log(`  FAILED ${ids[i]}: ${e.message}`); }
+      } catch (e) { console.log(`  FAILED ${ids[i]}: ${e.message}`); failed.push({ id: ids[i], error: e.message }); }
     }
   };
   await Promise.all(Array.from({ length: Math.min(jobs, ids.length) }, worker));
   finishRun(db, runId, {});
+  if (args.out && args.out !== true) {
+    writeFileSync(String(args.out), JSON.stringify({ model, runs, at: new Date().toISOString(), cost,
+      people: done.map((j) => ({ id: j.person.id, rating: j.rating, ratings: j.ratings, failed: j.failed, cost: j.cost })),
+      failed }, null, 1));
+  }
 
   if (args.eval) {
     const actual = new Map(decisions.map((d) => [d.person_id, d.decision]));
