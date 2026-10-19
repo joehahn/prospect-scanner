@@ -166,7 +166,7 @@ packages:
     buyer: build_direct
     name: "Paid first session"
     price_usd: 200
-    duration: "one hour, plus a written page"
+    duration: "one hour, plus a one-page plan you can act on"
     best_for: "someone who wants a considered answer before committing to anything"
     buyer_titles: ["Owner", "Founder", "CEO", "COO", "VP Engineering"]
     note: >-
