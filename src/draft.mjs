@@ -36,9 +36,9 @@ import { historyFor, classify } from './suppression.mjs';
 import { complete } from './models.mjs';
 import { canonicalSections } from './note-text.mjs';
 import { neverClaimHits } from './never-claim.mjs';
-import { noteBody, unbold, retiredPhrases, retiredHits } from './checks.mjs';
+import { noteBody, unbold, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { heading, bold, dim } from './report.mjs';
-import { retense } from './events.mjs';
+import { retense, upcomingTalks } from './events.mjs';
 import { voiceFor, chooseArm, splitVoice, isFollowup, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -1076,6 +1076,13 @@ async function main() {
     console.log(`\n${bold('RETIRED PHRASES — reword before sending')}`);
     for (const ph of stock) console.log(`  "${ph}"`);
     console.log(dim('  Listed under "# Retired phrases" in prompts/voice.md.'));
+  }
+  const ahead = upcomingTalks(db.prepare('SELECT claim FROM evidence WHERE person_id = ?').all(personId).map((r) => r.claim));
+  const seen = ahead.length ? seenTalkHits(noteBody(res.text)) : [];
+  if (seen.length) {
+    console.log(`\n${bold('A TALK STILL AHEAD, WRITTEN AS SEEN — reword before sending')}`);
+    for (const s of seen) console.log(`  "${s}"`);
+    console.log(dim(`  ${ahead.map((a) => `${a.event} starts ${a.starts_on}`).join('; ')}. Say "I see you're speaking at ...".`));
   }
 
   console.log(dim(`\n${res.usage.input_tokens} in / ${res.usage.output_tokens} out · ` +

@@ -25,7 +25,8 @@ import { armOf, channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
-import { noteBody, retiredPhrases, retiredHits } from './checks.mjs';
+import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
+import { upcomingTalks } from './events.mjs';
 import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -2358,9 +2359,16 @@ function retiredLine(draft) {
     try { RETIRED = retiredPhrases(readFileSync(resolve(ROOT, 'prompts/voice.md'), 'utf8')); } catch { RETIRED = []; }
   }
   const hits = draft?.body ? retiredHits(noteOnly(draft.body), RETIRED) : [];
-  return hits.length ? `<div class="gradebox"><b>Retired phrases — reword before sending:</b> ${
-    hits.map((h) => `&ldquo;${esc(h)}&rdquo;`).join(', ')}</div>` : '';
+  const ahead = draft?.body && draft.person_id ? upcomingFor(draft.person_id) : [];
+  const seen = ahead.length ? seenTalkHits(noteOnly(draft.body)) : [];
+  return (hits.length ? `<div class="gradebox"><b>Retired phrases — reword before sending:</b> ${
+    hits.map((h) => `&ldquo;${esc(h)}&rdquo;`).join(', ')}</div>` : '')
+    + (seen.length ? `<div class="gradebox"><b>A talk still ahead, written as seen:</b> ${
+      seen.map((h) => `&ldquo;${esc(h)}&rdquo;`).join(', ')} <span class="dim">— ${esc(ahead[0].event)} starts ${
+      esc(ahead[0].starts_on)}; say &ldquo;I see you're speaking at&rdquo;</span></div>` : '');
 }
+// Set once the database is open (below); a card with no database sees no talks.
+let upcomingFor = () => [];
 
 // THE APPROACH, NOT THE RULES (grade-draft v5, 2026-10-12). Advisory and
 // outside `clean`, so it shows on its own, even on a draft that is otherwise clean.
@@ -4177,6 +4185,10 @@ two files above; where both say something, business.yml wins.</p>
 }
 
 const db = openDb();
+{
+  const q = db.prepare('SELECT claim FROM evidence WHERE person_id = ?');
+  upcomingFor = (id) => upcomingTalks(q.all(id).map((r) => r.claim));
+}
 const cfg = loadConfig();
 const targeting = loadTargeting(cfg);
 const written = buildAll(db, cfg, targeting);

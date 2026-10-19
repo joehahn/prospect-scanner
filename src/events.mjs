@@ -429,6 +429,21 @@ export function retense(text, today = localDay()) {
     }).join('\n');
 }
 
+/**
+ * The talks a person's evidence says are still ahead: each "is speaking at X
+ * (date) on:" claim whose first day is today or later. What a note may not
+ * describe as already seen.
+ */
+export function upcomingTalks(claims, today = localDay()) {
+  const out = [];
+  for (const c of claims ?? []) {
+    const m = String(c ?? '').match(/\b(?:is speaking(?: today)? at|is on the agenda at) (.+?) \(([^()]+)\) on:/);
+    const d = m && eventDateFrom(m[2]);
+    if (d && d.starts_on >= today) out.push({ event: m[1], starts_on: d.starts_on });
+  }
+  return out;
+}
+
 export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
   const today = new Date().toISOString().slice(0, 10);
   let spent = 0;

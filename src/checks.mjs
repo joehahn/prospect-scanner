@@ -134,5 +134,17 @@ export function retiredHits(text, phrases = []) {
   return phrases.filter((ph) => t.includes(ph));
 }
 
+// A TALK THAT HAS NOT HAPPENED, WRITTEN AS SEEN. Added 2026-10-19, the second
+// time in a day: "saw your session" to someone speaking in three weeks, then
+// "saw your CDAO Fall talk next week". The facts reach the drafter dated and in
+// the right tense; the operator's habitual "saw ..." opener gets glued to the
+// talk. The claims check is a model and caught one of the two; this is code.
+const SEEN_TALK = /\b(saw|caught|enjoyed|loved|watched|heard|liked)\s+(?:your|the|you[r']?)\b[^.!?]{0,80}?\b(talks?|sessions?|panels?|keynotes?|presentations?|fireside|remarks)\b/gi;
+
+/** Each place the note describes a talk as already seen. Callers flag it only when the talk is still ahead. */
+export function seenTalkHits(text) {
+  return [...String(text ?? '').replace(/\s+/g, ' ').matchAll(SEEN_TALK)].map((m) => m[0]);
+}
+
 export const MECHANICAL_FLAGS = ['empty', 'aphorism-opener', 'no-bridge', 'late-bridge',
   'wrong-recipient', 'too-long', 'no-read'];
