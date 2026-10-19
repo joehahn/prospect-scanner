@@ -756,6 +756,9 @@ const COLUMN_MIGRATIONS = [
   // 1 when the call went through the Batches API, which bills at half price.
   // Without it a halved cost would read as a cheaper model.
   ['llm_calls', 'batch', 'INTEGER'],
+  // The host that answered an OpenRouter call: the same model id is priced and
+  // behaves differently by provider, so a measurement names the one it used.
+  ['llm_calls', 'provider', 'TEXT'],
   ['scores', 'package_trigger', 'TEXT'],
   // WHAT THE WORK IS, kept apart from which offer was chosen. See `capabilities`
   // in offers.yml: evidence names the capability, the buyer's seat names the

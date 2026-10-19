@@ -8,9 +8,13 @@
 // Model ids come from config/runtime.yml (models.default / cheap / grader), never
 // hard-coded here. Only the price list is local, because prices are a property
 // of the API, not of the operator's configuration.
+//
+// A `claude-*` id goes to Anthropic; any other id goes to OpenRouter
+// (src/openrouter.mjs), and is recorded here the same way.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'node:fs';
+import { isOpenRouter, chat, parseJson } from './openrouter.mjs';
 
 // Not every model takes every parameter, and sending one that a model does not
 // support is a 400, not a graceful degradation. `claude-haiku-4-5` rejects both
@@ -220,6 +224,9 @@ export async function complete(db, runId, {
   tools = null,
 }) {
   if (!model) throw new Error('complete() needs a model id from config/runtime.yml');
+  if (isOpenRouter(model)) {
+    return completeOpenRouter(db, runId, { model, system, messages, maxTokens, effort, thinking, schema, tools });
+  }
 
   const caps = capsFor(model);
   const req = { model, max_tokens: maxTokens, messages };
@@ -326,15 +333,8 @@ export async function complete(db, runId, {
   // The run's running cost, and one ledger row for this call. n_in/n_out on
   // the run are the stage's item counts; tokens live in llm_calls, per call,
   // with the model that actually answered.
-  db.prepare(`UPDATE runs SET model = COALESCE(model, ?), cost_usd = COALESCE(cost_usd, 0) + ? WHERE id = ?`)
-    .run(model, cost ?? 0, runId);
-  db.prepare(`INSERT INTO llm_calls (run_id, stage, model, at, input_tokens, output_tokens,
-      cache_read_tokens, cache_write_tokens, web_searches, cost_usd, stop_reason, batch)
-    VALUES (?, (SELECT stage FROM runs WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(runId, runId, model, new Date().toISOString(), res.usage?.input_tokens ?? 0,
-      res.usage?.output_tokens ?? 0, res.usage?.cache_read_input_tokens ?? 0,
-      res.usage?.cache_creation_input_tokens ?? 0, searches,
-      tokenCost === null ? null : cost, res.stop_reason ?? null, batched ? 1 : 0);
+  record(db, runId, { model, usage: res.usage, searches, cost: tokenCost === null ? null : cost,
+    stopReason: res.stop_reason, batched });
 
   if (!text && res.stop_reason === 'max_tokens') {
     throw new Error(
@@ -362,6 +362,61 @@ export async function complete(db, runId, {
   }
 
   return { text, data, usage: res.usage, cost_usd: cost, model, stop_reason: res.stop_reason };
+}
+
+/**
+ * The run's running cost, and one ledger row for this call. A null cost is a
+ * model with no price on file: the run gains $0 and the row says unknown.
+ */
+function record(db, runId, { model, usage, searches = 0, cost, stopReason, batched = false, provider = null }) {
+  db.prepare(`UPDATE runs SET model = COALESCE(model, ?), cost_usd = COALESCE(cost_usd, 0) + ? WHERE id = ?`)
+    .run(model, cost ?? 0, runId);
+  db.prepare(`INSERT INTO llm_calls (run_id, stage, model, at, input_tokens, output_tokens,
+      cache_read_tokens, cache_write_tokens, web_searches, cost_usd, stop_reason, batch, provider)
+    VALUES (?, (SELECT stage FROM runs WHERE id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(runId, runId, model, new Date().toISOString(), usage?.input_tokens ?? 0,
+      usage?.output_tokens ?? 0, usage?.cache_read_input_tokens ?? 0,
+      usage?.cache_creation_input_tokens ?? 0, searches,
+      cost, stopReason ?? null, batched ? 1 : 0, provider);
+}
+
+// THE SAME CONTRACT, THROUGH OPENROUTER. Every call is recorded before anything
+// can throw, with the billed cost and the provider that answered. An empty
+// answer is a counted failure, never a silent "" (geo-herd-rider llm.py:249).
+// A schema reply that does not parse is repaired, then asked for once more
+// quoting the error, then fails with the raw text attached.
+async function completeOpenRouter(db, runId, { model, system, messages, schema, ...rest }) {
+  const fix = (x) => (typeof x === 'string' ? x.toWellFormed() : wellFormed(structuredClone(x ?? null)));
+  const call = async (msgs) => {
+    const a = await chat({ model, system: fix(system), messages: fix(msgs), schema, ...rest });
+    record(db, runId, { model: a.model, usage: a.usage, cost: a.cost_usd, stopReason: a.stop_reason, provider: a.provider });
+    if (a.cost_usd === null) {
+      console.warn(`no billed cost or price on file for "${a.model}" — recorded as unknown. ` +
+        'Add it to PRICING in src/openrouter.mjs.');
+    }
+    if (!a.text) {
+      throw new Error(`${a.model} via ${a.provider ?? 'OpenRouter'} returned no text ` +
+        `(finish_reason ${a.stop_reason ?? 'none'}) — $${(a.cost_usd ?? 0).toFixed(4)} spent, recorded.`);
+    }
+    return a;
+  };
+  let a = await call(messages);
+  let data = null;
+  if (schema) {
+    data = parseJson(a.text);
+    if (data === null) {
+      a = await call([...messages, { role: 'assistant', content: a.text },
+        { role: 'user', content: 'That reply was not valid JSON. Reply with only the JSON object the schema asks for.' }]);
+      data = parseJson(a.text);
+      if (data === null) {
+        const err = new Error(`${a.model} returned unparseable JSON twice despite a schema: ${a.text.slice(0, 300)}`);
+        err.raw = a.text;
+        throw err;
+      }
+    }
+  }
+  return { text: a.text, data, usage: a.usage, cost_usd: a.cost_usd, model: a.model,
+    stop_reason: a.stop_reason, provider: a.provider };
 }
 
 /**
