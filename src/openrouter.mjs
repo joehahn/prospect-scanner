@@ -23,13 +23,31 @@ const URL_ = 'https://openrouter.ai/api/v1/chat/completions';
 // support, sent with require_parameters, leaves NO eligible provider: the call
 // "finishes" with nothing (geo-herd-rider, llm.py). So nothing optional is sent
 // unless the model is listed here, and an unlisted model gets the bare request.
-// Filled from OpenRouter's /models `supported_parameters` at the smoke test.
-const CAPABILITIES = {};
+// From OpenRouter's /models `supported_parameters`, 2026-10-19, and kept only
+// where the smoke test (scripts/smoke-openrouter.mjs) got an answer with it.
+const CAPABILITIES = {
+  'minimax/minimax-m3':           { reasoning: true },
+  'deepseek/deepseek-v4.1-flash': { reasoning: true },
+  'openai/gpt-5.6-luna':          { reasoning: true },
+  'anthropic/claude-haiku-5.5':   { reasoning: true },
+  'z-ai/glm-5.3':                 { reasoning: true },
+  'qwen/qwen3.8-27b':             { reasoning: true },
+  'moonshotai/kimi-k2.6':         { reasoning: true },
+};
 const capsFor = (model) => CAPABILITIES[model] ?? { reasoning: false };
 
 // USD per 1M tokens, used only when a response carries no billed cost. The
 // billed `usage.cost` is the record; this keeps a missing one from reading $0.
-const PRICING = {};
+// From OpenRouter's /models, 2026-10-19; prices vary by host and change often.
+const PRICING = {
+  'minimax/minimax-m3':           { in: 0.30, out: 1.20, cacheRead: 0.06 },
+  'deepseek/deepseek-v4.1-flash': { in: 0.03, out: 0.08, cacheRead: 0.002 },
+  'openai/gpt-5.6-luna':          { in: 0.20, out: 1.20, cacheRead: 0.02 },
+  'anthropic/claude-haiku-5.5':   { in: 0.10, out: 0.50, cacheRead: 0.01 },
+  'z-ai/glm-5.3':                 { in: 0.08, out: 1.40, cacheRead: 0.078 },
+  'qwen/qwen3.8-27b':             { in: 0.24, out: 2.20, cacheRead: 0.05 },
+  'moonshotai/kimi-k2.6':         { in: 0.65, out: 3.41, cacheRead: 0.15 },
+};
 
 export function knownOpenRouterModels() { return Object.keys(PRICING); }
 export const isOpenRouter = (model) => !String(model).startsWith('claude-');
