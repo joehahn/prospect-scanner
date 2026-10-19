@@ -12,7 +12,7 @@
 // Usage:
 //   npm run draft -- --person <id> [--channel email] [--service read_proposal]
 //                    [--model claude-opus-5] [--effort high] [--force]
-//                    [--examples fixed|picked|edits|recent]   which voice examples (default: fixed and LIVE_CHALLENGER alternate)
+//                    [--examples fixed|picked|edits|recent]   which voice examples (default: recent, DEFAULT_ARM)
 //                    [--no-store] [--pool-before <draft id>]   a replay: print, store nothing
 //   npm run draft -- --person <id> --show        print stored drafts, no API call
 //   npm run draft -- --person <id> --revise "cut the metrics, halve it"
@@ -678,12 +678,10 @@ async function main() {
       'Run without --revise first.');
   }
 
-  // WHICH EXAMPLES. Fixed and the live challenger, alternated, so the
-  // Scoreboard can say whether the challenger beats the fixed set
-  // (src/voice-examples.mjs).
+  // WHICH EXAMPLES. The operator's latest sent notes unless a revision keeps
+  // the arm it started from (src/voice-examples.mjs, DEFAULT_ARM).
   // `--examples fixed|picked|edits|recent` forces one.
-  const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null,
-    claim: !args['no-store'] });
+  const arm = chooseArm(db, { prior, override: args.examples && args.examples !== true ? String(args.examples) : null });
   const voiceText = readVoice();
   // The first message after an accepted connection learns only from others like
   // it, and skips the cold-note beat checks (voice-examples.mjs, FOLLOWUP_SQL).

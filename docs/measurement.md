@@ -61,10 +61,13 @@ channel but is not an answer.
 
 **What the drafter got right.** Each note keeps every draft, every revise instruction,
 and the text actually sent, so how much of each draft survived is on record for every
-note, and replies are linked to the note that drew them. Drafts alternate between
-the fixed example notes and the operator's latest sent notes with what they were
-written from; the Scoreboard shows, for each, the median share of words changed
-before sending, how many went out as drafted, and revisions asked for per sent note.
+note, and replies are linked to the note that drew them. The Scoreboard compares
+drafts learned from a fixed set of example notes with drafts learned from the
+operator's latest sent notes and what they were written from: for each, the median
+share of words changed before sending, how many went out as drafted, and revisions
+asked for per sent note. On 56 and 30 sent notes the two tie (7% and 10% of words
+changed, about one revision per note). Drafting uses the latest notes: the operator
+judged their drafts better, and they follow his wording as it changes.
 First messages after an accepted connection have their own shape and their own
 examples, so they get their own row and stay out of that comparison.
 
@@ -93,10 +96,9 @@ the words do not support, with the reason.
 ## Design choices the measurements support
 
 - **Examples, not rules.** The drafter learns the operator's voice from their own sent
-  notes, never from a rule list: either a fixed hand-picked set, or the latest sent
-  notes with what each was written from and what was asked and changed on the way.
-  The two alternate, and the share of each draft that survives to sending decides
-  between them.
+  notes, never from a rule list: the latest sent notes, with what each was written
+  from and what was asked and changed on the way. A fixed hand-picked set measured
+  level with them; the operator preferred the drafts from his latest notes.
 - **A judge that learns, measured against a formula.** The judge learns from the
   operator's calls rather than from weights and exemptions, and the formula running
   alongside it is the standard it has to beat.

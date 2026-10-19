@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
-import { changed, splitVoice, updateWording, chooseArm, LIVE_CHALLENGER } from '../src/voice-examples.mjs';
+import { changed, splitVoice, updateWording, chooseArm, DEFAULT_ARM } from '../src/voice-examples.mjs';
 
 test('words changed is measured on the note, not the NOTES section', () => {
   const draft = 'Greetings Ann,\n\nOne two three four.\n\nNOTES\n-----\nlots of reasoning here for the operator';
@@ -25,31 +25,15 @@ test('retired wording is replaced before a sent note becomes an example', () => 
   assert.equal(updateWording('untouched', undefined), 'untouched');
 });
 
-test('new drafts alternate fixed and the challenger; a revision keeps its arm; an override wins', () => {
+test('new drafts take the default arm; a revision keeps its arm; an override wins', () => {
   const db = new Database(':memory:');
   db.exec('CREATE TABLE drafts (id INTEGER PRIMARY KEY, revised_from INTEGER, examples TEXT)');
-  assert.equal(chooseArm(db), LIVE_CHALLENGER);
-  db.prepare('INSERT INTO drafts (id, examples) VALUES (1, ?)').run(JSON.stringify({ arm: LIVE_CHALLENGER }));
-  assert.equal(chooseArm(db), 'fixed');
-  db.prepare('INSERT INTO drafts (id, examples) VALUES (2, ?)').run('{"arm":"fixed"}');
-  assert.equal(chooseArm(db), LIVE_CHALLENGER);
-  // A revision of draft 1 keeps its arm, and does not count as a new note.
-  assert.equal(chooseArm(db, { prior: { id: 1 } }), LIVE_CHALLENGER);
-  db.prepare('INSERT INTO drafts (id, revised_from, examples) VALUES (3, 1, ?)').run(JSON.stringify({ arm: LIVE_CHALLENGER }));
-  assert.equal(chooseArm(db), LIVE_CHALLENGER);
-  assert.equal(chooseArm(db, { override: 'picked' }), 'picked');
-});
-
-test('drafts started together still alternate: the arm is claimed before the draft is stored', () => {
-  const db = new Database(':memory:');
-  db.exec('CREATE TABLE drafts (id INTEGER PRIMARY KEY, revised_from INTEGER, examples TEXT)');
+  assert.equal(chooseArm(db), DEFAULT_ARM);
   db.prepare('INSERT INTO drafts (id, examples) VALUES (1, ?)').run('{"arm":"fixed"}');
-  // Six drafts begin before any is stored: each must see the claims before it.
-  const arms = Array.from({ length: 6 }, () => chooseArm(db, { claim: true }));
-  assert.deepEqual(arms, [LIVE_CHALLENGER, 'fixed', LIVE_CHALLENGER, 'fixed', LIVE_CHALLENGER, 'fixed']);
-  // A replay that stores nothing takes no turn.
-  assert.equal(chooseArm(db), LIVE_CHALLENGER);
-  assert.equal(chooseArm(db, { claim: true }), LIVE_CHALLENGER);
+  assert.equal(chooseArm(db), DEFAULT_ARM);
+  // A revision of a fixed draft stays fixed, so it is attributed to what it started from.
+  assert.equal(chooseArm(db, { prior: { id: 1 } }), 'fixed');
+  assert.equal(chooseArm(db, { override: 'picked' }), 'picked');
 });
 
 test('an instruction quoting a prospect\'s own page never travels to another draft', async () => {

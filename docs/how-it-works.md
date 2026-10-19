@@ -189,18 +189,18 @@ the operator's own sent notes; from the boards a partner sits on; and from anyth
 the operator has said about the person, in a verdict or a revise instruction, which
 outranks the model's inference.
 
-**The examples are chosen two ways, alternately.** One draft gets the fixed,
-hand-picked set in `prompts/voice.md`. The next gets the operator's latest sent notes
-on the same kind of channel (up to fifteen; email, InMail and LinkedIn messages
+**The examples are the operator's latest sent notes** on the same kind of channel (up to fifteen; email, InMail and LinkedIn messages
 share one pool, a connection note learns only from connection notes), each shown with what it was written from (the
 firm, dated events, the read, the facts on file and the start of the pasted profile),
 the drafter's reasoning at the time, what the operator asked to change, and what went
-out. That second set moves with every note sent, so drafting follows the operator's
+out. The set moves with every note sent, so drafting follows the operator's
 current voice; its size is capped, so cost per draft does not grow with the history.
+When too few such notes exist, the draft falls back to the fixed, hand-picked set in
+`prompts/voice.md`, and records that it did.
 Retired wording in an old note (`you.superseded_wording` in `business.yml`) is updated
 before it is shown. A revise instruction that is long or quotes a prospect's own page
 is withheld; the note it shaped is still shown. Each draft records which set it came from, and the Scoreboard
-compares how much of each set's drafts the operator changes before sending.
+shows how much of each set's drafts the operator changes before sending.
 
 **Phrases the operator has retired** are listed in the voice file. Wording repeated
 note after note makes every note read as the same template, so a draft that uses one

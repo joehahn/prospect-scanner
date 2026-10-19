@@ -2240,9 +2240,8 @@ ${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.
 <p class="dim">The whole record is not a fair comparison: email went where an address happened to be on file.</p></section>`;
 }
 
-// FIXED EXAMPLES OR PICKED ONES? New drafts alternate between the hand-picked
-// notes in voice.md and notes chosen for each recipient from what was sent
-// (src/voice-examples.mjs). Less changing before a note goes out is better.
+// FIXED EXAMPLES OR RECENT ONES? Each arm's drafts, by how much the operator
+// changes them before they go out (src/voice-examples.mjs). Less is better.
 // DOES THE GRADER PREDICT YOUR REWRITES? Added 2026-10-12. The strategy
 // question is advisory until this says flagged drafts are the rewritten ones.
 function gradePredictsPanel(db) {
@@ -2266,10 +2265,10 @@ function draftArmsPanel(db) {
   const label = { before: 'before the comparison (fixed set)', fixed: 'fixed examples', picked: 'sent notes picked for the recipient', edits: 'your edits on similar notes', recent_v1: 'your latest notes, until 2026-10-09 (a long ask dropped the note)', recent: 'your latest notes, with what they were written from', followup: 'first message after an accepted connection, until 2026-10-13 (re-pitch or referral ask)', followup_plain: 'first message after an accepted connection: the plain note (own pool, outside the comparison)' };
   const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 100)}%`);
   return `<section class="panel"><h2>Is drafting learning from you?</h2>
-<p class="lead">New drafts alternate between the fixed example notes in <code>voice.md</code> and your latest
-sent notes on the same channel, each shown with what it was written from, the drafter's reasoning, what you
-asked to change and what you sent. Less changing before a note goes out is better. About 25 sent notes per
-arm are needed before a gap means anything.</p>
+<p class="lead">New drafts learn from your latest sent notes on the same channel, each shown with what it was
+written from, the drafter's reasoning, what you asked to change and what you sent. The fixed example notes in
+<code>voice.md</code> are the comparison row, and the fallback when there are too few recent notes. Less
+changing before a note goes out is better. About 25 sent notes per row are needed before a gap means anything.</p>
 <table><thead><tr><th></th><th>drafted</th><th>sent</th><th>words changed (median)</th>
 <th>sent as drafted</th><th>revisions per sent note</th></tr></thead><tbody>
 ${arms.map((a) => `<tr><td>${label[a.arm]}</td><td>${a.drafted}</td><td>${a.sent}</td><td><b>${pct(a.changed)}</b></td>

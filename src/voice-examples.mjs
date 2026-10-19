@@ -16,10 +16,9 @@
 // A FIXED COUNT, so cost does not grow with the pool. Choosing is code over
 // the database; only the K chosen reach the model.
 //
-// MEASURED AGAINST THE FIXED SET. New drafts alternate between `fixed`
-// (voice.md as written) and LIVE_CHALLENGER, and each draft records its arm, so
-// the Scoreboard can say whether the challenger's notes need less changing
-// before they go out.
+// MEASURED AGAINST THE FIXED SET, THEN CHOSEN. New drafts take DEFAULT_ARM,
+// and each draft records its arm, so the Scoreboard keeps showing how much of
+// each arm's notes the operator changes before they go out.
 
 import { features, similarity } from './similar.mjs';
 import { noteBody } from './checks.mjs';
@@ -69,45 +68,28 @@ export function updateWording(text, superseded = []) {
   return out;
 }
 
-// THE LIVE COMPARISON: fixed against this one, alternating (decided
-// 2026-10-05). An offline replay of 30 sent notes found no arm beat fixed, but
-// that replay is tilted toward fixed (every sent note began as a fixed-arm
-// draft), so it can rule an arm out and cannot rule one in. `recent` is the arm
-// most unlike fixed, the only one that shows what each note was written from,
-// and so the one a few weeks of live sends could tell apart. `picked` and
+// THE ARM FOR NEW DRAFTS: the operator's latest sent notes, with what each was
+// written from (decided 2026-10-19). Fixed and `recent` alternated from
+// 2026-10-05; by 10-19 fixed had 56 sent at 7.4% of words changed and 1.1
+// revisions per note, `recent` 30 sent at 9.6% and 0.9, a tie within noise. The
+// operator chose `recent`: its drafts read better to him, and it follows his
+// wording as it changes where voice.md stands still. When the pool is too thin,
+// voiceFor falls back to fixed and records that it did. `fixed`, `picked` and
 // `edits` stay available through --examples and `npm run replay`.
-export const LIVE_CHALLENGER = 'recent';
+export const DEFAULT_ARM = 'recent';
 
 /**
  * The arm for a new draft. A revision keeps the arm of the version it revises,
- * so a revised note is attributed to the examples it started from. A new note
- * takes the arm the last new note did not, which keeps the two arms level.
- *
- * CLAIMED, NOT INFERRED (2026-10-16). The arm used to be read off the last
- * stored draft, but a draft is stored a minute after its arm is chosen, so six
- * drafts started together all saw the same last draft and all took `fixed`.
- * With `claim`, the choice is written to `arm_claims` inside one write lock,
- * so the next draft sees it whether or not this one has finished. A replay
- * that stores nothing passes no claim and takes no turn.
+ * so a revised note is attributed to the examples it started from; an override
+ * wins; anything else takes DEFAULT_ARM.
  */
-export function chooseArm(db, { prior = null, override = null, claim = false } = {}) {
+export function chooseArm(db, { prior = null, override = null } = {}) {
   if (['fixed', 'picked', 'edits', 'recent'].includes(override)) return override;
   if (prior) {
     const row = db.prepare('SELECT examples FROM drafts WHERE id = ?').get(prior.id);
     return armOf(row?.examples) ?? 'fixed';
   }
-  const next = (lastArm) => (lastArm === LIVE_CHALLENGER ? 'fixed' : LIVE_CHALLENGER);
-  const lastDraft = () => armOf(db.prepare(`SELECT examples FROM drafts
-    WHERE examples IS NOT NULL AND revised_from IS NULL ORDER BY id DESC LIMIT 1`).get()?.examples);
-  if (!claim) return next(lastDraft());
-  db.exec(`CREATE TABLE IF NOT EXISTS arm_claims (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, arm TEXT NOT NULL, claimed_at TEXT NOT NULL)`);
-  return db.transaction(() => {
-    const last = db.prepare('SELECT arm FROM arm_claims ORDER BY id DESC LIMIT 1').get()?.arm ?? lastDraft();
-    const arm = next(last);
-    db.prepare('INSERT INTO arm_claims (arm, claimed_at) VALUES (?, ?)').run(arm, new Date().toISOString());
-    return arm;
-  }).immediate();
+  return DEFAULT_ARM;
 }
 
 export function armOf(json) {
