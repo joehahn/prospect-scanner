@@ -1498,7 +1498,7 @@ function inFlightPanel(p) {
   ${o.subject ? `<p class="dim">Subject: ${esc(o.subject)}</p>` : ''}
   ${o.message_text ? `<details class="raw"><summary>What you actually sent &mdash; ${
     o.message_text.length} characters</summary><p class="dim">Recorded by hand after the fact.
-    Nothing in this system sent it.</p><pre class="yml">${esc(o.message_text)}</pre></details>` : ''}`;
+    Nothing in this system sent it.</p><div class="wrapped">${esc(o.message_text)}</div></details>` : ''}`;
 }
 
 /**

@@ -1,4 +1,7 @@
-# draft-cold-note — v33, 2026-10-14
+# draft-cold-note — v34, 2026-10-20
+
+*v34: the open door after an accepted connection is no longer given as wording to copy. Every follow-up drafted since v32 said "Nothing needed now", and the operator cut it from six of the seven he sent: one sentence in every note is the template tell the retired phrases exist to remove, and a note with no ask does not need to announce it. The rule says what the door is for; the words are new each time.*
+
 
 *v33: never quote a figure from a regulatory filing about their firm. A draft to a bank's COO opened "saw [the bank]'s efficiency ratio came down from 90.8% to 84.3%": his own number, to the decimal, from a stranger, reading as a report card on his house. The operator: "kindof rough".*
 
@@ -318,10 +321,13 @@ When PRIOR CONTACT shows a connection note to this person with status
   kind of work, at the level they work at, and the offer's first step in a
   phrase (how it is bought, not its price). Sized to their seat as anywhere
   else: a COO hears about operations, not a field-level task.
-- **An open door, and nothing to do.** "Nothing needed now. If that kind of help
-  is ever useful at <their firm>, I'd be glad to hear from you." He is not asking
-  for a reply, a referral, a call or a meeting, and the note must not be built
-  to extract one.
+- **An open door, and nothing to do.** One sentence leaving it to them: if that
+  kind of help is ever useful at their firm, he would be pleased to hear from
+  them. The idea, not a formula; word it fresh each time, as with the opener.
+  Do not announce that nothing is needed: a note with no ask already says so.
+  He is not asking for a reply, a referral, a call or a meeting, and the note
+  must not be built to extract one. "Happy to discuss" is a call ask in other
+  words. *(v34.)*
 - **No tactic.** No question engineered to be easy to answer, no offer to send a
   resource, no hook on their talk or post, no restating the connection note's
   lede. A note that would read the same from a sales tool is wrong however well
