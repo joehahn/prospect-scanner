@@ -1365,13 +1365,18 @@ function acceptedPanel(db, d) {
      WHERE r.sentiment = 'accepted'
        AND (r.responded_at >= ? OR EXISTS (SELECT 1 FROM drafts w
              WHERE w.person_id = p.id AND w.outreach_id IS NULL AND w.sent_recorded_at IS NULL
+               AND w.channel <> 'linkedin_connect_note'
                AND substr(w.created_at, 1, 10) >= r.responded_at))
        AND NOT EXISTS (SELECT 1 FROM outreach y WHERE y.person_id = p.id AND y.sent_at > x.sent_at)
        AND NOT EXISTS (SELECT 1 FROM do_not_contact n WHERE n.person_id = p.id)
      GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since);
   if (!rows.length) return '';
+  // NOT A CONNECTION NOTE. Someone who accepted never gets another, and an
+  // unused earlier version of the note they accepted showed here as the message
+  // to send next.
   const draftOf = db.prepare(`SELECT id, version, channel, body, created_at FROM drafts
-     WHERE person_id = ? AND outreach_id IS NULL AND sent_recorded_at IS NULL ORDER BY id DESC LIMIT 1`);
+     WHERE person_id = ? AND outreach_id IS NULL AND sent_recorded_at IS NULL
+       AND channel <> 'linkedin_connect_note' ORDER BY id DESC LIMIT 1`);
   const carded = new Set((d.inFlight ?? []).map((p) => p.person_id));
   const items = rows.map((r) => {
     const dr = draftOf.get(r.person_id);
@@ -1390,7 +1395,14 @@ function acceptedPanel(db, d) {
          ${notes ? `<details><summary>Drafter&rsquo;s notes</summary><div class="wrapped dim">${esc(notes)}</div></details>` : ''}
          <p class="dim">Sent unedited: <code>npm run lead -- sent --person ${esc(r.person_id)} --channel ${
            esc(dr.channel)} --as-drafted</code></p></details>`
-      : `<p class="dim">No draft yet: <code>npm run draft -- --person ${esc(r.person_id)} --channel linkedin</code></p>`;
+      // A BUTTON, not a command to type: the same post the card's Draft makes,
+      // and the card can be thousands of lines further down the page.
+      : `<form method="post" action="${SERVER}/note" class="inline">
+         <input type="hidden" name="person" value="${esc(r.person_id)}">
+         <input type="hidden" name="channel" value="linkedin_message">
+         <input type="hidden" name="back" value="">
+         <button type="submit" name="do" value="draft">Draft the message</button>
+         <span class="dim">no draft yet</span></form>`;
     return `<tr><td><b>${esc(String(r.accepted_at).slice(0, 10))}</b></td>
       <td>${who}<br><span class="dim">${esc(r.title ?? '')}</span></td>
       <td>${esc(r.org_name)}<br>${searchLink(r.name, r.org_name, r.profile_url)}</td>
@@ -2401,8 +2413,13 @@ function gradeLine(draft) {
       esc(String(g.graded_at).slice(0, 10))})</span><ul>${items.join('')}</ul></div>${strat}` };
 }
 
-function noteBox(p, draft, { channel: preferred = null, email = null, guess = null } = {}) {
+function noteBox(p, latest, { channel: preferred = null, email = null, guess = null } = {}) {
   const id = esc(p.person_id);
+  // A DRAFT ALREADY SENT IS NOT THE NEXT NOTE. The box kept the drafter's text
+  // of a note that had gone out edited, so the card read as if the sent version
+  // was missing; what went out is shown above, under What you actually sent.
+  const sentAlready = !!(latest?.sent_text ?? '').trim();
+  const draft = sentAlready ? null : latest;
   // THE SENDABLE NOTE ONLY. The stored body is the model's whole reply — DRAFT,
   // then a NOTES section arguing with itself about what it left out. The
   // operator pressed Draft and got the reasoning in the edit box: "all i see
@@ -2421,7 +2438,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
   const svc = esc(draft?.package_id ?? p.service_id ?? '');
   // A draft already sent does not choose the next channel: after an accepted
   // connection note the box offered another connection note, and Draft wrote one.
-  const ch = (draft?.sent_text ? null : draft?.channel) ?? preferred ?? 'linkedin_inmail';
+  const ch = draft?.channel ?? preferred ?? 'linkedin_inmail';
   const sel = (v, label) => `<option value="${v}"${ch === v ? ' selected' : ''}>${label}</option>`;
   // WHO IT GOES TO, when it is an email: the address on file, or the guessed one
   // marked as a guess, with a copy button for the mail client.
@@ -2434,7 +2451,7 @@ function noteBox(p, draft, { channel: preferred = null, email = null, guess = nu
   return `<details class="notebox"><summary><b>Note</b>${draft
     ? (declined ? ` <b class="dim">— the stage declined to draft one</b>`
       : ` <span class="dim">v${esc(draft.version)}, ${esc(String(draft.created_at).slice(0, 10))}</span>${declined ? '' : gradeLine(draft).mark}`)
-    : ' <span class="dim">— none yet</span>'}</summary>
+    : ` <span class="dim">— ${sentAlready ? 'none since the one sent' : 'none yet'}</span>`}</summary>
     ${declined ? `<div class="nbdecl"><b>No note was written, and the reason is below.</b>
       A rule in the pitch definition or the channel rules stopped it. Read it before
       overriding — the box is empty on purpose.</div>` : ''}
