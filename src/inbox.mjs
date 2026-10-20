@@ -19,7 +19,7 @@
 // Usage:  npm run inbox           then open the printed URL
 
 import { createServer } from 'node:http';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFile, execFileSync, spawn } from 'node:child_process';
 import { writeFileSync, mkdtempSync, readFileSync, existsSync, statSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
@@ -199,11 +199,13 @@ function serveDash(req, res, url) {
   // holding yesterday's copy gets stale cards AND stale behaviour. That is how a
   // fixed submit handler stayed broken in the operator's browser after the fix
   // had shipped.
+  const ext = file.slice(file.lastIndexOf('.'));
+  const banner = ext === '.html' ? pasteBanner() : '';
   res.writeHead(200, {
-    'content-type': MIME[file.slice(file.lastIndexOf('.'))] ?? 'application/octet-stream',
+    'content-type': MIME[ext] ?? 'application/octet-stream',
     'cache-control': 'no-store, must-revalidate',
     pragma: 'no-cache',
-  }).end(readFileSync(file));
+  }).end(banner ? readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner) : readFileSync(file));
   return true;
 }
 
@@ -276,32 +278,86 @@ function ingest(fields) {
   }
   // A paste IS the page, so the title it carries is confirmed by definition.
   if (!(fields.confirmed ?? '').trim()) args.push('--confirmed', 'confirmed');
-  const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
-  // A paste that does not move the card is a paste the operator cannot see the
-  // effect of, so both stages run before the browser comes back. Together they
-  // take about a second, measured.
-  // RE-JUDGE AFTER A PASTE, when the person is still waiting on the Ready page.
-  // The operator decides with the profile in hand; the judge should too, or the
-  // comparison sets his informed call against its uninformed one. Only an
-  // undecided person: re-judging someone already decided would send their card
-  // back to blind.
-  // NEVER JUDGED COUNTS TOO (2026-10-02): a profile pasted for someone the judge
-  // had not yet seen was stored and then nothing happened -- a 4/5 sat unjudged
-  // until someone noticed. Judged now, unless the operator has already decided.
-  const waiting = db.prepare(`SELECT 1 FROM judgments j WHERE j.person_id = ?
-      AND NOT EXISTS (SELECT 1 FROM verdicts v WHERE v.person_id = j.person_id AND v.created_at >= j.created_at)
-      AND j.batch = (SELECT MAX(batch) FROM judgments WHERE person_id = ?)`).get(personId, personId)
-    || (!db.prepare('SELECT 1 FROM judgments WHERE person_id = ?').get(personId)
-      && !db.prepare('SELECT 1 FROM verdicts WHERE person_id = ?').get(personId));
-  if (waiting) {
-    try { execFileSync('npm', ['run', 'judge', '--silent', '--', '--person', personId], { cwd: ROOT, encoding: 'utf8' }); }
-    catch (e) { console.log(`  re-judge failed for ${personId}: ${String(e.stderr || e.message).slice(0, 200)}`); }
-  }
-  execFileSync('npm', ['run', 'rank', '--silent'], { cwd: ROOT, encoding: 'utf8' });
-  execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
-  const reading = readInBackground(db, personId);
-  commentInBackground(personId);
-  return { personId, url, out: out.trim(), rejudged: Boolean(waiting), reading };
+  // ONLY THE REFUSALS ARE WAITED ON (2026-10-20). Store, extract, re-judge,
+  // re-rank and rebuild took about twenty seconds a paste, and the operator
+  // pastes a dozen in a row. A wrong card or a killed firm still comes back on
+  // the spot, from `lead paste --check`, the same code that refuses it later;
+  // the rest runs in the queue below while he pastes the next one.
+  execFileSync('npm', [...args, '--check'], { cwd: ROOT, encoding: 'utf8' });
+  queuePaste(personId, args);
+  return { personId, url };
+}
+
+// THE PASTE QUEUE. One paste at a time, in the order sent, each as its own
+// process so the server keeps answering. Only the last paste in line re-ranks
+// and rebuilds, once, for all of them. A Draft or a verdict on a person whose
+// paste is still in line waits for it, so neither runs on a card the paste has
+// not reached; the page says how many are in line and what failed.
+const run = (args) => new Promise((ok, no) => execFile('npm', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 24 },
+  (err, stdout, stderr) => (err ? no(Object.assign(err, { stdout, stderr })) : ok(stdout))));
+let pasteChain = Promise.resolve();
+let pasteCount = 0;
+const pasteJobs = new Map();
+const pasteFailures = [];
+
+function queuePaste(personId, args) {
+  pasteCount += 1;
+  const job = pasteChain.then(async () => {
+    await run(args);
+    // A paste that does not move the card is a paste the operator cannot see the
+    // effect of, so the judge and the rank both run before the rebuild.
+    // RE-JUDGE AFTER A PASTE, when the person is still waiting on the Ready page.
+    // The operator decides with the profile in hand; the judge should too, or the
+    // comparison sets his informed call against its uninformed one. Only an
+    // undecided person: re-judging someone already decided would send their card
+    // back to blind.
+    // NEVER JUDGED COUNTS TOO (2026-10-02): a profile pasted for someone the judge
+    // had not yet seen was stored and then nothing happened -- a 4/5 sat unjudged
+    // until someone noticed. Judged now, unless the operator has already decided.
+    const waiting = db.prepare(`SELECT 1 FROM judgments j WHERE j.person_id = ?
+        AND NOT EXISTS (SELECT 1 FROM verdicts v WHERE v.person_id = j.person_id AND v.created_at >= j.created_at)
+        AND j.batch = (SELECT MAX(batch) FROM judgments WHERE person_id = ?)`).get(personId, personId)
+      || (!db.prepare('SELECT 1 FROM judgments WHERE person_id = ?').get(personId)
+        && !db.prepare('SELECT 1 FROM verdicts WHERE person_id = ?').get(personId));
+    if (waiting) {
+      try { await run(['run', 'judge', '--silent', '--', '--person', personId]); }
+      catch (e) { console.log(`  re-judge failed for ${personId}: ${String(e.stderr || e.message).slice(0, 200)}`); }
+    }
+    readInBackground(db, personId);
+    commentInBackground(personId);
+    console.log(`  ingested ${personId}${waiting ? ', re-judged' : ''}`);
+  }).catch((e) => {
+    const msg = String(e.stderr || e.message).trim().slice(-600);
+    pasteFailures.push({ personId, at: Date.now(), msg });
+    console.log(`  paste failed for ${personId}: ${msg.slice(0, 200)}`);
+  }).then(async () => {
+    pasteCount -= 1;
+    if (pasteCount > 0) return;
+    try {
+      await run(['run', 'rank', '--silent']);
+      await run(['run', 'dash', '--silent']);
+      console.log('  re-ranked and rebuilt');
+    } catch (e) { console.log(`  rebuild failed: ${String(e.stderr || e.message).slice(0, 200)}`); }
+  });
+  pasteChain = job;
+  pasteJobs.set(personId, job);
+  job.then(() => { if (pasteJobs.get(personId) === job) pasteJobs.delete(personId); });
+}
+
+/** Resolves once this person's queued paste, if any, has been stored and judged. */
+const pasteSettled = (personId) => pasteJobs.get(String(personId ?? '').trim()) ?? Promise.resolve();
+
+// What the queue is doing, at the top of every page the server hands out.
+const FAILURE_SHOWN_MS = 30 * 60_000;
+function pasteBanner() {
+  const failed = pasteFailures.filter((f) => Date.now() - f.at < FAILURE_SHOWN_MS);
+  if (!pasteCount && !failed.length) return '';
+  const line = pasteCount
+    ? `<div>${pasteCount} paste${pasteCount === 1 ? '' : 's'} in line: stored, judged and then rebuilt in the background. Reload to see the cards once the line is empty.</div>`
+    : '';
+  const fails = failed.map((f) => `<div><b>Paste for ${esc(f.personId)} failed:</b> ${esc(f.msg)}</div>`).join('');
+  return `<div style="position:sticky;top:0;z-index:98;padding:8px 16px;font-size:13px;white-space:pre-wrap;${
+    failed.length ? 'background:#b3261e;color:#fff' : 'background:#fdf3d0;color:#3d3200'}">${line}${fails}</div>`;
 }
 
 // A FRESH POST IN THE PASTE (2026-10-17). `comment` looks at the Activity
@@ -463,9 +519,10 @@ createServer((req, res) => {
   if (url.pathname === '/note') {
     let raw = '';
     req.on('data', (c) => { raw += c; if (raw.length > 4e6) req.destroy(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       const f = Object.fromEntries(new URLSearchParams(raw));
       const back = (f.back ?? '').trim() || '/';
+      await pasteSettled(f.person);
       try {
         note(f);
         res.writeHead(303, { location: back }).end();
@@ -499,9 +556,12 @@ createServer((req, res) => {
   if (url.pathname === '/verdict') {
     let raw = '';
     req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       const f = Object.fromEntries(new URLSearchParams(raw));
       const back = (f.back ?? '').trim() || '/';
+      // After the re-judge of a fresh paste, or that judgment lands after the
+      // call and sends a decided card back to blind.
+      await pasteSettled(f.person);
       try {
         const args = ['run', 'lead', '--silent', '--', 'verdict', '--person', String(f.person ?? ''),
           // The dashboard script disables buttons while working, and a disabled
@@ -558,7 +618,7 @@ createServer((req, res) => {
       try {
         const r = ingest(f);
         res.writeHead(303, { location: `${back}${back.includes('#') ? '' : '#'}` }).end();
-        console.log(`  ingested ${r.personId}${r.url ? ` · ${r.url}` : ''} — re-ranked and rebuilt`);
+        console.log(`  queued ${r.personId}${r.url ? ` · ${r.url}` : ''}`);
       } catch (e) {
         send(page(db, { text: f.text ?? '', err: String(e.stderr || e.message) }));
       }
@@ -613,8 +673,9 @@ createServer((req, res) => {
 }).listen(PORT, '127.0.0.1', () => {
   console.log(`\n  DASHBOARDS   http://127.0.0.1:${PORT}/index.html`);
   console.log('               open them here, not from disk, and every card that needs a');
-  console.log('               profile has its own paste box. A paste re-ranks and rebuilds,');
-  console.log('               then returns you to the same card.');
+  console.log('               profile has its own paste box. A paste is checked, then queued:');
+  console.log('               you are back on the card at once, and the cards rebuild when');
+  console.log('               the line is empty.');
   console.log(`\n  BULK FORM    http://127.0.0.1:${PORT}/paste`);
   console.log('\n  Local only, nothing listens when this stops. Ctrl-C when done.\n');
 });

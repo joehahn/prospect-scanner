@@ -32,6 +32,7 @@
 //                              defaults to operator_supplied, the hand-fed door
 //                              [--title "..."] [--degree 1|2|3] [--email a@b.c] [--role "..."]
 //                              [--extract]  read the fields off the page with a cheap model
+//                              [--check]  run the refusals only and store nothing
 //                              [--confirmed confirmed|unclear|contradicted]  does the page back the title up
 //                              [--activity dormant|low|active|high] [--followers N]
 //                              [--in-seat-since YYYY-MM] [--referral 0..1]
@@ -634,6 +635,10 @@ async function paste(db, cfg, args) {
       }
     }
   }
+
+  // --check: the refusals above and nothing else, in under a second. The paste
+  // form runs this while the operator waits and the rest in the background.
+  if (args.check) { console.log('ok'); return; }
 
   const kind = args.kind && args.kind !== true ? String(args.kind) : 'profile';
   const claim = args.claim && args.claim !== true
