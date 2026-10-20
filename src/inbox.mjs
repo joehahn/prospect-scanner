@@ -321,7 +321,14 @@ function queuePaste(personId, args) {
         && !db.prepare('SELECT 1 FROM verdicts WHERE person_id = ?').get(personId));
     if (waiting) {
       try { await run(['run', 'judge', '--silent', '--', '--person', personId]); }
-      catch (e) { console.log(`  re-judge failed for ${personId}: ${String(e.stderr || e.message).slice(0, 200)}`); }
+      catch (e) {
+        // On the page, not only in the log: a paste whose judge failed keeps its
+        // old rating, and nothing else would say so.
+        const msg = `re-judge failed, so the rating is the one from before the paste: ${
+          String(e.stderr || e.message).split('\n').filter((l) => /JUDGE FAILED|Error|error/.test(l)).pop() ?? e.message}`;
+        pasteFailures.push({ personId, at: Date.now(), msg: msg.slice(0, 400) });
+        console.log(`  ${personId}: ${msg.slice(0, 200)}`);
+      }
     }
     readInBackground(db, personId);
     commentInBackground(personId);

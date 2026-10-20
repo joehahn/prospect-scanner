@@ -95,7 +95,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { distinctWords, otherOrgInTitle } from './org-match.mjs';
-import { nameParts as personName, samePersonOnFile } from './people-match.mjs';
+import { nameParts as personName, pageNames, samePersonOnFile } from './people-match.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -620,8 +620,7 @@ async function paste(db, cfg, args) {
   // them under another name.
   if (person && (args.kind && args.kind !== true ? String(args.kind) : 'profile') === 'profile' && !args.force) {
     const parts = personName(person.name);
-    const plain = (t) => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    if (parts && !plain(body).includes(parts.last)) {
+    if (parts && !pageNames(body, person.name)) {
       throw new Error(`This page never mentions "${parts.last}", so it is probably not ${person.name}'s profile. ` +
         'Nothing stored. Paste it on the right card, or run again with --force if it is them under another name.');
     }

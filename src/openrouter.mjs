@@ -31,7 +31,11 @@ const CAPABILITIES = {
   // Pinned to ModelRun (fp8). On CoreWeave (fp4) it reasoned a fifth as much
   // and its judge verdicts matched the operator 78% against 86% on ModelRun,
   // 2026-10-19: same id, different model in practice.
-  'minimax/minimax-m3':           { reasoning: true, hosts: ['modelrun'] },
+  // schemaInPrompt: ModelRun stopped taking a strict json_schema on 2026-10-20
+  // (still zero-retention; its json_object mode answered "{}"), and every judge
+  // call failed for a day. The schema goes in the request and checkSchema holds
+  // the answer to it instead of the host.
+  'minimax/minimax-m3':           { reasoning: true, hosts: ['modelrun'], schemaInPrompt: true },
   'deepseek/deepseek-v4.1-flash': { reasoning: true, hosts: ['baseten'] },   // the host its judge run used
   'openai/gpt-5.6-luna':          { reasoning: true },
   'anthropic/claude-haiku-5.5':   { reasoning: true },
@@ -102,7 +106,10 @@ function buildBody({ model, system, messages, maxTokens, effort, thinking, schem
     usage: { include: true },
   };
   if (thinking && caps.reasoning) body.reasoning = { effort: effort === 'max' ? 'high' : effort };
-  if (schema) body.response_format = { type: 'json_schema', json_schema: { name: 'answer', strict: true, schema } };
+  if (schema && caps.schemaInPrompt) {
+    body.messages.push({ role: 'user', content: 'Reply with only one JSON object, no other text, matching this '
+      + `JSON Schema exactly (every required key, values only from each enum):\n${JSON.stringify(schema)}` });
+  } else if (schema) body.response_format = { type: 'json_schema', json_schema: { name: 'answer', strict: true, schema } };
   return body;
 }
 
@@ -219,4 +226,33 @@ export function parseJson(text) {
   }
   for (const t of tries) { try { return JSON.parse(t); } catch { /* next */ } }
   return null;
+}
+
+/**
+ * What is wrong with an answer, against the subset of JSON Schema the stages
+ * use (object, required, enum, type string/number/integer/boolean/array,
+ * additionalProperties false); [] when nothing is. A host that enforced the
+ * schema made this unnecessary; one that does not leaves it to us.
+ */
+export function checkSchema(data, schema, path = '') {
+  const at = path || 'the answer';
+  const t = schema?.type;
+  if (t === 'object') {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return [`${at} is not an object`];
+    const out = [];
+    for (const k of schema.required ?? []) if (!(k in data)) out.push(`missing "${k}"`);
+    if (schema.additionalProperties === false) {
+      for (const k of Object.keys(data)) if (!(k in (schema.properties ?? {}))) out.push(`unexpected "${k}"`);
+    }
+    for (const [k, sub] of Object.entries(schema.properties ?? {})) {
+      if (k in data) out.push(...checkSchema(data[k], sub, `"${k}"`));
+    }
+    return out;
+  }
+  const ok = { string: (v) => typeof v === 'string', number: (v) => typeof v === 'number',
+    integer: (v) => Number.isInteger(v), boolean: (v) => typeof v === 'boolean', array: (v) => Array.isArray(v) }[t];
+  if (ok && !ok(data)) return [`${at} should be a ${t}`];
+  if (schema?.enum && !schema.enum.includes(data)) return [`${at} is ${JSON.stringify(data)}, not one of ${schema.enum.join(', ')}`];
+  if (t === 'array' && schema.items) return data.flatMap((x, i) => checkSchema(x, schema.items, `${at}[${i}]`));
+  return [];
 }

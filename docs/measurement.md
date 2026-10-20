@@ -110,6 +110,11 @@ the words do not support, with the reason.
   GLM-5.3 and Qwen 3.8 fell well short. The host matters as much as the model: the
   same MiniMax id on a host serving a more compressed copy reasoned a fifth as much
   and agreed with him 78%, so the judge is pinned to the host that was measured.
+  That host no longer enforces an answer's schema, so the schema goes in the request
+  and each answer is checked against it here. Re-measured that way on the same 149
+  people: 82.6% agreement, and it still ranked his writes above his skips better than
+  Sonnet (0.90 against 0.87-0.89). The same model on a host that does enforce the
+  schema reasoned a fifth as much and agreed 81.9%, ranking at 0.86.
   Calls through OpenRouter go only to hosts that keep and train on nothing.
 - **Quotes, not labels.** Every event found by search keeps what the source said, not
   just the event's name, so a card can show the reason to write in the source's own

@@ -622,6 +622,15 @@ async function main() {
   }
   console.log(dim(`\n$${cost.toFixed(3)} · npm run judge -- --show <id> for the full reasoning`));
   db.close();
+  // A FAILURE IS SAID, NOT LOGGED AND PASSED (2026-10-20). Every call failed for
+  // a day when the judge's host stopped taking its schema; each was printed as
+  // FAILED and the run exited 0, so the daily run reported "0 judged" as a quiet
+  // morning and every paste said "re-judged". Some failed: said on stderr, where
+  // the daily run and the paste queue show it. All failed: exit 1.
+  if (failed.length) {
+    console.error(`JUDGE FAILED for ${failed.length} of ${ids.length}: ${failed[0].error}`);
+    if (!done.length) process.exit(1);
+  }
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });

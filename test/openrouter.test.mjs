@@ -137,3 +137,15 @@ test('parseJson takes the outermost object and drops trailing commas', () => {
   assert.deepEqual(parseJson('```json\n{"a":[1,2,],}\n```'), { a: [1, 2] });
   assert.equal(parseJson('no braces'), null);
 });
+
+test('an answer is held to its schema when the host does not hold it', async () => {
+  const { checkSchema } = await import('../src/openrouter.mjs');
+  const schema = { type: 'object', additionalProperties: false, required: ['grade', 'why'],
+    properties: { grade: { type: 'string', enum: ['1', '2', '3'] }, why: { type: 'string' } } };
+  assert.deepEqual(checkSchema({ grade: '2', why: 'fits' }, schema), []);
+  assert.deepEqual(checkSchema({}, schema), ['missing "grade"', 'missing "why"']);
+  assert.deepEqual(checkSchema({ grade: 4, why: 'x' }, schema), ['"grade" should be a string']);
+  assert.deepEqual(checkSchema({ grade: '5', why: 'x' }, schema), ['"grade" is "5", not one of 1, 2, 3']);
+  assert.deepEqual(checkSchema({ grade: '1', why: 'x', extra: 1 }, schema), ['unexpected "extra"']);
+  assert.deepEqual(checkSchema(null, schema), ['the answer is not an object']);
+});

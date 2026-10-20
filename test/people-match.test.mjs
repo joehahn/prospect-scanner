@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
-import { nameParts, samePersonOnFile, titlesAgree } from '../src/people-match.mjs';
+import { nameParts, pageNames, samePersonOnFile, titlesAgree } from '../src/people-match.mjs';
 
 const db = new Database(':memory:');
 db.exec('CREATE TABLE people (id TEXT PRIMARY KEY, name TEXT, title TEXT, org_id TEXT)');
@@ -38,4 +38,12 @@ test('at another firm the title has to agree too', () => {
 test('titles agree on shared words, not on one', () => {
   assert.equal(titlesAgree('Chief Information Officer', 'CIO and Chief Information Officer'), true);
   assert.equal(titlesAgree('Chief Financial Officer', 'Chief Operating Officer'), false);
+});
+
+test('a page names the person by surname, or as LinkedIn shows a stranger: first name and initial', () => {
+  assert.equal(pageNames('Omar H.\nHe/Him · 2nd\nState Chief Data Officer', 'Omar Haddad'), true);
+  assert.equal(pageNames('Profile of Ana Haddad', 'Omar Haddad'), true);
+  assert.equal(pageNames('Omar Haddock, CDO', 'Omar Haddad'), false);
+  assert.equal(pageNames('Omar K.\nChief Data Officer', 'Omar Haddad'), false);
+  assert.equal(pageNames('Jane Smith, CFO', 'Omar Haddad'), false);
 });

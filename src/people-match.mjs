@@ -49,6 +49,20 @@ export function nameParts(name) {
   return { firsts: [...new Set(firsts)], last: words.at(-1) };
 }
 
+/**
+ * Whether a page names this person: the surname anywhere, or a first name and
+ * the surname's initial ("Omar H."), which is how LinkedIn shows someone
+ * outside your network. A state CDO's own profile was refused as someone
+ * else's because the page never spelled out the surname.
+ */
+export function pageNames(text, name) {
+  const parts = nameParts(name);
+  if (!parts) return true;
+  const t = String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (t.includes(parts.last)) return true;
+  return parts.firsts.some((f) => new RegExp(`\\b${f}\\s+${parts.last[0]}\\.`).test(t));
+}
+
 const firstsMatch = (a, b) => a.some((x) => b.some((y) => x === y
   || (Math.min(x.length, y.length) >= 3 && (x.startsWith(y) || y.startsWith(x)))
   || nickOf.get(x)?.has(y)));

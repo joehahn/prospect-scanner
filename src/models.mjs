@@ -14,7 +14,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'node:fs';
-import { isOpenRouter, chat, parseJson } from './openrouter.mjs';
+import { isOpenRouter, chat, parseJson, checkSchema } from './openrouter.mjs';
 
 // Not every model takes every parameter, and sending one that a model does not
 // support is a 400, not a graceful degradation. `claude-haiku-4-5` rejects both
@@ -408,15 +408,21 @@ async function completeOpenRouter(db, runId, { model, system, messages, schema, 
     if (!/finish_reason error\)/.test(e.message)) throw e;
     a = await call(messages);
   }
+  // An answer that parses but does not fit the schema (a key missing, a value
+  // off its enum) is asked for once more the same way, naming what is wrong.
   let data = null;
   if (schema) {
+    const wrong = (d) => (d === null ? ['not valid JSON'] : checkSchema(d, schema));
     data = parseJson(a.text);
-    if (data === null) {
+    let problems = wrong(data);
+    if (problems.length) {
       a = await call([...messages, { role: 'assistant', content: a.text },
-        { role: 'user', content: 'That reply was not valid JSON. Reply with only the JSON object the schema asks for.' }]);
+        { role: 'user', content: `That reply does not fit the schema: ${problems.join('; ')}. `
+          + 'Reply with only the JSON object the schema asks for.' }]);
       data = parseJson(a.text);
-      if (data === null) {
-        const err = new Error(`${a.model} returned unparseable JSON twice despite a schema: ${a.text.slice(0, 300)}`);
+      problems = wrong(data);
+      if (problems.length) {
+        const err = new Error(`${a.model} twice returned JSON that does not fit the schema (${problems.join('; ')}): ${a.text.slice(0, 300)}`);
         err.raw = a.text;
         throw err;
       }
