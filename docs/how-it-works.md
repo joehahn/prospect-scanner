@@ -6,37 +6,37 @@
 %%{init: {'themeVariables': {'fontSize': '18px'}, 'flowchart': {'wrappingWidth': 240, 'nodeSpacing': 30, 'rankSpacing': 36, 'subGraphTitleMargin': {'top': 6, 'bottom': 14}}}}%%
 flowchart TD
   subgraph intake["Intake: dated events, not lists"]
-    Q["AI writes searches from business.yml targets and events"]:::ai
-    W["News and web search (Tavily), appointment columns, conference agendas, directories, FDIC bank filings"]:::code
-    K["AI keeps only results showing a listed event, in the source's own words"]:::ai
+    Q["AI writes searches from business.yml targets"]:::ai
+    W["Tavily search, appointment columns, agendas, directories, FDIC filings"]:::code
+    K["AI keeps only listed events, in the source's words"]:::ai
     PA["Profiles you paste into the dashboard"]:::you
     Q --> W --> K
   end
   subgraph vet["Vetting, on the firm's own site"]
-    WS["LLM + Anthropic web search: finds the firm's own website"]:::ai
-    V["Fetch under robots.txt; browser only where permitted"]:::code
-    X["AI extracts facts, people, size; describes the firm in one sentence"]:::ai
-    B["Investment firms, on request: AI reads partner bios, board seats, portfolio"]:::ai
-    G{{"Gates: code, each with a recorded reason"}}:::code
+    WS["AI + web search finds the firm's site"]:::ai
+    V["Fetch under robots.txt"]:::code
+    X["AI extracts facts, people, size, one-sentence description"]:::ai
+    B["Investment firms: AI reads bios, board seats, portfolio"]:::ai
+    G{{"Gates: code, each with a reason"}}:::code
     V --> B
     WS --> V --> X --> G
   end
   K --> WS
   PA --> X
-  G -- "passes" --> F["Baseline formula: code scores everyone; the judge must beat it"]:::code
-  F --> J["Screen once on the cheap model, then judge: AI rates the best 1-5, three runs, few-shot from your Write first / Would write / Wouldn't clicks"]:::ai
+  G -- "passes" --> F["Baseline formula: the score the judge must beat"]:::code
+  F --> J["Screen on the cheap model, then judge: AI rates the best 1-5, three runs, from your earlier calls"]:::ai
   G -- "killed" --> L[("Gate log")]:::code
-  J --> P["Dashboard in your browser: ranked prospects (Ready, All prospects), plus Sent, Searches, Scoreboard and Spend pages"]:::code
+  J --> P["Dashboard: ranked prospects, plus Sent, Searches, Scoreboard, Spend"]:::code
   P <--> Y(("You")):::you
   P -- "your Write first / Would write / Wouldn't" --> J
-  P -- "Draft" --> RD["Read: AI works out what the person is trying to do and which offer fits, using board seats where known"]:::ai
-  RD --> D["Draft: AI writes from your sent notes and what you said about them"]:::ai
-  D --> CC["Claim check: AI traces every claim to the evidence; a different model grades the draft"]:::ai
+  P -- "Draft" --> RD["Read: AI works out the person's goal and the offer that fits"]:::ai
+  RD --> D["Draft: AI writes from your sent notes and your words about them"]:::ai
+  D --> CC["Claim check traces every claim; a different model grades"]:::ai
   CC --> P
   P -- "revise in plain words" --> D
-  P -- "records what you mark Sent" --> S[("Database: every fact with its source, your clicks, drafts, sent text, replies; every AI call costed")]:::code
-  RC["Recheck: AI re-reads stored events against their source"]:::ai -.-> K
-  CLI["AI agent: Claude Code runs any step when asked in plain English; or npm scripts"]:::agent -.-> intake
+  P -- "marked Sent" --> S[("Database: sourced facts, clicks, drafts, sends, replies, AI costs")]:::code
+  RC["Recheck: AI re-reads events against their source"]:::ai -.-> K
+  CLI["AI agent: Claude Code runs any step on request; or npm scripts"]:::agent -.-> intake
   Y -.- CLI
   classDef ai fill:#dfe8fb,stroke:#3b5ba9,color:#111
   classDef code fill:#eeeeee,stroke:#888888,color:#111
@@ -48,228 +48,157 @@ flowchart TD
 
 ## Intake: dated events, not lists
 
-A prospect enters because something happened: a new AI leader named, a vendor chosen,
-a fund raised, a conference talk about a problem the operator solves. Six sources:
+A prospect enters because something dated happened. Six sources:
 
-- **Measured searches.** Written by a model from the operator's plain-prose targets and
-  events, approved once, run weekly. Each run records what it found and what each find
-  became (vetted, rated, written to, replied). A search that finds nothing twice in a
-  row retires itself. An event can be marked as found on the open web rather than in
-  news (posts, talks, podcasts, job postings), and its searches then cover the whole
-  web. A search can instead be limited to the press-release wires, where vendors
-  announce their customers.
+- **Measured searches,** written by a model from the operator's targets and events,
+  approved once, run weekly, retired after two empty runs ([Measurement](measurement.md)).
+  Events found on the open web (posts, talks, podcasts, job postings) are searched
+  across the whole web; a search can instead be limited to press-release wires.
 - **Appointment columns** in trade press, for newly named data and AI leaders.
-- **Conference agendas,** read from the organiser's own pages: a speaker and the
-  session they are giving arrive together. New conferences are found where the
-  operator's example prospects speak and through searches written from the
-  targets, then read with a general reader that keeps only speakers the page
-  itself names.
-- **The operator's pastes** of a profile they read themselves, stored with a
-  provenance marker so they are never mistaken for something retrieved.
-- **Firm lists,** for a target limited to one kind of firm that publishes no events,
-  such as small recruiting firms that place contractors. Rankings and directories are
-  found and read for firm names; each firm waits outside the book until its own site
-  has been checked. It is admitted only if the site makes it the target's kind,
-  looks like the firm of an example prospect the operator named for that target,
-  no gate kills it, and it names someone in one of the target's seats. Everyone else at
-  an admitted firm is dropped, and every firm turned away keeps its reason.
-- **The bank register.** Banks of the size this book targets announce almost nothing,
-  so they are listed by size from the FDIC's quarterly filings instead, and the
-  filings themselves supply a dated reason: a cost of earning a dollar in the worst
-  quarter of US banks the same size, a year running, or assets that just crossed
-  $10bn. Each fact cites the filing it came from.
+- **Conference agendas** from the organiser's own pages, keeping only speakers the page
+  names, with their sessions. New conferences are found where example prospects speak
+  and by searches from the targets.
+- **The operator's pastes** of a profile they read themselves, stored with a provenance
+  marker so they are never mistaken for something retrieved.
+- **Firm lists** from rankings and directories, for a target limited to one kind of
+  firm that publishes no events. A firm is admitted only if its own site makes it the
+  target's kind, it resembles an example prospect's firm, no gate kills it, and it names
+  someone in one of the target's seats, who alone is kept. Every firm turned away keeps
+  its reason.
+- **The bank register.** Banks of the targeted size announce almost nothing, so they
+  are listed by size from the FDIC's quarterly filings, which also supply the dated
+  reason: a cost of earning a dollar in the worst quarter of US banks the same size, a
+  year running, or assets that just crossed $10bn. Each fact cites its filing.
 
-Every stored event keeps what its source actually said, not just an event label, and
-`npm run recheck` re-reads older ones against their source and retracts any the words
-do not support.
+`npm run recheck` retracts any stored event its source's words do not support.
 
 ## Vetting and gates
 
-**Finding the firm's website** is a Claude call with Anthropic's web search tool, a
-couple of searches at most per firm; searching for events is Tavily's search API. Both
-are costed in the same ledger.
+**Vetting** finds the firm's site with Claude and Anthropic's web search tool (a couple
+of searches at most, costed like Tavily's), then reads it under `robots.txt`: what it
+does in one plain sentence, how big it is, who is named. A page redirecting to a different business is
+refused. A browser is used only where `robots.txt` permits the page and a plain fetch
+cannot read it, and the run records when ([Guardrails](guardrails.md)).
 
-**Vetting reads the firm's own site,** under its `robots.txt`: what it does, in one
-plain sentence rather than its slogan; how big it is; who is named. A page that
-redirects to a different business is refused. A browser is used only where
-`robots.txt` permits the page and a plain fetch cannot read it, and the run records
-when it was needed.
-
-**For an investment firm** (`npm run bios`), each person's bio is read for their
-committees and board seats, and the portfolio page for the companies it holds. Each
-current portfolio company enters the book linked to the partner on its board, so one
-note to a partner can point at a named company, and a card at that company shows who
-owns it and who sits on its board. A page that is really the team list served at every
-bio address is detected and discarded.
+**For an investment firm** (`npm run bios`), bios are read for committees and board
+seats, and the portfolio page for holdings. Each current portfolio company enters the
+book linked to the partner on its board, so a note to the partner can name it, and its
+card shows who owns it and who sits on its board. A team list served at every bio
+address is detected and discarded.
 
 **Gates are code, not judgment.** Too small, too big, already staffed for the work, a
-marketplace, a recent note to the same firm: each is a function with a recorded
-reason, and a killed firm stays in the log with why. A talent marketplace or expert
-network is killed; a staffing firm whose recruiters place contractors is a separate
-kind, and passes.
+marketplace or expert network, a recent note to the same firm: each is a function, and a
+killed firm stays in the log with its reason. A staffing firm placing contractors is a
+separate kind, and passes.
 
 ## The judge
 
-The judge rates each person 1 to 5 on how compelling a note would be, three times, and
-keeps the median; a spread of two or more is shown. It is given no scoring rules.
-It is given the operator's past calls on the most similar people (write first, would
-write, wouldn't, each with the reason given), and its reasons cite evidence by id. It
-also rates who decides (owns the budget, influences, or neither) and records which
-target the person fits. Each call the operator makes becomes an example for the next.
-
-Before the full judge, a **screen** asks the same question once, with the same
-prompt and evidence, on the cheap model; only people it rates 2 or more are judged
-in full. The judge itself is MiniMax M3, served through OpenRouter on the host it was
-measured on ([measurement](measurement.md)).
-
-A simple weighted scoring formula runs alongside it on the same people, as the
-baseline it is measured against ([measurement](measurement.md)).
+The judge rates each person 1 to 5 on how compelling a note would be, three times,
+keeping the median and showing a spread of two or more. It has no scoring rules, only
+the operator's past calls on the most similar people with their reasons, and it cites
+evidence by id. It also rates who decides (owns the budget, influences, or
+neither) and records which target the person fits. A **screen** first asks the same
+question once on the cheap model, and only people it rates 2 or more are judged in
+full. The judge is MiniMax M3 through OpenRouter, on the host it was measured on, and a
+weighted formula runs beside it as the baseline it must beat
+([Measurement](measurement.md)).
 
 ## The dashboard
 
-Static HTML pages generated from the database, opened from disk or through a small
-form server (`npm run inbox`, bound to 127.0.0.1, started by hand) that records the
-operator's clicks, pastes and sends into the database.
+Static HTML from the database, opened from disk or through a form server
+(`npm run inbox`, 127.0.0.1, started by hand) that records clicks, pastes and sends.
 
 - **All prospects:** everyone not yet written to, in the judge's order.
 - **Ready:** the short list, rated 3 and up.
 - **To paste:** promising people whose profile the operator has not read yet.
 - **Funnel, Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
 
-Every prospect on these pages is a **card**: one person, with everything needed to
-decide whether to write to them and how. Both working pages filter their cards in
-place by target, offer, geography, the operator's call, who decides, and whether a
-profile has been pasted.
+Each prospect is a **card**, and the working pages filter cards in place by target,
+offer, geography, the operator's call, who decides, and whether a profile is pasted.
 
 ### What a card shows
 
-Top to bottom:
-
-- **The judge's rating, the person and their title,** then the firm and what it does
-  in one plain sentence, with a link to its site.
-- **The reason to write.**
-- **Need, owner, value:** whether the firm has a named need, whether this person owns
-  the budget or only influences it, and how big the work could be; then how many days
-  since the triggering event, and the suggested channel. *Why, in full* opens the
-  judge's reasoning, each point tied to its evidence.
-- **Events and facts,** each dated, in the source's own words, with a link to the
-  source. Facts from a profile the operator pasted are marked as theirs.
-- **Reach by:** the channel to use and why. A real address first, a message if
-  connected, a connection request for someone who knows the operator, a paid InMail
-  only for cards worth a credit, and a guessed address marked as a guess. A known
-  address has a copy button. Channels already tried are skipped.
-- **A profile search link,** which the operator clicks to find the person themselves,
-  and a box to paste the profile they read.
-- **The operator's call:** *Write first*, *Would write* or *Wouldn't*, with a word of
-  reason. These clicks are what the judge learns from.
-- **The note:** the latest draft, the channel and its recipient, a character count
-  where the channel has a limit, *Draft again* with plain-word revise instructions,
-  and *Sent as …* once it has gone.
-- **Status,** where it applies: *In flight* once a note is sent, or *Cooling off* when
-  someone else at the firm was written to recently.
+- **Rating, person, title, firm** in one sentence with a link, and **the reason to write**.
+- **Need, owner, value:** a named need, whether this person owns or only influences the
+  budget, the size of the work, days since the event, and the suggested channel. *Why,
+  in full* opens the judge's reasoning, each point tied to its evidence.
+- **Events and facts,** dated, in the source's own words, linked to the source; facts
+  from a pasted profile are marked as the operator's.
+- **Reach by:** a real address, else a message if connected, a connection request if
+  they know the operator, a paid InMail if worth a credit, a guessed address marked as a
+  guess. Addresses have a copy button; channels tried are skipped.
+- **A profile search link** the operator clicks, and a box to paste what they read.
+- **The operator's call:** *Write first*, *Would write* or *Wouldn't*, with a reason.
+- **The note:** latest draft, channel and recipient, a character count where the channel
+  has a limit, *Draft again* with plain-word instructions, and *Sent as …* once gone.
+- **Status:** *In flight* once sent, *Cooling off* if a colleague was written to recently.
 
 The main page opens on **Accepted, not yet written to**: everyone who accepted a
-connection request in the last fourteen days and has had nothing since, each with the
-latest unsent draft and a copy button. Each gets one note, and silence after it is not
-chased. *In flight* shows everyone written to, whatever their seat.
+connection request in the last fourteen days with nothing since, with the latest unsent
+draft. Each gets one note; silence is not chased.
+*In flight* shows everyone written to, whatever their seat.
 
 ## The read and the draft
 
-Before drafting, a **read** works out what the person is trying to do, what is in the
-way, and which offer would help. It starts as soon as a profile is pasted for someone
-the judge says to write to, so it is usually done by the time the operator presses
-Draft; a profile pasted after a read was made sends the person back to be read again. It labels the goal by where it came from: **stated**
-(they or the firm said it), **inferred** (at least two dated facts point the same
-way, among them why the person is in the seat now) or **role only**. The **drafter**
-then works out a storyline before writing a word: that goal, a lede from something
-the person said or did recently that bears on it, the bridge to the operator's work,
-and the offer that is the logical next step, chosen from every live offer. The
-storyline heads the draft's notes, so the reasoning can be checked before the
-wording, and the offer it chose is the one the draft records. An offer may carry
-variants in `business.yml`, the same offer argued another way for a particular dated
-event, each with its own pitch and link; the drafter is told which variants the firm's
-live events support and leads with one when its lede is that event. Each offer's link
-can be a tracked short link, so clicks from notes are counted apart from other
-traffic. An inferred goal
-steers the note without being asserted in it. The drafter writes from the read; from examples of
-the operator's own sent notes; from the boards a partner sits on; and from anything
-the operator has said about the person, in a verdict or a revise instruction, which
-outranks the model's inference.
+**The read** works out the person's goal, what is in the way, and which offer would
+help, once a profile is pasted for someone the judge says to write to (a later paste
+reads again). The goal is **stated** (they or the firm said it), **inferred** (at least two dated facts agree, among them why the
+person is in the seat now) or **role only**. An inferred goal steers the note but is
+never asserted in it.
 
-**The examples are the operator's latest sent notes** on the same kind of channel (up to fifteen; email, InMail and LinkedIn messages
-share one pool, a connection note learns only from connection notes), each shown with what it was written from (the
-firm, dated events, the read, the facts on file and the start of the pasted profile),
-the drafter's reasoning at the time, what the operator asked to change, and what went
-out. The set moves with every note sent, so drafting follows the operator's
-current voice; its size is capped, so cost per draft does not grow with the history.
-When too few such notes exist, the draft falls back to the fixed, hand-picked set in
-`prompts/voice.md`, and records that it did.
-Retired wording in an old note (`you.superseded_wording` in `business.yml`) is updated
-before it is shown. A revise instruction that is long or quotes a prospect's own page
-is withheld; the note it shaped is still shown. Each draft records which set it came from, and the Scoreboard
-shows how much of each set's drafts the operator changes before sending.
+**The drafter** first sets a storyline, shown atop the draft's notes: the goal, a lede
+from something the person recently said or did, the bridge to the operator's work, and
+the live offer that is the logical next step. An offer may carry variants in
+`business.yml` for a particular dated event, with their own pitch and tracked link, used
+when the lede is that event. A partner's board seats are used, and anything the
+operator has said about the person outranks the model's inference.
 
-**Phrases the operator has retired** are listed in the voice file. Wording repeated
-note after note makes every note read as the same template, so a draft that uses one
-is flagged in the terminal and on its card, to be reworded before it goes out.
+**The examples are the operator's latest sent notes** on the same kind of channel, up
+to fifteen (email, InMail and LinkedIn messages share a pool; connection notes learn
+only from connection notes), each with its inputs, the drafter's reasoning, the
+revise requests and the text sent; with too few, it falls back to `prompts/voice.md`. Old notes have
+retired wording (`you.superseded_wording` in `business.yml`) updated, long revise
+requests or ones quoting a prospect's page are withheld, and retired phrases listed in
+the voice file are flagged on the card. The Scoreboard
+compares example sets ([Measurement](measurement.md)).
 
 **The first message after an accepted connection** is one plain note: why the operator
-asked to connect, what he does for someone in that seat, and an open door with nothing
-to do. It carries no tactic: no question built to be easy to answer, no offer to send
-something, no hook on a talk or post, no referral or meeting ask, and no restating of
-the note they accepted. One note, then nothing more; what the person sees next is the
-operator's own posts and comments. These messages learn only from earlier ones of their
-kind, and the Scoreboard counts them apart from the comparison of example sets.
+asked to connect, what he does for someone in that seat, and an open door. No tactic,
+offer, hook, referral or meeting ask, and no restating of the accepted note; after it,
+only the operator's own posts and comments. These learn only from their own kind.
 
-**A comment on a fresh post.** A pasted profile carries its Activity section, and
-now and then a post the person wrote in the last week. Each paste is checked for one
-by its dates alone, which costs nothing; only when one is young enough does a model
-read the section, decide whether the post is worth a public comment (the person's
-own post, from a buyer rather than a vendor, on something the operator can add to
-from experience, and inviting a reply), and draft two comments of one or two plain
-sentences, written for a prospect skimming the operator's activity: one memorable
-result from his work, no jargon, no figure that needs context to mean anything, no
-method. They carry no pitch, link or offer, stay within the operator's strengths
-and public proof points, and pass the same never-claim screen as the notes. The
-operator's own posted comments become the drafter's examples. **Worth a comment**,
-at the top of the Ready and main pages, lists them until the post is a week old; the
-operator comments by hand, records what he posted, and later marks whether the
-poster replied or it led to an email.
+**A comment on a fresh post.** A pasted profile's Activity section is checked by date
+alone, at no cost, for the person's own post from the last week. Only then does a model
+judge whether a buyer's post invites a comment the operator can add to, and draft two of
+one or two plain sentences: one memorable result, no jargon, pitch, link or offer, within
+the never-claim screen, learned from past posted comments. **Worth a comment**, atop the
+Ready and main pages, lists them for a week; the operator comments by hand and records
+the outcome.
 
-Every note, cold or not, is pitched at the reader's level and proposes custom work
-where packaged software does not reach: the unstructured material around a team's
-systems, and the routine calls made from it, drafted for a person to approve.
+Every note proposes custom work where packaged software does not reach: the
+unstructured material around a team's systems and the routine calls made from it,
+drafted for a person to approve.
 
-A separate call **checks every factual claim** in the draft against the evidence on
-file, including a recorded acceptance, and flags any it cannot trace. Then a **grader**,
-a different model, reads the note on six questions: is every claim on file; does it
-hand the reader their own facts back; does it claim anything the operator never
-claims; does it break a channel rule; does every reference land; and, advisory, does
-the approach fit the person (not their own job, the right ask for a buyer or a router,
-at their level, not something a product already does, a lede that is theirs). Its
-flags appear on the card with the words that failed. The operator revises in plain words ("drop the
-number, lead with the diligence angle"); every version is kept.
+**Checking and grading.** A separate call traces every factual claim to the evidence on
+file, including a recorded acceptance, and flags any it cannot. A **grader**, a
+different model, asks six questions: claims on file, no recital of the reader's own
+facts, no never-claim, no broken channel rule, every reference lands, and, advisory,
+whether the approach fits (not their own job, the right ask for a buyer or a router, at
+their level, not what a product already does, a lede that is theirs). Flags show on the
+card with the words that failed. Revisions are in plain words; every version is kept,
+**Sent** records the exact text and channel, and replies link to the note that drew them.
 
-**Sent** records the note exactly as the operator sent it, on the channel used. The
-gap between drafted and sent is kept for every note, and replies are linked to the
-note that drew them.
-
-**The channel is tested the same way.** Every person rated 4+ who can be written to
-and has an address at the firm's own domain, published or guessed from a published
-pattern, is
-assigned email or LinkedIn, alternately, and the card suggests that channel. The
-operator still chooses; what was actually sent is what is counted. The Scoreboard
-compares reply rates on sends at least fourteen days old, with bounces counted apart
-from silence, since a note that never arrived says nothing about the channel. The
-alternation is what makes it fair: email otherwise goes wherever an address happens
-to be published, and those people are not like the rest. A personal address, such as
-one a profile offers for job inquiries, stays on file but does not qualify: silence in
-a personal inbox says nothing about the channel.
+**The channel test.** Every person rated 4+ with an address at the firm's own domain
+(published, or guessed from a published pattern) is assigned email or LinkedIn
+alternately, so channel is not confounded with who publishes an address. The operator
+still chooses; what was sent is counted, and the Scoreboard compares reply rates on
+sends at least fourteen days old, bounces apart from silence. Personal addresses do
+not qualify.
 
 ## Steps and their commands
 
-Each step can be run on its own, by the command shown or by asking Claude Code. The
-daily run strings the routine ones together.
+Each step runs on its own, by command or by asking Claude Code; the daily run chains
+the routine ones.
 
 | Step | Command | What it does | Model tier |
 |---|---|---|---|
@@ -297,16 +226,13 @@ daily run strings the routine ones together.
 | Dashboard | `npm run dash` | static HTML from SQLite | none |
 | Daily | `npm run daily` | the routine run, once a weekday: searches and agendas weekly, vet, gate, rank, screen, judge, research, addresses, dashboard; no drafts | as above |
 
-The model each tier names is set in `config/runtime.yml` ([Setup](setup.md)): the
-judge tier is MiniMax M3 through OpenRouter, the rest are Claude. The daily run's
-Claude calls go through the Batches API at half price; the judge's calls through
-OpenRouter do not.
 
-**The instructions each AI step follows are kept in their own files,** under
-`prompts/`, not buried in the code. Each file carries a version number and a note of
-why it last changed, and every rating and draft records which file produced it and
-when. So when a rating looks wrong or a draft gets better, you can see exactly which
-instructions were in force at the time, and whether a change to them helped.
+Tiers map to models in `config/runtime.yml` ([Setup](setup.md)): the judge is MiniMax
+M3 through OpenRouter, the rest are Claude. The daily run's Claude calls use the
+Batches API at half price.
+
+**Prompts live in versioned files** under `prompts/`, each noting why it last changed,
+and every rating and draft records which one produced it.
 
 **Storage** is one SQLite file, gitignored: firms, people, evidence with provenance,
 dated events, gate results, judgments, verdicts, drafts, sends, replies, searches and
