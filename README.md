@@ -84,7 +84,7 @@ AI at all.
 |---|---|
 | **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and pulls out what a firm does, who decides, and whose boards a partner sits on. Finding a firm's own website uses Claude with Anthropic's web search tool. Pages vary endlessly, and a fixed schema keeps the output checkable. |
 | **LLM screening**<br/>Claude Haiku | Asks the judge's question once, with the same prompt and evidence, on the cheap model, so the judge's three runs go only to people worth them. I measure how well the screen predicts the judge, and set its pass mark from that. |
-| **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (MiniMax M3 through OpenRouter, chosen by agreement with my calls at a fifth of Sonnet's price), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
+| **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (MiniMax M3: agrees with my calls as well as Sonnet, at a third of the cost), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
 | **LLM writing**<br/>Claude Opus | Works out the note's storyline, drafts it, and revises it when I ask. A separate call then checks every claim against its source before the note is saved. |
 | **LLM grading**<br/>Claude Sonnet | Grades every draft as it is written, with a different model from the one that wrote it, so no model grades its own work. Are the claims on file? Does the note recite the reader's own facts back to them? Does it claim anything I never claim, break a channel rule, or point at something that isn't there? A failing draft is flagged on its card with the words that failed, and every grade is kept, so a defect rate traces back to the model and prompt that wrote the note. |
 | **AI agent**<br/>Claude Code | Runs any step when I ask in plain English. Open-ended requests need an agent that can use tools. |
@@ -95,6 +95,9 @@ step to a cheaper model is a measured decision, not a hunch. The morning's Claud
 (screening and research) go through the Batches API at half price, since nobody reads
 them until later, and the part of the judge's prompt that is the same for every person
 is cached.
+
+![AI spend per note sent, by week and step, with each model change marked](docs/images/spend-per-note.png)
+<sub>AI spend per note sent, by week and step, from the dashboard's Spend page. Dotted lines mark the day a step's model changed. The morning run costs the same whether I send or not, so a light week of sending reads higher; the latest week is partial.</sub>
 
 ## How I use it
 
