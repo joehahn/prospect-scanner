@@ -23,13 +23,15 @@ each. I edit and send every note myself, by email or LinkedIn.
 ## What it does
 
 - **Finds people with a dated reason to talk.** A new AI leader named, a vendor
-  chosen, a fund raised, a conference talk about a problem worth solving. Not lists
-  of names.
+  chosen, a fund raised, a hire for work a machine could do, a conference talk about
+  a problem worth solving. It reads news and job postings, appointment columns,
+  conference agendas, industry directories and, for banks, the FDIC's quarterly
+  filings. Not lists of names.
 - **Vets each firm from its own website.** What it does, how big it is, who decides,
   and for an investment firm, whose boards each partner sits on.
-- **Rates every prospect with an AI judge that learns from me.** There are no scoring
-  rules. It learns from my calls on similar people, Write first or Wouldn't, and gets
-  better with each one.
+- **Rates the strongest prospects with an AI judge that learns from me.** There are
+  no scoring rules. It learns from my calls on similar people: Write first, Would
+  write or Wouldn't.
 - **Drafts the note in my voice,** from notes I actually sent, then checks every
   factual claim against its source before I see it.
 - **Measures itself.** Every model call is costed, every claim is sourced, and the AI
@@ -41,18 +43,18 @@ each. I edit and send every note myself, by email or LinkedIn.
 flowchart TD
   subgraph daily["Every weekday morning, automatically"]
     Q["LLM writing: turns your targets into web searches"]:::ai
-    W["Web search, appointment columns, conference agendas"]:::code
+    W["Web search (news, job postings), appointment columns, conference agendas, directories, FDIC bank filings"]:::code
     K["LLM reading: keeps news of something that just happened, quoting the source"]:::ai
     V["LLM reading: extracts what each firm does and who decides, from its own site"]:::ai
     G{{"Rules drop firms that are too small, too big, out of region, or that sell what you sell"}}:::code
     S["LLM screening: one cheap pass over everyone not yet judged"]:::ai
-    J["LLM judgment: rates the best screened 1-5, learning from your earlier Write first / Wouldn't clicks"]:::ai
+    J["LLM judgment: rates the best screened 1-5, learning from your earlier Write first / Would write / Wouldn't clicks"]:::ai
     Q --> W --> K --> V --> G --> S --> J
   end
   J --> R[("Database (SQLite): prospects, sources, your clicks, drafts, sends, AI costs")]:::code
   R ---> P["A dashboard in your browser: ranked prospects, each with its evidence; a firm you wrote to in the last two weeks is held back"]:::code
   P <--> Y(("You")):::you
-  P -- "your Write first / Wouldn't clicks, pasted profiles, notes marked Sent" ---> R
+  P -- "your Write first / Would write / Wouldn't clicks, pasted profiles, notes marked Sent" ---> R
   P -- "Draft" --> D["LLM writing + judgment: drafts the note, a second call checks every claim"]:::ai
   D --> R
   C["AI agent: Claude Code runs any step when you ask in plain English"]:::agent
@@ -78,17 +80,17 @@ AI at all.
 |---|---|
 | **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and pulls out what a firm does, who decides, and whose boards a partner sits on. Finding a firm's own website uses Claude with Anthropic's web search tool. Pages vary endlessly, and a fixed schema keeps the output checkable. |
 | **LLM screening**<br/>Claude Haiku | Asks the judge's question once, with the same prompt and evidence, on the cheap model, so the judge's three runs go only to people worth them. I measure how well the screen predicts the judge, and set its pass mark from that. |
-| **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Wouldn't calls (MiniMax M3 through OpenRouter, chosen by agreement with my calls at a fifth of Sonnet's price), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
+| **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (MiniMax M3 through OpenRouter, chosen by agreement with my calls at a fifth of Sonnet's price), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
 | **LLM writing**<br/>Claude Opus | Works out the note's storyline, drafts it, and revises it when I ask. A separate call then checks every claim against its source before the note is saved. |
-| **LLM grading**<br/>Claude Fable | Grades each morning's drafts with a different model from the one that wrote them, so no model grades its own work. Are the claims on file? Does the note recite the reader's own facts back to them? Does it claim anything I never claim, break a channel rule, or point at something that isn't there? A failing draft is flagged on its card with the words that failed, and every grade is kept, so a defect rate traces back to the model and prompt that wrote the note. |
+| **LLM grading**<br/>Claude Sonnet | Grades every draft as it is written, with a different model from the one that wrote it, so no model grades its own work. Are the claims on file? Does the note recite the reader's own facts back to them? Does it claim anything I never claim, break a channel rule, or point at something that isn't there? A failing draft is flagged on its card with the words that failed, and every grade is kept, so a defect rate traces back to the model and prompt that wrote the note. |
 | **AI agent**<br/>Claude Code | Runs any step when I ask in plain English. Open-ended requests need an agent that can use tools. |
 | **No AI**<br/>deterministic code | News and event search (Tavily's search API), fetching, robots.txt, the gates, the baseline score, storage, the dashboard and cost tracking. Anything that can be computed is computed, and tested. |
 
 Each step's model is set in config and every call's cost is recorded, so moving a
-step to a cheaper model is a measured decision, not a hunch. The morning's screening,
-judging and grading go through the Batches API at half price, since nobody reads them
-until later, and the part of the judge's prompt that is the same for every person is
-cached.
+step to a cheaper model is a measured decision, not a hunch. The morning's Claude calls
+(screening and research) go through the Batches API at half price, since nobody reads
+them until later, and the part of the judge's prompt that is the same for every person
+is cached.
 
 ## How I use it
 
