@@ -232,15 +232,15 @@ function readInBackground(db, person) {
   return true;
 }
 
-/** Block until a background read for this person finishes, or give up after READ_WAIT_MS. */
-function awaitBackgroundRead(person) {
+/** Wait until a background read for this person finishes, or give up after READ_WAIT_MS. */
+async function awaitBackgroundRead(person) {
   const mark = readMark(person);
   if (!existsSync(mark)) return;
   if (Date.now() - statSync(mark).mtimeMs > READ_WAIT_MS) { rmSync(mark, { force: true }); return; }
   console.log(`  waiting for the background read of ${person}`);
-  const tick = new Int32Array(new SharedArrayBuffer(4));
+  // Polled, not blocked on: a blocking wait froze every other tab's request with it.
   const until = Date.now() + READ_WAIT_MS;
-  while (existsSync(mark) && Date.now() < until) Atomics.wait(tick, 0, 0, 500);
+  while (existsSync(mark) && Date.now() < until) await new Promise((ok) => setTimeout(ok, 500));
   rmSync(mark, { force: true });
 }
 
@@ -296,6 +296,20 @@ function ingest(fields) {
 const run = (args) => new Promise((ok, no) => execFile('npm', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 24 },
   (err, stdout, stderr) => (err ? no(Object.assign(err, { stdout, stderr })) : ok(stdout))));
 let pasteChain = Promise.resolve();
+
+// ONE REBUILD AT A TIME, SHARED (2026-10-21). Drafts now run side by side, one
+// per open card tab, and each ended in its own rebuild of every page: six at
+// once would write the same files over each other. A rebuild asked for while
+// one is waiting to start joins it, since it will read the database after
+// this change; one asked for mid-rebuild waits for the next.
+let rebuildTail = Promise.resolve();
+let rebuildNext = null;
+function rebuild() {
+  if (rebuildNext) return rebuildNext;
+  rebuildNext = rebuildTail.then(() => { rebuildNext = null; return run(['run', 'dash', '--silent']); });
+  rebuildTail = rebuildNext.catch(() => {});
+  return rebuildNext;
+}
 let pasteCount = 0;
 const pasteJobs = new Map();
 const pasteFailures = [];
@@ -342,7 +356,7 @@ function queuePaste(personId, args) {
     if (pasteCount > 0) return;
     try {
       await run(['run', 'rank', '--silent']);
-      await run(['run', 'dash', '--silent']);
+      await rebuild();
       console.log('  re-ranked and rebuilt');
     } catch (e) { console.log(`  rebuild failed: ${String(e.stderr || e.message).slice(0, 200)}`); }
   });
@@ -376,7 +390,7 @@ function commentInBackground(person) {
 }
 
 // COMMENTED / SKIP / REPLIED / EMAIL, from the main page's comment list.
-function commentAction(f) {
+async function commentAction(f) {
   const id = String(f.id ?? '').trim();
   const act = String(f.do ?? '').trim();
   if (!/^\d+$/.test(id)) throw new Error('no comment id');
@@ -391,14 +405,14 @@ function commentAction(f) {
     args.push(`--${act}`, id);
   } else throw new Error(`unknown comment action "${act}"`);
   const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
-  execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+  await rebuild();
   return out.trim();
 }
 
 // DRAFT / REVISE / SENT, from the card. Each shells out to the stage that owns
 // the judgment -- `draft` for writing and revising, `lead -- sent` for the
 // record -- so nothing here re-implements a rule that lives elsewhere.
-function note(fields) {
+async function note(fields) {
   const person = (fields.person ?? '').trim();
   if (!person) throw new Error('no person');
   const channel = (fields.channel ?? 'linkedin_inmail').trim();
@@ -425,7 +439,7 @@ function note(fields) {
     // An InMail to an Open Profile spends no credit (lead sent --free).
     if (fields.free) args.push('--free');
     const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
-    execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+    await rebuild();
     return out.trim();
   }
 
@@ -444,7 +458,7 @@ function note(fields) {
   //
   // Only when one is missing. A read the operator has already seen, or rejected
   // and re-run, is not re-derived behind his back.
-  awaitBackgroundRead(person);
+  await awaitBackgroundRead(person);
   const lastRead = db.prepare(`SELECT MAX(created_at) at FROM reads
       WHERE person_id = ? AND rejected_at IS NULL`).get(person)?.at;
   // ...and when a profile was pasted after it: the read never saw that page.
@@ -462,12 +476,11 @@ function note(fields) {
   if ((!lastRead || saidSince || promptNewer || pastedSince) && act !== 'revise') {
     console.log(`  ${lastRead ? 'read out of date' : 'no read'} for ${person} — reading before drafting`);
     try {
-      execFileSync('npm', ['run', 'read', '--silent', '--', '--person', person, ...(lastRead ? ['--redo'] : [])],
-        { cwd: ROOT, encoding: 'utf8' });
+      await run(['run', 'read', '--silent', '--', '--person', person, ...(lastRead ? ['--redo'] : [])]);
     } catch (e) {
       // A read that fails is not a reason to refuse to draft; it is a reason to
       // say so. The draft then runs as it always did, on evidence alone.
-      console.log(`  read failed (${e.status}), drafting without one`);
+      console.log(`  read failed (${e.code}), drafting without one`);
     }
   }
 
@@ -492,12 +505,16 @@ function note(fields) {
 // Exit 2 from `draft` means the note was written and FAILED ITS CLAIM CHECK.
 // That is a verdict, not a crash: the draft is in the table and the operator
 // needs to see it and the reason, on the card, rather than an error page.
-function runDraft(args, person) {
+//
+// ASYNC SINCE 2026-10-21, so the server keeps answering while a draft runs: six
+// card tabs each pressing Draft used to wait in line, and every page load with
+// them. They now draft side by side.
+async function runDraft(args, person) {
   let out = '';
   try {
-    out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
+    out = await run(args);
   } catch (e) {
-    if (e.status !== 2) throw e;
+    if (e.code !== 2) throw e;
     out = String(e.stdout ?? '');
     console.log('  draft written but a claim could not be sourced — see the card');
   }
@@ -506,9 +523,9 @@ function runDraft(args, person) {
   // drafter) flags a failing note on its card before it is sent.
   // Since 2026-10-12 `draft` grades its own draft before it exits, so the
   // command line gets the same grade; this catches only a draft that skipped it.
-  try { execFileSync('npm', ['run', 'grade', '--silent', '--', '--person', person], { cwd: ROOT, encoding: 'utf8' }); }
+  try { await run(['run', 'grade', '--silent', '--', '--person', person]); }
   catch (e) { console.log(`  grade failed for ${person}: ${String(e.stderr || e.message).slice(0, 160)}`); }
-  execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+  await rebuild();
   return out.trim();
 }
 
@@ -531,7 +548,7 @@ createServer((req, res) => {
       const back = (f.back ?? '').trim() || '/';
       await pasteSettled(f.person);
       try {
-        note(f);
+        await note(f);
         res.writeHead(303, { location: back }).end();
         console.log(`  ${f.do} · ${f.person} · ${f.channel}`);
       } catch (e) {
@@ -547,10 +564,10 @@ createServer((req, res) => {
   if (url.pathname === '/comment') {
     let raw = '';
     req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       const f = Object.fromEntries(new URLSearchParams(raw));
       try {
-        console.log(`  ${commentAction(f)}`);
+        console.log(`  ${await commentAction(f)}`);
         res.writeHead(303, { location: (f.back ?? '').trim() || '/' }).end();
       } catch (e) {
         send(page(db, { err: `comment refused:\n${e.stderr || e.message}` }));
@@ -579,7 +596,7 @@ createServer((req, res) => {
           '--source', f.source === 'blind' ? 'blind' : 'card'];
         if ((f.why ?? '').trim()) args.push('--why', f.why.trim());
         const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
-        execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+        await rebuild();
         res.writeHead(303, { location: back }).end();
         console.log(`  verdict ${out.trim()}`);
       } catch (e) {
@@ -595,7 +612,7 @@ createServer((req, res) => {
   if (url.pathname === '/balance') {
     let raw = '';
     req.on('data', (c) => { raw += c; if (raw.length > 1e4) req.destroy(); });
-    req.on('end', () => {
+    req.on('end', async () => {
       const f = Object.fromEntries(new URLSearchParams(raw));
       const n = Number(String(f.credits ?? '').trim());
       const channel = String(f.channel || 'linkedin_inmail');
@@ -608,7 +625,7 @@ createServer((req, res) => {
       db.prepare(`INSERT INTO balances (channel, credits, as_of, after_id) VALUES (?, ?, ?, ?)
           ON CONFLICT(channel) DO UPDATE SET credits = excluded.credits, as_of = excluded.as_of,
           after_id = excluded.after_id`).run(channel, n, new Date().toISOString(), after);
-      execFileSync('npm', ['run', 'dash', '--silent'], { cwd: ROOT, encoding: 'utf8' });
+      await rebuild();
       res.writeHead(303, { location: (f.back ?? '').trim() || '/' }).end();
       console.log(`  balance ${channel} = ${n}`);
     });

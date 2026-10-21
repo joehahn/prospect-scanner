@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 2, 2026-10-18.**
+**Version 3, 2026-10-21.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -13,6 +13,10 @@ v1 drafts on the first live post: the people who matter are prospects skimming
 his activity to see whether he knows his stuff, and they read a comment in a few
 seconds. A method in four steps, a raw dollar figure and "within three points"
 all went unread. What he posted was one plain result.*
+
+*v3: the operator decides from the card without opening the post, so the
+summary says what the post says in one or two plain sentences, draft A is the
+one you recommend, and `draft_why` says why it is the comment to post.*
 
 ---
 
@@ -90,6 +94,12 @@ knows his subject. They give a comment a few seconds. Each draft:
   date. "" when no post qualifies.
 - `post_excerpt`: the first ten or so words of the chosen post, exactly as
   pasted, so the operator can find it. "" when none.
-- `summary`: the post's point in one plain line, under twenty words.
+- `summary`: what the post says, in one or two plain sentences, so the operator
+  can decide without reading it. State the poster's point or question, not your
+  view of it.
 - `why`: one sentence. Why it is worth a comment, or which test it fails.
-- `draft_a`, `draft_b`: the two comments, or "" when not worthy.
+- `draft_a`: the comment you recommend posting. `draft_b`: a different angle.
+  Both "" when not worthy.
+- `draft_why`: one or two plain sentences on why draft A is the comment to post:
+  what it adds to the post, and what a prospect skimming it would take away
+  about the operator. "" when not worthy.

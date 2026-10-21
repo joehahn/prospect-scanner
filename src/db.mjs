@@ -481,6 +481,7 @@ CREATE TABLE IF NOT EXISTS comments (
   post_excerpt     TEXT,               -- the opening of the post, to find it again
   summary          TEXT,               -- the post's point in one line
   why              TEXT,               -- why it is, or is not, worth a comment
+  draft_why        TEXT,               -- why draft A is the comment to post
   draft_a          TEXT,
   draft_b          TEXT,
   posted_text      TEXT,               -- what he actually posted
@@ -829,6 +830,7 @@ export function openDb(path = DB_PATH, { quiet = true } = {}) {
   addRevenueSource(db);
   addSizeProvenance(db);
   addAddressCheck(db);
+  addCommentWhy(db);
   addNextStep(db);
   addVerdicts(db);
   addGradeClarity(db);
@@ -921,6 +923,14 @@ function addVerdicts(db) {
 function addAddressCheck(db) {
   const cols = db.prepare('PRAGMA table_info(orgs)').all().map((c) => c.name);
   if (!cols.includes('addresses_checked_at')) db.exec('ALTER TABLE orgs ADD COLUMN addresses_checked_at TEXT');
+}
+
+// WHY THIS COMMENT, added 2026-10-21. `why` says why the post deserves one;
+// the operator also wants to know why the drafted comment says what it says,
+// without reading the post.
+function addCommentWhy(db) {
+  const cols = db.prepare('PRAGMA table_info(comments)').all().map((c) => c.name);
+  if (cols.length && !cols.includes('draft_why')) db.exec('ALTER TABLE comments ADD COLUMN draft_why TEXT');
 }
 
 function addSizeProvenance(db) {

@@ -886,6 +886,34 @@ window.addEventListener('DOMContentLoaded', () => {
     document.body.prepend(d);
   });
 });
+// ONE CARD IN ITS OWN TAB (2026-10-21). Every card gets a link that opens this
+// same page with ?card=<its id>; that page shows the card alone, so it can sit
+// in a tab while the operator writes, and its forms post back to it.
+window.addEventListener('DOMContentLoaded', () => {
+  const only = new URLSearchParams(location.search).get('card');
+  if (only) {
+    const el = document.getElementById(only);
+    const wrap = document.querySelector('.wrap');
+    if (!el || !wrap) return;
+    const all = document.createElement('p');
+    all.innerHTML = '<a href="' + location.pathname + '">← all cards</a>';
+    el.hidden = false;
+    wrap.replaceChildren(all, el);
+    if (el.dataset.name) document.title = el.dataset.name;
+    return;
+  }
+  for (const card of document.querySelectorAll('article.card[id]')) {
+    const h = card.querySelector('h3');
+    if (!h) continue;
+    const a = document.createElement('a');
+    a.href = location.pathname + '?card=' + encodeURIComponent(card.id);
+    a.target = '_blank';
+    a.title = 'Open this card in its own tab';
+    a.textContent = '↗';
+    a.style.cssText = 'margin-left:.4rem;text-decoration:none;font-weight:400';
+    h.appendChild(a);
+  }
+});
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
 // thirty seconds -- and an unchanged page for that long reads as a dead button.
@@ -895,8 +923,9 @@ document.addEventListener('submit', (e) => {
   // Back to the same page on the server, by name, however this copy was opened.
   // The server's root serves the Ready page, so a post from '/' goes back to
   // '/', not to index.html (the old ranker's page, which that name still holds).
+  // The query string too, so a card opened in its own tab comes back alone.
   if (b) b.value = '/' + (location.protocol === 'file:' && !location.pathname.split('/').pop()
-    ? 'ready.html' : location.pathname.split('/').pop()) + '#' + (f.closest('article')?.id || '');
+    ? 'ready.html' : location.pathname.split('/').pop()) + location.search + '#' + (f.closest('article')?.id || '');
   const pressed = e.submitter || f.querySelector('button[type=submit]:focus');
   const label = pressed ? pressed.value : '';
   // A DISABLED SUBMIT BUTTON IS NOT SUBMITTED. Disabling it for the working
@@ -1441,14 +1470,20 @@ function commentsPanel(db) {
      WHERE c.posted_at IS NOT NULL ORDER BY c.posted_at DESC`).all();
   if (!open.length && !posted.length) return '';
   const back = '<input type="hidden" name="back" value="">';
-  const draftBlock = (label, text) => text ? `<p><b>${label}</b> <button class="copy" type="button" data-copy="${
-    esc(text)}">copy</button></p><div class="wrapped">${esc(text)}</div>` : '';
+  // THREE THINGS, READ WITHOUT OPENING THE POST (2026-10-21): what it says, the
+  // comment, and why that comment. The rest is for finding the post or wanting
+  // another angle, so it waits behind a click.
+  const copyBtn = (text) => `<button class="copy" type="button" data-copy="${esc(text)}">copy</button>`;
   const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b></td>
       <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
         searchLink(c.name, c.org_name, c.profile_url)}</td>
-      <td><p>${esc(c.summary)}</p><p class="dim">Starts: &ldquo;${esc(c.post_excerpt)}&rdquo;</p>
-        <p class="dim">${esc(c.why)}</p>
-        ${draftBlock('A', c.draft_a)}${draftBlock('B', c.draft_b)}
+      <td><p><b>The post</b>, starting &ldquo;${esc(String(c.post_excerpt ?? '').trim().replace(/[.…\s]+$/, ''))}&hellip;&rdquo;<br>${esc(c.summary)}</p>
+        <p><b>Your comment</b> ${copyBtn(c.draft_a)}</p><div class="wrapped">${esc(c.draft_a)}</div>
+        <p><b>Why this comment</b><br>${esc(c.draft_why || c.why)}</p>
+        <details class="raw"><summary>Why this post${c.draft_b ? ', and another angle' : ''}</summary>
+          ${c.draft_why ? `<p class="dim">${esc(c.why)}</p>` : ''}
+          ${c.draft_b ? `<p><b>Another angle</b> ${copyBtn(c.draft_b)}</p><div class="wrapped">${esc(c.draft_b)}</div>` : ''}
+        </details>
         <form method="post" action="${SERVER}/comment" class="nb notebox">${back}
           <input type="hidden" name="id" value="${c.id}">
           <textarea name="body" rows="4" placeholder="Paste what you posted, as you posted it.">${esc(c.draft_a)}</textarea>
@@ -1469,8 +1504,8 @@ function commentsPanel(db) {
         ${c.led_to_email ? '<b>led to an email</b>' : '<button type="submit" name="do" value="email">Led to an email</button>'}
       </form></td></tr>`).join('\n');
   return `<section class="panel"><h2>Worth a comment</h2>
-<p class="lead">A post the person wrote in the last ${COMMENT_WINDOW_DAYS} days, found in a profile you pasted, with two
-short comments drafted from your experience. Find it from the search link, comment, then record what you posted. No pitch and
+<p class="lead">A post the person wrote in the last ${COMMENT_WINDOW_DAYS} days, found in a profile you pasted: what it says,
+a short comment drafted from your experience, and why that comment. Find it from the search link, comment, then record what you posted. No pitch and
 no link: your headline beside the comment does that. A row leaves once the post is a week old.</p>
 ${open.length ? `<table><thead><tr><th>Posted</th><th>Person</th><th>Post and drafts</th></tr></thead><tbody>
 ${items}
@@ -2469,6 +2504,11 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
       ${declined ? '' : gradeLine(draft).html}${declined ? '' : retiredLine(draft)}
       <textarea name="body" rows="12" placeholder="No draft yet. Press Draft.">${body}</textarea>
       <p class="nbcount dim" data-max="${CONNECT_NOTE_MAX}"${ch === 'linkedin_connect_note' ? '' : ' hidden'}></p>
+      <div class="nbrow">
+        <button type="submit" name="do" value="sent" class="sent">Sent as ${esc(({ email: 'Email', linkedin_inmail: 'InMail', linkedin_connect_note: 'Connection note', linkedin_message: 'LinkedIn message' })[ch] ?? ch)}</button>
+        ${ch === 'linkedin_inmail' ? '<label class="nbnote"><input type="checkbox" name="free" value="1"> free (Open Profile, no credit spent)</label>' : ''}
+        <span class="nbnote">Sent records the box above exactly as it stands — edit it first.</span>
+      </div>
       ${draft?.body && (declined || noteOnly(draft.body) !== String(draft.body).trim())
         ? `<details class="nbwhy"${declined ? ' open' : ''}><summary class="dim">${
             declined ? 'why it declined' : 'why it wrote that'}</summary><pre>${
@@ -2476,11 +2516,6 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
       <div class="nbrow">
         <input name="revise" placeholder="or say what to change — e.g. change &quot;senior AI capacity&quot; to &quot;an extra pair of hands&quot;">
         <button type="submit" name="do" value="revise">Go</button>
-      </div>
-      <div class="nbrow">
-        <button type="submit" name="do" value="sent" class="sent">Sent as ${esc(({ email: 'Email', linkedin_inmail: 'InMail', linkedin_connect_note: 'Connection note', linkedin_message: 'LinkedIn message' })[ch] ?? ch)}</button>
-        ${ch === 'linkedin_inmail' ? '<label class="nbnote"><input type="checkbox" name="free" value="1"> free (Open Profile, no credit spent)</label>' : ''}
-        <span class="nbnote">Sent records the box above exactly as it stands — edit it first.</span>
       </div>
     </form></details>`;
 }

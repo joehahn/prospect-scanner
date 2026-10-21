@@ -39,15 +39,16 @@ export const WINDOW_DAYS = 7;
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['worthy', 'post_date', 'post_excerpt', 'summary', 'why', 'draft_a', 'draft_b'],
+  required: ['worthy', 'post_date', 'post_excerpt', 'summary', 'why', 'draft_a', 'draft_b', 'draft_why'],
   properties: {
     worthy: { type: 'boolean' },
     post_date: { type: 'string', description: 'YYYY-MM-DD, or "" when no post qualifies.' },
     post_excerpt: { type: 'string', description: 'The first ten or so words of the chosen post, as pasted.' },
-    summary: { type: 'string', description: "The post's point in one plain line." },
+    summary: { type: 'string', description: 'What the post says, in one or two plain sentences.' },
     why: { type: 'string', description: 'Why it is worth a comment, or which test it fails.' },
     draft_a: { type: 'string' },
     draft_b: { type: 'string' },
+    draft_why: { type: 'string', description: 'Why draft A is the comment to post.' },
   },
 };
 
@@ -168,12 +169,14 @@ async function commentOne(db, runId, ctx, person, paste) {
   const a = clean(d.draft_a); const b = clean(d.draft_b);
   const worthy = Boolean(d.worthy) && Boolean(a || b);
   db.prepare(`INSERT INTO comments (person_id, evidence_id, worthy, post_date, post_excerpt, summary, why,
-      draft_a, draft_b, model, prompt_file, cost_usd, run_id, created_at)
-    VALUES (@person, @ev, @worthy, @date, @excerpt, @summary, @why, @a, @b, @model, @pf, @cost, @run, @now)`)
+      draft_a, draft_b, draft_why, model, prompt_file, cost_usd, run_id, created_at)
+    VALUES (@person, @ev, @worthy, @date, @excerpt, @summary, @why, @a, @b, @dwhy, @model, @pf, @cost, @run, @now)`)
     .run({ person: person.id, ev: paste.id, worthy: worthy ? 1 : 0, date: d.post_date || null,
       excerpt: d.post_excerpt ?? '', summary: d.summary ?? '',
       why: (d.why ?? '') + (d.worthy && !worthy ? ' (drafts dropped: they named something on the never-claim list)' : ''),
-      a: worthy ? (a || b) : '', b: worthy && a ? b : '', model: res.model ?? ctx.model, pf: PROMPT_FILE,
+      a: worthy ? (a || b) : '', b: worthy && a ? b : '',
+      // The reason is A's; when A was dropped and B stands in, it no longer applies.
+      dwhy: worthy && a ? String(d.draft_why ?? '').trim() : '', model: res.model ?? ctx.model, pf: PROMPT_FILE,
       cost: res.cost_usd ?? 0, run: runId, now: new Date().toISOString() });
   return { worthy, why: d.why ?? '', summary: d.summary ?? '', cost: res.cost_usd ?? 0 };
 }
