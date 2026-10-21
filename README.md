@@ -7,8 +7,8 @@ my own clients, and I use it nearly every day.
 
 Finding clients is mostly research. Which firms just did something that gives me a
 reason to write? Is this one worth an hour? Who there can actually say yes? This
-does that research from public evidence, so hours of reading become minutes of
-deciding. Each morning I get a short list of people and, when I ask, a draft note to
+does that research from public evidence, so what was hours of reading is now minutes
+of deciding. Each morning I get a short list of people and, when I ask, a draft note to
 each. I edit and send every note myself, by email or LinkedIn.
 
 ![The dashboard's Ready page, a LinkedIn profile open in the user's own browser, and Claude Code in a terminal](docs/images/in-use.png)
@@ -41,21 +41,25 @@ each. I edit and send every note myself, by email or LinkedIn.
 ```mermaid
 %%{init: {'flowchart': {'wrappingWidth': 360, 'nodeSpacing': 30, 'rankSpacing': 36, 'subGraphTitleMargin': {'top': 6, 'bottom': 14}}}}%%
 flowchart TD
+  Q["LLM writing: turns your targets into web searches, which you approve once"]:::ai
+  M["Run by hand: firms from industry directories, banks from FDIC filings"]:::code
   subgraph daily["Every weekday morning, automatically"]
-    Q["LLM writing: turns your targets into web searches"]:::ai
-    W["Web search (news, job postings), appointment columns, conference agendas, directories, FDIC bank filings"]:::code
-    K["LLM reading: keeps news of something that just happened, quoting the source"]:::ai
-    V["LLM reading: extracts what each firm does and who decides, from its own site"]:::ai
+    W["Weekly: run the searches (news, job postings, appointment columns) and read conference agendas"]:::code
+    K["LLM reading: keeps only a dated event, quoting the source"]:::ai
+    V["LLM reading: what each firm does and who decides, from its own site"]:::ai
     G{{"Rules drop firms that are too small, too big, out of region, or that sell what you sell"}}:::code
     S["LLM screening: one cheap pass over everyone not yet judged"]:::ai
     J["LLM judgment: rates the best screened 1-5, learning from your earlier Write first / Would write / Wouldn't clicks"]:::ai
-    Q --> W --> K --> V --> G --> S --> J
+    X["LLM research: what others publish about the strongest people, LinkedIn blocked, then judged again; email addresses from firm sites"]:::ai
+    W --> K --> V --> G --> S --> J --> X
   end
-  J --> R[("Database (SQLite): prospects, sources, your clicks, drafts, sends, AI costs")]:::code
+  Q --> W
+  M --> V
+  X --> R[("Database (SQLite): prospects, sources, your clicks, drafts, sends, AI costs")]:::code
   R ---> P["A dashboard in your browser: ranked prospects, each with its evidence; a firm you wrote to in the last two weeks is held back"]:::code
   P <--> Y(("You")):::you
   P -- "your Write first / Would write / Wouldn't clicks, pasted profiles, notes marked Sent" ---> R
-  P -- "Draft" --> D["LLM writing + judgment: drafts the note, a second call checks every claim"]:::ai
+  P -- "Draft" --> D["LLM writing: works out what the person wants, drafts the note; a second call checks every claim, a different model grades it"]:::ai
   D --> R
   C["AI agent: Claude Code runs any step when you ask in plain English"]:::agent
   Y -.- C
@@ -66,7 +70,7 @@ flowchart TD
   classDef you fill:#fff3d6,stroke:#b8860b,color:#111
 ```
 
-<sub>Blue: a single LLM call (Claude) for reading, judgment or writing, each with a structured output. Purple: an AI agent that uses tools. Grey: deterministic code, search, and the database every step reads and writes. Amber: you.</sub>
+<sub>Blue: an LLM step for reading, judgment or writing; each call returns a structured output. All run on Claude except the judge, which runs on MiniMax M3. Purple: an AI agent that uses tools. Grey: deterministic code, search, and the database every step reads and writes. Amber: you.</sub>
 
 ## Where AI is used, and where it isn't
 
