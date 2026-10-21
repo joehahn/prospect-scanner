@@ -277,8 +277,19 @@ export async function complete(db, runId, {
       // `.stream()` with `finalMessage()` returns the same shape the rest of this
       // function already reads, so nothing downstream changes. Below the
       // threshold the plain call is kept: it is simpler and the limit is real.
+      //
+      // A STREAM CUT OFF MID-ANSWER IS RETRIED ONCE (2026-10-21). The plain call
+      // retries on its own; the stream did not, so a connection dropped by the
+      // network surfaced as a bare "terminated" and a draft refused for nothing
+      // the operator could fix.
+      const streamOnce = () => getClient().messages.stream(req).finalMessage();
       res = maxTokens > 16000
-        ? await getClient().messages.stream(req).finalMessage()
+        ? await streamOnce().catch((e) => {
+          if (!(e instanceof Anthropic.APIConnectionError)
+            && !/terminated|ECONNRESET|socket hang up|other side closed/i.test(`${e?.message} ${e?.cause?.message}`)) throw e;
+          console.error(`  the connection dropped mid-answer (${e?.message}); trying once more`);
+          return streamOnce();
+        })
         : await getClient().messages.create(req, CALL_OPTS);
     }
   } catch (err) {
