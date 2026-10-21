@@ -125,5 +125,6 @@ models:
   # it is `default`. An id not starting with claude- runs through OpenRouter
   # (OPENROUTER_API_KEY); measure one against your own calls before switching.
   # judge: "minimax/minimax-m3"
-  grader: "claude-opus-5"
+  # Grades every draft; must differ from `draft`, so no model grades its own work.
+  grader: "claude-sonnet-5"
   bakeoff: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"]

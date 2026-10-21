@@ -3871,10 +3871,13 @@ ${group('Reachability priors', 'sectors.yml', [
 ])}
 
 ${group('Retrieval and models', 'runtime.yml', [
-  ['models.default', cfg.models?.default ?? '—', 'Drafting, the discovery judge, and promote.'],
-  ['models.cheap', cfg.models?.cheap ?? '—', 'Enrichment and profile extraction.'],
-  ['models.grader', cfg.models?.grader ?? '—',
-   'Reserved for the unbuilt grader. Deliberately never used in the production path.'],
+  ['models.default', cfg.models?.default ?? '—',
+   'The read of what a person is after, research, searches and event reading; any tier left unset.'],
+  ['models.cheap', cfg.models?.cheap ?? '—', 'Screening, enrichment, firm descriptions and profile extraction.'],
+  ['models.draft', cfg.models?.draft ?? cfg.models?.default ?? '—', 'Drafting and revising notes, and comments.'],
+  ['models.judge', cfg.models?.judge ?? cfg.models?.default ?? '—',
+   'The full judge\'s 1-5 ratings. An id not starting with claude- runs through OpenRouter.'],
+  ['models.grader', cfg.models?.grader ?? '—', 'Grades every draft as it is written. Must differ from the draft model.'],
   ['news.lookback_days', news.lookback_days ?? 365,
    'How far back an event may be dated and still count. Also sets a signal’s decay.'],
   ['news.max_discovery_queries', news.max_discovery_queries ?? 12,

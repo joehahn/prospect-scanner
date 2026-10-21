@@ -647,10 +647,11 @@ export function loadConfig(dir = CONFIG_DIR) {
 
   want(isStr(cfg.models?.grader), 'models.grader is missing; the grading stage has no frontier model');
   want(isArr(cfg.models?.bakeoff), 'models.bakeoff is empty; the cost study cannot sweep');
-  if (isStr(cfg.models?.grader) && isArr(cfg.models?.bakeoff)) {
-    // §8: the grader must never sit in the production path being graded.
-    want(!cfg.models.bakeoff.includes(cfg.models.grader),
-      `models.grader "${cfg.models.grader}" also appears in models.bakeoff; a model cannot grade its own output`);
+  if (isStr(cfg.models?.grader)) {
+    // A model cannot grade its own output: the grader must differ from the drafter.
+    const drafter = cfg.models.draft ?? cfg.models.default;
+    want(cfg.models.grader !== drafter,
+      `models.grader "${cfg.models.grader}" is also the draft model; a model cannot grade its own output`);
   }
 
   if (errors.length) throw new ConfigError(errors, path);
