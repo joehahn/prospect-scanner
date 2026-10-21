@@ -39,10 +39,11 @@ many people and rates few can be seen. The Funnel page; no model, no cost.
 **Which model drafts, and which grades.** A model change for a step is tested on the
 same people before it is made. Drafting: ten people drafted on each of two models and
 graded by the grader without knowing which wrote which; the newer model passed 2 of 10
-against 1, with fewer recitals and no unsourced claim, at 7% less per draft, and it now
-drafts. Grading: a model at a sixth of the grader's cost agreed on every pass/fail
-verdict over 20 drafts but missed the one unsourced claim the grader caught, so the
-grader stayed.
+against 1, with fewer recitals and no unsourced claim, at 7% less per draft, and it
+drafts. Grading: on 27 drafts graded by both Claude Sonnet and a model at more than
+four times its cost per draft, the two agreed on unsourced claims 26 of 27, on
+never-claim 27 of 27, on clarity 27 of 27 and on recital 25 of 27, so Sonnet grades.
+It is not the drafter, so no model grades its own work.
 
 **What each search is worth.** Each weekly search records what it returned, what
 qualified, and what each find became: vetted, rated 4 or 5, written to, replied. A
@@ -85,8 +86,8 @@ compares each pair of redrafts against what was actually sent, blind and in both
 orders, counting a split as a tie. Over 30 notes, four sets (the fixed notes, notes
 picked for a similar recipient, the operator's sentence edits, and the latest notes
 with their inputs) came out within chance of one another. The test has a known tilt:
-every sent note began as a draft from the fixed set, so redrafts from that set start
-closer to it. It can show a new set is worse; it cannot show one is better. That is
+a sent note began as a draft from one set, so redrafts from that set start closer
+to it. It can show a new set is worse; it cannot show one is better. That is
 decided live, on how much the operator changes each draft.
 
 **Whether a stored fact still holds.** Events found by search keep the source's own
@@ -110,7 +111,7 @@ the words do not support, with the reason.
   GLM-5.3 and Qwen 3.8 fell well short. The host matters as much as the model: the
   same MiniMax id on a host serving a more compressed copy reasoned a fifth as much
   and agreed with him 78%, so the judge is pinned to the host that was measured.
-  That host no longer enforces an answer's schema, so the schema goes in the request
+  That host does not enforce an answer's schema, so the schema goes in the request
   and each answer is checked against it here. Re-measured that way on the same 149
   people: 82.6% agreement, and it still ranked his writes above his skips better than
   Sonnet (0.90 against 0.87-0.89). The same model on a host that does enforce the
@@ -122,6 +123,7 @@ the words do not support, with the reason.
 - **Nondeterminism is measured, not ignored.** The same input can get a different
   rating. The judge runs three times and the spread is shown; one run is never treated
   as a measurement.
-- **Models are right-sized by step.** Cheap models read pages and extract facts; the
-  most capable model drafts. Because cost is recorded per step and per model, a change of
+- **Models are right-sized by step.** Cheap models read pages, extract facts and
+  screen; the judge is the cheapest model that agrees with the operator; the most
+  capable model drafts. Because cost is recorded per step and per model, a change of
   tier is a measured decision rather than a guess.

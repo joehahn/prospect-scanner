@@ -7,7 +7,7 @@
 flowchart TD
   subgraph intake["Intake: dated events, not lists"]
     Q["AI writes searches from business.yml targets and events"]:::ai
-    W["News and event search (Tavily), appointment columns, conference agendas"]:::code
+    W["News and web search (Tavily), appointment columns, conference agendas, directories, FDIC bank filings"]:::code
     K["AI keeps only results showing a listed event, in the source's own words"]:::ai
     PA["Profiles you paste into the dashboard"]:::you
     Q --> W --> K
@@ -24,14 +24,14 @@ flowchart TD
   K --> WS
   PA --> X
   G -- "passes" --> F["Baseline formula: code scores everyone; the judge must beat it"]:::code
-  F --> J["Judge: AI rates 1-5, three runs, few-shot from your Write first / Wouldn't clicks"]:::ai
+  F --> J["Screen once on the cheap model, then judge: AI rates the best 1-5, three runs, few-shot from your Write first / Would write / Wouldn't clicks"]:::ai
   G -- "killed" --> L[("Gate log")]:::code
   J --> P["Dashboard in your browser: ranked prospects (Ready, All prospects), plus Sent, Searches, Scoreboard and Spend pages"]:::code
   P <--> Y(("You")):::you
   P -- "your Write first / Would write / Wouldn't" --> J
   P -- "Draft" --> RD["Read: AI works out what the person is trying to do and which offer fits, using board seats where known"]:::ai
   RD --> D["Draft: AI writes from your sent notes and what you said about them"]:::ai
-  D --> CC["Claim check: AI traces every claim to the evidence"]:::ai
+  D --> CC["Claim check: AI traces every claim to the evidence; a different model grades the draft"]:::ai
   CC --> P
   P -- "revise in plain words" --> D
   P -- "records what you mark Sent" --> S[("Database: every fact with its source, your clicks, drafts, sent text, replies; every AI call costed")]:::code
@@ -54,8 +54,10 @@ a fund raised, a conference talk about a problem the operator solves. Six source
 - **Measured searches.** Written by a model from the operator's plain-prose targets and
   events, approved once, run weekly. Each run records what it found and what each find
   became (vetted, rated, written to, replied). A search that finds nothing twice in a
-  row retires itself. An event can be marked as found in first-person writing (posts,
-  talks, podcasts) rather than news, and its searches then cover the whole web.
+  row retires itself. An event can be marked as found on the open web rather than in
+  news (posts, talks, podcasts, job postings), and its searches then cover the whole
+  web. A search can instead be limited to the press-release wires, where vendors
+  announce their customers.
 - **Appointment columns** in trade press, for newly named data and AI leaders.
 - **Conference agendas,** read from the organiser's own pages: a speaker and the
   session they are giving arrive together. New conferences are found where the
@@ -115,6 +117,11 @@ write, wouldn't, each with the reason given), and its reasons cite evidence by i
 also rates who decides (owns the budget, influences, or neither) and records which
 target the person fits. Each call the operator makes becomes an example for the next.
 
+Before the full judge, a **screen** asks the same question once, with the same
+prompt and evidence, on the cheap model; only people it rates 2 or more are judged
+in full. The judge itself is MiniMax M3, served through OpenRouter on the host it was
+measured on ([measurement](measurement.md)).
+
 A simple weighted scoring formula runs alongside it on the same people, as the
 baseline it is measured against ([measurement](measurement.md)).
 
@@ -127,7 +134,7 @@ operator's clicks, pastes and sends into the database.
 - **All prospects:** everyone not yet written to, in the judge's order.
 - **Ready:** the short list, rated 3 and up.
 - **To paste:** promising people whose profile the operator has not read yet.
-- **Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
+- **Funnel, Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
 
 Every prospect on these pages is a **card**: one person, with everything needed to
 decide whether to write to them and how. Both working pages filter their cards in
@@ -277,19 +284,23 @@ daily run strings the routine ones together.
 | Bios | `npm run bios` | bios, board seats, portfolios of investment firms | cheap |
 | Gates | `npm run gate` | deterministic disqualifiers | none |
 | Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
-| Judge | `npm run judge` | 1-5 rating from past decisions | default |
+| Judge | `npm run judge` | 1-5 rating from past decisions | judge |
 | Bio | `npm run bio` | a person's official bio from their organisation's own site or a conference site, never LinkedIn, so fewer profiles are pasted by hand | default |
 | Research | `npm run research` | a third-party summary of a person from across the web (news, interviews, podcasts, directories), every fact with its page; LinkedIn is blocked at the search tool; the people found are judged again | default |
 | Read | `npm run read` | what the person is trying to do | default |
-| Draft | `npm run draft` | the note, then a claim check | most capable |
+| Draft | `npm run draft` | the note, then a claim check and a grade | most capable |
+| Grade | `npm run grade` | a draft graded on six questions by a model other than the one that wrote it | grader |
 | Comment | `npm run comment` | on paste: two draft comments on the person's own post from the last week, when one is worth it | most capable |
 | Recheck | `npm run recheck` | stored events re-read against their source | cheap |
 | Replay | `npm run replay` | redraft recent sent notes with each example set, judged blind against what was sent; stores no draft | most capable + grader |
 | Describe | `npm run describe` | each firm in one plain sentence | cheap |
 | Dashboard | `npm run dash` | static HTML from SQLite | none |
-| Daily | `npm run daily` | the routine run, once a weekday | as above |
+| Daily | `npm run daily` | the routine run, once a weekday: searches and agendas weekly, vet, gate, rank, screen, judge, research, addresses, dashboard; no drafts | as above |
 
-The model tier each step uses is set in config ([Setup](setup.md)).
+The model each tier names is set in `config/runtime.yml` ([Setup](setup.md)): the
+judge tier is MiniMax M3 through OpenRouter, the rest are Claude. The daily run's
+Claude calls go through the Batches API at half price; the judge's calls through
+OpenRouter do not.
 
 **The instructions each AI step follows are kept in their own files,** under
 `prompts/`, not buried in the code. Each file carries a version number and a note of

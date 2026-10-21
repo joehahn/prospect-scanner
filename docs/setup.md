@@ -5,11 +5,12 @@
 ## Quickstart
 
 Requires Node 20+, an Anthropic API key (Claude, including its web search tool), and a
-Tavily key for news and event search.
+Tavily key for news and event search. An OpenRouter key is needed only if a model in
+`config/runtime.yml` is not a Claude model.
 
 ```sh
 npm install
-cp .env.example .env                       # ANTHROPIC_API_KEY, TAVILY_API_KEY
+cp .env.example .env                       # ANTHROPIC_API_KEY, TAVILY_API_KEY, OPENROUTER_API_KEY
 for f in config/*.example.yml; do cp "$f" "${f%.example.yml}.yml"; done
 git config core.hooksPath hooks            # the commit-message check
 ```
@@ -20,15 +21,19 @@ you want, and which dated events are worth writing on) and **`config/runtime.yml
 consultancy. The remaining example files hold settings some steps still read; copy
 them too.
 
-**Choosing models.** The code asks for a tier (cheap, default, most capable), never a
-named model; `config/runtime.yml` says which Claude model each tier is. Moving a step
+**Choosing models.** The code asks for a tier (`cheap`, `default`, `draft`, `judge`,
+`grader`), never a named model; `config/runtime.yml` says which model each tier is.
+`draft` and `judge` fall back to `default` when left out. Moving a step
 to a cheaper or stronger model is a one-line change there, and because every call's
 cost is recorded, its effect on cost is measured.
 
-**Using another AI provider.** It has only been run on Claude, but it is not tied to
-it. Every model call goes through one function in one file (`src/models.mjs`), so
-moving to another provider (Azure OpenAI, say) means rewriting that function: the
-request, structured JSON output against a schema, and the price list. Two steps also
+**Using another AI provider.** Every model call goes through one function in one file
+(`src/models.mjs`). A model id that does not start with `claude-` is sent through
+OpenRouter (`src/openrouter.mjs`), which pins the hosts each model may run on and holds
+its price; that is how the judge runs on MiniMax M3. Its calls are costed like any
+other but do not go through Anthropic's Batches API. Moving to a provider outside
+OpenRouter (Azure OpenAI, say) means rewriting that function: the request, structured
+JSON output against a schema, and the price list. Two steps also
 use Anthropic's built-in web search (finding a firm's website, and confirming a news
 event on the firm's own site); those need another search in its place. The prompts
 are plain text and carry over, but they were tuned on Claude, so the first week on a
@@ -54,7 +59,10 @@ a word of reason. Those calls are what the judge learns from. To write to someon
 Draft, revise in plain words, send it yourself, press Sent.
 
 After that, one command a weekday does the routine work (weekly searches and agendas,
-vetting new finds, judging a few, rebuilding the pages):
+vetting new finds, screening everyone not yet judged and judging the best of them,
+researching the strongest, finding addresses, rebuilding the pages). It writes no
+drafts: a note is drafted when you press Draft on its card, and graded as it is
+written.
 
 ```sh
 npm run daily
