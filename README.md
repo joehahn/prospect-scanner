@@ -97,7 +97,7 @@ later, and prompt caching (mostly in drafting and judging) takes about a fifth o
 weekly bill.
 
 ![AI spend per note sent, by week and step, with each model change marked](docs/images/spend-per-note.png)
-<sub>AI spend per note sent, by week and step, from the dashboard's Spend page. Dotted lines mark the day a step's model changed. The morning run costs the same whether I send or not, so a light week of sending reads higher; the latest week is partial.</sub>
+<sub>AI spend per note sent, by week and step, from the dashboard's Spend page; dotted lines mark a step's model change. It fell mostly because one-off build and test work tapered off, drafts are written only when I ask for one, and grading moved to a cheaper model; drafting moved to a stronger, costlier one. The morning run is a fixed cost, so weeks with fewer sends read higher; the latest week is partial.</sub>
 
 ## How I use it
 
