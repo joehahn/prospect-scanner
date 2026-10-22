@@ -30,6 +30,7 @@ import { loadBusiness } from './business.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
 import { recheckPages } from './recheck-pages.mjs';
+import { investorNote } from './investor-note.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, buyerForOrg, packageForBuyer, clearsMoneyGate,
   firmIsStaffed, capabilityTitles } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -239,7 +240,10 @@ ${[org.domain && `Domain: ${org.domain}`, org.hq && `HQ: ${org.hq}`,
    org.industry && `Industry: ${org.industry}`,
    org.headcount_est && `Headcount estimate: ${org.headcount_est}`,
    org.aum_usd && `AUM: $${(org.aum_usd / 1e9).toFixed(1)}B`].filter(Boolean).join('\n')}
-
+${investorNote(org) ? `
+## WHO BUYS (this firm is an investor)
+${investorNote(org)}
+` : ''}
 ## THE PERSON
 ${person.name} — ${person.title ?? 'title unknown'}
 ${[person.decision_role && `Decision role: ${person.decision_role}`,

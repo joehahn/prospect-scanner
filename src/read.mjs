@@ -41,6 +41,7 @@ import { loadBusiness } from './business.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
 import { recheckPages } from './recheck-pages.mjs';
+import { investorNote } from './investor-note.mjs';
 import { complete } from './models.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
@@ -211,6 +212,7 @@ function contextFor(db, person, saidBefore = null) {
     person.degree ? `LinkedIn degree: ${person.degree}` : '',
     person.in_seat_since ? `In seat since: ${person.in_seat_since}` : '',
     ``,
+    ...(investorNote(org) ? [`## Who buys (this firm is an investor)`, investorNote(org), ``] : []),
     ...(operatorSaidLines(db, person.id, saidBefore)
       ? [`## What the operator said about this person (first-hand; outranks inference)`, operatorSaidLines(db, person.id, saidBefore), ``] : []),
     ...(boardLines(db, person.id)

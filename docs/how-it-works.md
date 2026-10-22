@@ -156,7 +156,10 @@ the live offer that is the logical next step. An offer may carry variants in
 when the lede is that event. A person's board seats and advisory roles are used, and
 anything the operator has said about the person outranks the model's inference. A
 "would write" verdict on someone at a firm the gates killed as a buyer lets the note
-be drafted; do-not-contact and holds still refuse.
+be drafted; do-not-contact and holds still refuse. For someone at an investor, each
+offer is judged against the portfolio companies they serve, not the fund's own staff.
+Before the read and the drafter use a talk or a quote, its page is fetched again, and a
+record whose page no longer names the person is removed.
 
 **The examples are the operator's latest sent notes** on the same kind of channel, up
 to fifteen (email, InMail and LinkedIn messages share a pool; connection notes learn
@@ -220,7 +223,7 @@ the routine ones.
 | Screen | `npm run judge -- --screen` | the judge's question, once, to decide who is judged in full | cheap |
 | Judge | `npm run judge` | 1-5 rating from past decisions | judge |
 | Bio | `npm run bio` | a person's official bio from their organisation's own site or a conference site, never LinkedIn, so fewer profiles are pasted by hand | default |
-| Research | `npm run research` | a third-party summary of a person from across the web (news, interviews, podcasts, directories), every fact with its page; LinkedIn is blocked at the search tool; the people found are judged again | default |
+| Research | `npm run research` | a third-party summary of a person from across the web (news, interviews, podcasts, directories), every fact with its page, kept only if that page names the person; LinkedIn is blocked at the search tool; the people found are judged again | default |
 | Read | `npm run read` | what the person is trying to do | default |
 | Draft | `npm run draft` | the note, then a claim check and a grade | most capable |
 | Grade | `npm run grade` | a draft graded on six questions by a model other than the one that wrote it | grader |
