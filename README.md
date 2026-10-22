@@ -93,11 +93,9 @@ AI at all.
 
 ## What the AI costs
 
-At the current pace, about $13 a day in model calls, roughly $400 a month: $1.18 per
-note sent in the last full week, $1.90 the week before. From the first recorded call
-on 2026-08-25 to 2026-10-22, $441 in all, plus 1,846 search credits.
+Model calls cost $1 to $2 per note sent.
 
-Where it goes, over the last three weeks ($304): drafting 39%, judging 20%, grading
+Where it goes: drafting 39%, judging 20%, grading
 14%, web research 7%, working out what a person wants 6%, screening 3%. Reading
 search results and pages, by far the most calls, is about 2%, because a cheap model
 does it.
