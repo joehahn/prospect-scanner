@@ -40,6 +40,7 @@ import { loadTargeting } from './targeting.mjs';
 import { loadBusiness } from './business.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
+import { recheckPages } from './recheck-pages.mjs';
 import { complete } from './models.mjs';
 import { heading, bold, dim } from './report.mjs';
 import { retense } from './events.mjs';
@@ -254,6 +255,14 @@ async function readOne(db, runId, person, cfg, prompt, model, packages, targetin
   const vertical = db.prepare(
     'SELECT vertical_id FROM person_scores WHERE person_id = ? ORDER BY total DESC LIMIT 1')
     .get(person.id)?.vertical_id;
+
+  // The pages a read's next step would rest on, checked again first; not on a
+  // replay (saidBefore), which must see the record as it stood.
+  if (!saidBefore) {
+    for (const r of await recheckPages(db, person)) {
+      console.log(dim(`  removed: ${r.source_url} no longer names ${person.name}`));
+    }
+  }
 
   const res = await complete(db, runId, {
     // 8000 WAS ENOUGH UNTIL THE PROMPT GREW. Adding the sector thesis and the

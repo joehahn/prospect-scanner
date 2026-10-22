@@ -29,6 +29,7 @@ import { openDb, startRun, finishRun } from './db.mjs';
 import { loadBusiness } from './business.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
+import { recheckPages } from './recheck-pages.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, buyerForOrg, packageForBuyer, clearsMoneyGate,
   firmIsStaffed, capabilityTitles } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -723,6 +724,13 @@ async function main() {
   const saidBefore = poolBefore
     ? db.prepare(`SELECT MIN(created_at) t FROM drafts WHERE person_id = ? AND id >= ?`).get(personId, poolBefore)?.t ?? null
     : null;
+  // THE PAGES BEHIND A LEDE, CHECKED AGAIN (recheck-pages.mjs). Not on a
+  // replay, which must see the record as it stood.
+  if (!poolBefore) {
+    for (const r of await recheckPages(db, person)) {
+      console.log(dim(`removed: ${r.source_url} no longer names ${person.name} — ${r.claim.slice(0, 90)}`));
+    }
+  }
   const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff, saidBefore);
 
   const runId = startRun(db, 'draft', { model, notes: `${personId} ${channel} ${serviceId ?? ''}` });
