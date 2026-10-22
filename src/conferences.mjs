@@ -43,7 +43,7 @@ import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
 import { fetchPage, extractText } from './sources/web.mjs';
 import { exemplarText } from './exemplars.mjs';
-import { loadSpeakers, eventDateFrom, markAgendaDays, calendarSessions, sessionDayFrom } from './events.mjs';
+import { loadSpeakers, eventDateFrom, jsonLdEventDate, markAgendaDays, calendarSessions, sessionDayFrom } from './events.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
 
 const FIND_FILE = 'prompts/find-conferences.md';
@@ -313,7 +313,9 @@ async function read(db, cfg, b, args) {
       console.log(`  ${dim('empty')}   ${c.name}`);
       continue;
     }
-    const parsed = eventDateFrom(got.when) ?? eventDateFrom(page.html);
+    // The page's schema.org Event block first: it is the organiser's own
+    // statement, where the reader's `when` can be taken from session timestamps.
+    const parsed = jsonLdEventDate(page.html) ?? eventDateFrom(got.when) ?? eventDateFrom(page.html);
     // A DATE FROM ANOTHER YEAR IS SOME OTHER DATE ON THE PAGE. Added 2026-10-02:
     // a 2026 police technology conference came back dated September 11, 2001,
     // and a 2026 forum August 1, 2021 -- dates the pages mention, not the event.

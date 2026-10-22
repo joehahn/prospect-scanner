@@ -90,10 +90,55 @@ const MONTHS = 'January|February|March|April|May|June|July|August|September|Octo
 const MONTH_N = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
   august: 8, september: 9, october: 10, november: 11, december: 12 };
 
+const iso3 = (yr, mo, d) => `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+const MONTH_NAME = Object.fromEntries(Object.entries(MONTH_N).map(([k, v]) => [v, k[0].toUpperCase() + k.slice(1)]));
+/** The US-style text every reader of a stored date parses back ("November 19-20, 2026"). */
+function usText(from, to) {
+  const [y1, m1, d1] = from.split('-').map(Number);
+  const [y2, m2, d2] = (to ?? from).split('-').map(Number);
+  if (from === (to ?? from)) return `${MONTH_NAME[m1]} ${d1}, ${y1}`;
+  if (y1 === y2 && m1 === m2) return `${MONTH_NAME[m1]} ${d1}-${d2}, ${y1}`;
+  if (y1 === y2) return `${MONTH_NAME[m1]} ${d1}-${MONTH_NAME[m2]} ${d2}, ${y1}`;
+  return `${MONTH_NAME[m1]} ${d1}, ${y1}`;
+}
+
+/** The first schema.org Event's startDate and endDate, or null. */
+export function jsonLdEventDate(html) {
+  const h = String(html ?? '');
+  if (!/"@type"\s*:\s*"(?:\w+)?Event"/.test(h)) return null;
+  const start = h.match(/"startDate"\s*:\s*"(20\d\d-\d\d-\d\d)/);
+  if (!start) return null;
+  const end = h.match(/"endDate"\s*:\s*"(20\d\d-\d\d-\d\d)/);
+  const to = end && end[1] >= start[1] ? end[1] : start[1];
+  return { text: usText(start[1], to), starts_on: start[1], ends_on: to };
+}
+
+/** "19-20 November 2026", "19th November 2026": the day-first form British and European pages use. */
+function dayFirstDate(plain) {
+  const m = plain.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?(?:\\s*[-\u2013\u2014]\\s*(\\d{1,2})(?:st|nd|rd|th)?)?\\s+(${MONTHS}),?\\s+(20\\d\\d)\\b`, 'i'));
+  if (!m) return null;
+  const month = MONTH_N[m[3].toLowerCase()];
+  const a = Number(m[1]); const b = m[2] ? Number(m[2]) : a;
+  if (!month || a < 1 || a > 31 || b < a || b > 31) return null;
+  const from = iso3(m[4], month, a); const to = iso3(m[4], month, b);
+  return { text: usText(from, to), starts_on: from, ends_on: to };
+}
+
 /** "November 9-11, 2026" -> { text, starts_on: '2026-11-09', ends_on: '2026-11-11' }. Null when the page says nothing. */
 export function eventDateFrom(html) {
   if (!html) return null;
-  const plain = String(html).replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ');
+  // THE PAGE'S OWN MACHINE STATEMENT FIRST. Added 2026-10-22: a London summit
+  // publishes "startDate": "2026-11-19" in its schema.org Event block and no
+  // US-style date anywhere, while its session timestamps read March and May.
+  // The speaker records said the date was not published, and the stored event
+  // date was March, from the timestamps. The Event block is what the organiser
+  // tells search engines; it outranks any date in the prose.
+  const ld = jsonLdEventDate(html);
+  if (ld) return ld;
+  // A dash written as an entity ("3&ndash;4 November") is still a range; blanking
+  // it turned a two-day event into its second day.
+  const plain = String(html).replace(/<[^>]+>/g, ' ').replace(/&(?:ndash|mdash|#8211|#8212);/gi, '\u2013')
+    .replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ');
   const iso = (yr, mo, d) => `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const mon = (x) => MONTH_N[String(x).toLowerCase()];
   // A RANGE ACROSS A MONTH FIRST ("September 29-October 1, 2026"). Added
@@ -114,7 +159,7 @@ export function eventDateFrom(html) {
   const single = range ? null
     : plain.match(new RegExp(`(${MONTHS})\\s+(\\d{1,2}),?\\s*(20\\d\\d)`, 'i'));
   const m = range ?? single;
-  if (!m) return null;
+  if (!m) return dayFirstDate(plain);
   const month = mon(m[1]);
   const day = Number(m[2]);
   const yr = Number(range ? m[4] : m[3]);
@@ -372,7 +417,7 @@ function speakingVerb(r, today) {
   if ((r.when.ends_on ?? r.when.starts_on) < today) return 'spoke at';
   return 'is on the agenda at';
 }
-function dateBlock(r, today) {
+export function dateBlock(r, today) {
   const sd = isoDay(r.session_date);
   const tenseRule = `Write about this talk in that tense. A note that puts a future talk in the past\n`
     + `is checkable by the recipient in one second.\n\n`;

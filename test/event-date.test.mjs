@@ -19,6 +19,14 @@ const CASES = [
   ['<p>Join us June 3 2026 in Chicago</p>',  '2026-06-03', null],
   // --- tags and entities must not break the read
   ['<b>November</b>&nbsp;<b>9-11</b>, <i>2026</i>', null, null],   // split across tags: not found, and that is honest
+  // --- THE LONDON ONE: a schema.org Event block, session timestamps in March and
+  // May, and no US-style date on the page. The Event block is the organiser's.
+  ['<script type="application/ld+json">{"@type": "Event", "endDate": "2026-11-20T18:00:00Z", "startDate": "2026-11-19T08:00:00Z"}</script><p>2026-03-10T08:30:00 Registration</p>', '2026-11-19', 'November 19-20, 2026'],
+  // --- the day-first forms British and European pages use
+  ['<p>19-20 November 2026, London</p>', '2026-11-19', 'November 19-20, 2026'],
+  ['<p>Join us on 3rd June 2026</p>', '2026-06-03', 'June 3, 2026'],
+  // --- a dash written as an entity is still a range
+  ['<p>3&ndash;4 November 2026 | Houston</p>', '2026-11-03', 'November 3-4, 2026'],
   // --- nothing to find
   ['<p>Register now for the summit</p>', null, null],
   ['', null, null],
