@@ -95,10 +95,10 @@ AI at all.
 
 Model calls cost $1 to $2 per note sent.
 
-Where it goes: drafting 39%, judging 20%, grading
-14%, web research 7%, working out what a person wants 6%, screening 3%. Reading
-search results and pages, by far the most calls, is about 2%, because a cheap model
-does it.
+Where it goes, by the rows of the table above: writing 41%, judgment 26%, reading
+17%, grading 14%, screening 3%. Judgment makes about half of all calls but a quarter
+of the cost, and reading a quarter of the calls but a sixth of the cost, because
+cheaper models do both.
 
 Each step's model is set in config and every call's cost is recorded, so moving a
 step to a cheaper model is a measured decision, not a hunch. Three such moves, each
