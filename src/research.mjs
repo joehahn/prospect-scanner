@@ -36,6 +36,8 @@ import { loadConfig } from './config.mjs';
 import { complete, promptBody } from './models.mjs';
 import { ratingOf } from './measures.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
+import { fetchPage } from './sources/web.mjs';
+import { nameOnPage } from './name-on-page.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT = 'prompts/research-person.md';
@@ -123,7 +125,19 @@ for (const [i, p] of people.entries()) {
   if (res.error) { console.log(dim(`failed: ${truncate(res.error.message, 80)}`)); continue; }
   const d = res.data ?? {};
   // A returned URL is a claim; the host is checked before anything is stored.
-  const facts = (d.facts ?? []).filter((f) => /^https?:\/\//.test(f.url ?? '') && !blocked(f.url) && (f.quote ?? '').trim());
+  const usable = (d.facts ?? []).filter((f) => /^https?:\/\//.test(f.url ?? '') && !blocked(f.url) && (f.quote ?? '').trim());
+  // THE PAGE MUST NAME THE PERSON (name-on-page.mjs). One fetch per page, under
+  // robots.txt like every other fetch. A page that loads without their surname
+  // is about someone else and is dropped. A page that cannot be read keeps its
+  // fact, but not as their own words: nothing checked that they said it.
+  const pages = new Map();
+  const facts = [];
+  for (const f of usable) {
+    if (!pages.has(f.url)) pages.set(f.url, await fetchPage(f.url).catch(() => ({ ok: false })));
+    const page = pages.get(f.url);
+    if (page.ok && page.html && !nameOnPage(page.html, p.name)) continue;
+    facts.push(page.ok ? f : { ...f, kind: 'fact' });
+  }
   const dropped = (d.facts ?? []).length - facts.length;
   if (!d.found || facts.length < 2) {
     console.log(dim(`little found${dropped ? ` (${dropped} fact(s) without a usable page dropped)` : ''}`));
