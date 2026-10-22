@@ -74,8 +74,8 @@ flowchart TD
 
 ## Where AI is used, and where it isn't
 
-Each step gets the least powerful tool that does the job well. The strongest model,
-Claude Opus, writes the notes, because a note is the one thing a stranger reads.
+Each step gets the least powerful tool that does the job well. The most capable model
+in the pipeline, Claude Opus, writes the notes, because a note is the one thing a stranger reads.
 Reading hundreds of search results and web pages a day is high volume and needs less
 judgment, so smaller, cheaper models do that. Anything that can be computed uses no
 AI at all.
@@ -122,8 +122,9 @@ weekly bill.
 - **I log replies.** The Scoreboard, Searches and Spend pages show what's working and
   what it costs.
 - **Any step also runs from the command line,** or by asking Claude Code in plain
-  English. It runs on Claude, but every model call goes through one small adapter, so
-  switching providers is a contained change (see [Setup](docs/setup.md)).
+  English. Most steps run on Claude and the judge on MiniMax M3; every model call
+  goes through one small adapter, so moving a step to another provider is a config
+  change (see [Setup](docs/setup.md)).
 
 ## Read more
 
