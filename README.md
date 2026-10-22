@@ -91,6 +91,8 @@ AI at all.
 | **AI agent**<br/>Claude Code | Runs any step when I ask in plain English. Open-ended requests need an agent that can use tools. |
 | **No AI**<br/>deterministic code | News and event search (Tavily's search API), fetching, robots.txt, the gates, the baseline score, storage, the dashboard and cost tracking. Anything that can be computed is computed, and tested. |
 
+## What the AI costs
+
 Each step's model is set in config and every call's cost is recorded, so moving a
 step to a cheaper model is a measured decision, not a hunch. The morning's screening and
 research go through the Batches API at half price, since nobody reads them until
