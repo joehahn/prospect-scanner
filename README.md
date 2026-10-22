@@ -93,29 +93,30 @@ AI at all.
 
 ## What the AI costs
 
-Model calls cost $1 to $2 per note sent. Web search is bought separately from Tavily,
-counted in its own credits, and adds a few cents per note.
+Model calls cost $1 to $2 per note sent. Paid web search is via Tavily and adds a few
+cents per note.
 
-Where it goes, by the rows of the table above: writing 41%, judgment 26%, reading
-17%, grading 14%, screening 3%. Judgment makes about half of all calls but a quarter
+Where it goes, by the rows of the table above: writing 40%, judgment 25%, reading
+15%, grading 15%, screening 5%. Judgment makes about half of all calls but a quarter
 of the cost, and reading a quarter of the calls but a sixth of the cost, because
-cheaper models do both.
+less expensive models do both.
 
 Each step's model is set in config and every call's cost is recorded, so moving a
 step to a cheaper model is a measured decision, not a hunch. Three such moves, each
-tested on the same people first ([Measurement](docs/measurement.md)):
+tested on the same people first ([Measurement](docs/measurement.md)); the dotted lines
+in the chart below mark when each was made:
 
 - **Judging** moved to MiniMax M3, which agrees with my calls as well as Claude Sonnet
   at a third of the cost.
 - **Screening** on the cheap model kept all 10 people the judge rated 3 or better
   while costing about a sixth as much per person, so the judge's three runs go only to
   people worth them.
-- **Grading** stays on Sonnet: on 27 drafts it agreed with a model costing more than
+- **Grading** moved to Sonnet: on 27 drafts it agreed with a model costing more than
   four times as much on 25 to 27 of 27, depending on the question.
 
 The morning's screening and research go through the Batches API at half price, since
 nobody reads them until later, and prompt caching (mostly in drafting and judging)
-takes about a fifth off the weekly bill. Drafts are written only when I ask for one.
+takes about a fifth off the weekly bill. Drafts are written only when the user requests one.
 
 These figures cover the pipeline's own calls. The Claude Code sessions I use to build
 it and to run steps by hand are billed separately and are not in them.
