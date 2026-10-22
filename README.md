@@ -91,10 +91,10 @@ AI at all.
 | **No AI**<br/>deterministic code | News and event search (Tavily's search API), fetching, robots.txt, the gates, the baseline score, storage, the dashboard and cost tracking. Anything that can be computed is computed, and tested. |
 
 Each step's model is set in config and every call's cost is recorded, so moving a
-step to a cheaper model is a measured decision, not a hunch. The morning's Claude calls
-(screening and research) go through the Batches API at half price, since nobody reads
-them until later, and the part of the judge's prompt that is the same for every person
-is cached.
+step to a cheaper model is a measured decision, not a hunch. The morning's screening and
+research go through the Batches API at half price, since nobody reads them until
+later, and prompt caching (mostly in drafting and judging) takes about a fifth off the
+weekly bill.
 
 ![AI spend per note sent, by week and step, with each model change marked](docs/images/spend-per-note.png)
 <sub>AI spend per note sent, by week and step, from the dashboard's Spend page. Dotted lines mark the day a step's model changed. The morning run costs the same whether I send or not, so a light week of sending reads higher; the latest week is partial.</sub>
