@@ -489,8 +489,22 @@ export function upcomingTalks(claims, today = localDay()) {
   return out;
 }
 
+/**
+ * A session day outside the event's own dates is not the session's day. Added
+ * 2026-10-22: a London summit dated 19-20 November carried session timestamps
+ * of 10 March and 27 May, left over in its agenda software, and a note led with
+ * a November panel as given in March. Where the event is dated, a session day
+ * outside it is dropped and the record says the day is not published.
+ */
+export function sessionDayInEvent(sessionDate, when) {
+  if (!sessionDate || !when?.starts_on) return sessionDate ?? null;
+  const end = when.ends_on ?? when.starts_on;
+  return sessionDate >= when.starts_on && sessionDate <= end ? sessionDate : null;
+}
+
 export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
   const today = new Date().toISOString().slice(0, 10);
+  all = all.map((r) => ({ ...r, session_date: sessionDayInEvent(r.session_date, r.when) }));
   let spent = 0;
   const firms = [...new Set(all.map((r) => r.firm))];
 

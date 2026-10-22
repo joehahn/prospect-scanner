@@ -51,6 +51,18 @@ const r = eventDateFrom('<p>November 9-11, 2026</p>');
 if (r?.text !== 'November 9-11, 2026') { fail++; console.log(`  FAIL  range collapsed to ${JSON.stringify(r)}`); }
 else pass++;
 
+// A SESSION DAY OUTSIDE THE EVENT IS NOT THE SESSION'S DAY: agenda software
+// left March and May timestamps on a November summit's sessions.
+{
+  const { sessionDayInEvent } = await import(R+'events.mjs');
+  const when = { starts_on: '2026-11-19', ends_on: '2026-11-20' };
+  const checks = [[sessionDayInEvent('2026-03-10', when), null], [sessionDayInEvent('2026-11-20', when), '2026-11-20'],
+    [sessionDayInEvent('2026-03-10', null), '2026-03-10'], [sessionDayInEvent(null, when), null]];
+  for (const [got, want] of checks) {
+    if (got === want) pass++; else { fail++; console.log(`  FAIL  session day want ${want} got ${got}`); }
+  }
+}
+
 // --- tense, which is the whole point
 const T = [
   ['2026-11-09', '2026-09-23', 'upcoming', 'seven weeks out — the case that caused this', 2026],
