@@ -310,7 +310,15 @@ async function main() {
 
     // Only fill columns the pages actually supported. A null stays null.
     db.prepare(`UPDATE orgs SET
-        kind              = COALESCE(kind, @kind),
+        -- AN AGENDA'S KIND IS A DEFAULT, NOT A READING. events.mjs files every
+        -- firm on an agenda as end_client unless its name looks public, so a
+        -- private-equity firm read from its own site as an investor stayed an
+        -- end_client and was routed as a buyer (2026-10-22). A confident
+        -- reading from the firm's pages replaces that default; any other kind,
+        -- including one the operator set, stays.
+        kind              = CASE WHEN @kind IS NOT NULL AND @confident = 1 AND kind = 'end_client'
+                                  AND source IN ('conference_discovery', 'conference_agendas') THEN @kind
+                                 ELSE COALESCE(kind, @kind) END,
         -- A PAGE BEATS AN ESTIMATE, which is the one place the usual
         -- COALESCE order is wrong. Everything else here fills a null and
         -- leaves an existing value alone; a headcount read off the firm's own
@@ -325,6 +333,7 @@ async function main() {
       WHERE id = @id`).run({
       id: org.id,
       kind: d.kind_confidence === 'low' || d.kind === 'unknown' ? null : d.kind,
+      confident: d.kind_confidence === 'high' ? 1 : 0,
       // A page beats recall, always. Recall only fills a blank.
       staffsCapability: (d.staffs_capability ?? '').trim() || null,
       headcount: (d.headcount_est || null) ?? (d.headcount_recalled || null),

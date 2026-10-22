@@ -11,6 +11,7 @@ test('an article by someone else is not about this person', () => {
 
 test('credentials, accents, case and hyphens do not hide a name', () => {
   assert.equal(surnameOf('Kim Northwind, Ph.D.'), 'northwind');
+  assert.equal(surnameOf('Lee R. Fabrikam, PE, SE'), 'fabrikam');
   assert.equal(nameOnPage('<p>Ana Núñez Fábrega</p>', 'Ana Nunez-Fabrega'), true);
   assert.equal(nameOnPage('<p>JANE CONTOSO spoke</p>', 'Jane Contoso'), true);
 });

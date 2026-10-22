@@ -9,11 +9,12 @@
 const fold = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 // Credentials and suffixes that follow a surname in a name on file.
-const SUFFIX = new Set(['phd', 'ph', 'd', 'md', 'mba', 'jr', 'sr', 'ii', 'iii', 'iv', 'cpa', 'pe', 'esq', 'cfa', 'cissp']);
+const SUFFIX = new Set(['phd', 'ph', 'd', 'md', 'mba', 'jr', 'sr', 'ii', 'iii', 'iv', 'cpa', 'pe', 'se', 'esq', 'cfa', 'cissp']);
 
 /** The surname a page would print: the last word of the name that is not a credential. */
 export function surnameOf(name) {
-  const words = fold(name).replace(/\(.*?\)/g, ' ').split(/[^a-z'-]+/).filter(Boolean);
+  // Credentials after a comma are not the name ("Lee R. Fabrikam, PE, SE").
+  const words = fold(String(name ?? '').split(',')[0]).replace(/\(.*?\)/g, ' ').split(/[^a-z'-]+/).filter(Boolean);
   while (words.length > 1 && SUFFIX.has(words[words.length - 1].replace(/[^a-z]/g, ''))) words.pop();
   return words[words.length - 1] ?? '';
 }
