@@ -180,7 +180,8 @@ const localStart = new Date().toLocaleString('sv-SE', { hour12: false }).slice(0
 console.log(heading(`daily · ${localStart}${dry ? ' · dry run' : ''}`));
 
 // 1. searches, weekly
-const last = q(`SELECT MAX(run_at) t FROM search_runs`)[0]?.t;
+// Only a run of the whole list sets the clock; a hand run of chosen searches does not.
+const last = q(`SELECT MAX(run_at) t FROM search_runs WHERE COALESCE(partial, 0) = 0`)[0]?.t;
 const ageDays = last ? (Date.now() - Date.parse(last)) / 86_400_000 : Infinity;
 let searched = false;
 if (args.includes('--searches') || ageDays >= 6) {

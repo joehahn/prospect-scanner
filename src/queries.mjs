@@ -257,6 +257,12 @@ function ensureTables(db) {
   if (!db.prepare(`PRAGMA table_info(search_runs)`).all().some((c) => c.name === 'topic')) {
     db.exec(`ALTER TABLE search_runs ADD COLUMN topic TEXT`);
   }
+  // A run of chosen searches (--ids, --events, --target, --wires) is not the weekly
+  // run, and daily's weekly clock must not count it: a one-off batch run by hand
+  // on 2026-10-22 pushed the whole weekly list back two days.
+  if (!db.prepare(`PRAGMA table_info(search_runs)`).all().some((c) => c.name === 'partial')) {
+    db.exec(`ALTER TABLE search_runs ADD COLUMN partial INTEGER NOT NULL DEFAULT 0`);
+  }
   if (!db.prepare(`PRAGMA table_info(searches)`).all().some((c) => c.name === 'searched_in')) {
     db.exec(`ALTER TABLE searches ADD COLUMN searched_in TEXT`);   // null: the event's index; 'wires'
   }
@@ -315,8 +321,9 @@ async function runList(cfg, b, { save = false, events = null, wires = false, tar
   const runId = startRun(db, 'queries-run', { model });
   const system = readFileSync(resolve(ROOT, QUALIFY_FILE), 'utf8');
   const context = businessBlock(b);
+  const partial = events || wires || target || ids ? 1 : 0;
   const insRun = db.prepare(`INSERT INTO search_runs (search_id, run_at, results, qualified, new_finds, new_to_book,
-      with_person, hits, filter, run_id, topic) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      with_person, hits, filter, run_id, topic, partial) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const c0 = creditsUsed();
   const report = [];
   for (const q of list) {
@@ -338,7 +345,7 @@ async function runList(cfg, b, { save = false, events = null, wires = false, tar
     fresh.forEach((h) => seenBefore.add(`${key(h.organisation)}|${h.url}`));
     insRun.run(q.id, new Date().toISOString(), results.length, hits.length, fresh.length,
       fresh.filter((h) => !h.in_book).length, hits.filter((h) => h.person?.trim()).length,
-      JSON.stringify(hits), QUALIFY_FILE, runId, topic);
+      JSON.stringify(hits), QUALIFY_FILE, runId, topic, partial);
     // RETIRE WHAT KEEPS FINDING NOTHING, with the reason, never silently.
     const lastRuns = db.prepare(`SELECT qualified FROM search_runs WHERE search_id = ? ORDER BY id DESC LIMIT ?`).all(q.id, RETIRE_AFTER);
     if (lastRuns.length >= RETIRE_AFTER && lastRuns.every((r) => !r.qualified)) {

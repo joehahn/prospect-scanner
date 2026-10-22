@@ -694,6 +694,9 @@ const COLUMN_MIGRATIONS = [
   // retrieval cost. A second cost stream nobody recorded is the same defect as
   // no cost stream.
   ['runs', 'tavily_credits', 'INTEGER NOT NULL DEFAULT 0'],
+  // A hand run of chosen searches, which daily's weekly clock does not count
+  // (queries.mjs adds it too, for a book made before search_runs existed).
+  ['search_runs', 'partial', 'INTEGER NOT NULL DEFAULT 0'],
   ['signals', 'date_corrected_from', 'TEXT'],
   ['signals', 'retracted_at', 'TEXT'],
   ['signals', 'retracted_reason', 'TEXT'],
