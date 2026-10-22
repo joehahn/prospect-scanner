@@ -111,8 +111,8 @@ in the chart below mark when each was made:
 - **Screening** on the cheap model kept all 10 people the judge rated 3 or better
   while costing about a sixth as much per person, so the judge's three runs go only to
   people worth them.
-- **Grading** moved to Sonnet: on 27 drafts, it agreed with a model costing four times
-  as much on at least 25 of them, on every question.
+- **Grading** moved to Sonnet: on 27 drafts, it agreed with a model costing over four
+  times as much on at least 25 of them, on every question.
 
 The morning's screening and research go through the Batches API at half price, since
 nobody reads them until later, and prompt caching (mostly in drafting and judging)
