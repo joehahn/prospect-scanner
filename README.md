@@ -93,7 +93,8 @@ AI at all.
 
 ## What the AI costs
 
-Model calls cost $1 to $2 per note sent.
+Model calls cost $1 to $2 per note sent. Web search is bought separately from Tavily,
+counted in its own credits, and adds a few cents per note.
 
 Where it goes, by the rows of the table above: writing 41%, judgment 26%, reading
 17%, grading 14%, screening 3%. Judgment makes about half of all calls but a quarter
