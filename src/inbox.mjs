@@ -401,6 +401,10 @@ async function commentAction(f) {
     const file = join(tmp, `comment-${id}.txt`);
     writeFileSync(file, `${body}\n`);
     args.push('--posted', id, '--file', file);
+  } else if (act === 'replied' && (f.reply ?? '').trim()) {
+    const file = join(tmp, `reply-${id}.txt`);
+    writeFileSync(file, `${f.reply.trim()}\n`);
+    args.push('--replied', id, '--file', file);
   } else if (['skip', 'replied', 'email'].includes(act)) {
     args.push(`--${act}`, id);
   } else throw new Error(`unknown comment action "${act}"`);

@@ -794,6 +794,10 @@ const COLUMN_MIGRATIONS = [
   //   config     the operator put it in runtime.yml by hand
   //   (null)     a token guess nobody has checked -- never used for evidence
   ['org_boards', 'verified_by', 'TEXT'],
+  // What the poster said back to a comment, as the operator pasted it, and when.
+  // The thread is first-hand history the drafter builds on.
+  ['comments', 'reply_text', 'TEXT'],
+  ['comments', 'replied_at', 'TEXT'],
 ];
 
 function migrate(db) {

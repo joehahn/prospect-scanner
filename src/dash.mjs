@@ -1497,10 +1497,12 @@ function commentsPanel(db) {
   const emailed = posted.filter((c) => c.led_to_email).length;
   const log = posted.slice(0, 30).map((c) => `<tr><td>${esc(String(c.posted_at).slice(0, 10))}</td>
       <td>${esc(c.name)}<br><span class="dim">${esc(c.org_name)}</span></td>
-      <td><div class="wrapped">${esc(c.posted_text)}</div></td>
+      <td><div class="wrapped">${esc(c.posted_text)}</div>${c.reply_text
+        ? `<p><b>They replied${c.replied_at ? ` ${esc(c.replied_at)}` : ''}</b></p><div class="wrapped">${esc(c.reply_text)}</div>` : ''}</td>
       <td><form method="post" action="${SERVER}/comment" class="inline">${back}
         <input type="hidden" name="id" value="${c.id}">
-        ${c.replied ? '<b>replied</b>' : '<button type="submit" name="do" value="replied">They replied</button>'}
+        ${c.reply_text ? '<b>replied</b>' : `<textarea name="reply" rows="2" placeholder="Paste their reply, so a note can follow on from it."></textarea>
+        <button type="submit" name="do" value="replied">${c.replied ? 'Save their reply' : 'They replied'}</button>`}
         ${c.led_to_email ? '<b>led to an email</b>' : '<button type="submit" name="do" value="email">Led to an email</button>'}
       </form></td></tr>`).join('\n');
   return `<section class="panel"><h2>Worth a comment</h2>
@@ -2851,6 +2853,7 @@ function cards(list, cfg, d) {
           p.followers != null ? ` (${p.followers})` : ''}` : ''}</p>
       ${d.firmLine?.(p.org_id) ?? ''}
       ${addressLine(p)}
+      ${d.threadLine?.(p.id) ?? ''}
       ${inFlightPanel(p)}
       ${profilePanel(p, d)}
       ${firmOutreachPanel(p, d)}
@@ -2950,6 +2953,15 @@ function buildAll(db, cfg, targeting) {
   }
   d.ownerLine = (orgId) => (owners.get(orgId) ?? []).map((o) => `<p class="meta"><b>${o.board.length ? 'Owned by' : 'In the portfolio of'} ${esc(o.investor)}</b>${
     o.board.length ? `; on its board: ${o.board.map((b) => `${esc(b.name)}${b.sent ? ` <span class="dim">(you wrote ${esc(String(b.sent).slice(0, 10))})</span>` : ''}`).join(', ')}` : ''}</p>`).join('');
+  // A REPLY TO HIS COMMENT IS A WARM OPENING, so the card says so: a note to
+  // them follows on from the thread (the drafter reads it).
+  const threads = new Map();
+  if (has('comments')) {
+    for (const c of db.prepare(`SELECT person_id, MAX(COALESCE(replied_at, substr(posted_at, 1, 10))) AS at
+        FROM comments WHERE replied = 1 GROUP BY person_id`).all()) threads.set(c.person_id, c.at);
+  }
+  d.threadLine = (personId) => threads.has(personId)
+    ? `<p class="need"><b>Replied to your comment</b>${threads.get(personId) ? ` ${esc(threads.get(personId))}` : ''}; a note follows on from the thread.</p>` : '';
   d.firmLine = (orgId) => {
     const f = firmDesc.get(orgId);
     if (!f) return `<p class="meta dim">What the firm does: not on file.</p>${d.ownerLine(orgId)}`;

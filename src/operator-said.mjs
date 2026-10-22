@@ -39,13 +39,34 @@ export function operatorSaid(db, personId, before = null) {
         said: String(r.revise_note).trim() });
     }
   }
+  // A PUBLIC EXCHANGE IS HISTORY HE NAMED. His comment on their post, and their
+  // answer when he pasted it, so a note follows on from the thread instead of
+  // opening cold.
+  if (has(db, 'comments')) {
+    const cols = db.prepare(`SELECT name FROM pragma_table_info('comments')`).all().map((c) => c.name);
+    const reply = cols.includes('reply_text') ? 'reply_text, replied_at' : 'NULL AS reply_text, NULL AS replied_at';
+    for (const c of db.prepare(`SELECT post_date, summary, posted_text, posted_at, replied, ${reply}
+        FROM comments WHERE person_id = ? AND posted_text IS NOT NULL AND TRIM(posted_text) <> ''`).all(personId)) {
+      out.push({ at: String(c.posted_at), kind: 'exchange', postDate: c.post_date, summary: c.summary,
+        comment: String(c.posted_text).trim(), replied: !!c.replied,
+        replyAt: c.replied_at, reply: c.reply_text ? String(c.reply_text).trim() : null });
+    }
+  }
   return out.filter((x) => !before || x.at < before).sort((a, b) => a.at.localeCompare(b.at));
+}
+
+function exchangeLine(x) {
+  const answer = x.reply ? `; they replied${x.replyAt ? ` ${x.replyAt}` : ''}: "${x.reply}"`
+    : x.replied ? '; they replied (their words not recorded)' : '; no reply recorded';
+  return `- ${x.at.slice(0, 10)}, a public exchange on their LinkedIn post of ${x.postDate ?? 'unknown date'}`
+    + `${x.summary ? ` (${x.summary})` : ''}: the operator commented "${x.comment}"${answer}`;
 }
 
 /** The same, as lines for a prompt; empty string when he has said nothing. */
 export function operatorSaidLines(db, personId, before = null) {
   return operatorSaid(db, personId, before).map((x) => (x.kind === 'verdict'
     ? `- ${x.at.slice(0, 10)}, marked "${x.call}": "${x.said}"`
+    : x.kind === 'exchange' ? exchangeLine(x)
     : `- ${x.at.slice(0, 10)}, editing an earlier ${x.channel} draft (it became v${x.version}): "${x.said}"`)).join('\n');
 }
 

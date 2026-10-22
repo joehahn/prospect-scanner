@@ -17,7 +17,8 @@
 //   npm run comment -- --recent [days] [--dry]     every paste of the last N days (default 7)
 //   npm run comment -- --posted <id> --file <f>    record what he posted
 //   npm run comment -- --skip <id>
-//   npm run comment -- --replied <id> | --email <id>
+//   npm run comment -- --replied <id> [--file <f>] [--date YYYY-MM-DD]   what they said back
+//   npm run comment -- --email <id>
 
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -195,8 +196,12 @@ function record(db, args) {
     db.prepare('UPDATE comments SET skipped_at = ? WHERE id = ?').run(now, id);
     console.log(`comment ${id} skipped`);
   } else if (args.replied) {
-    db.prepare('UPDATE comments SET replied = 1 WHERE id = ?').run(id);
-    console.log(`comment ${id}: they replied`);
+    // Their words, when he pastes them, so a note can build on the thread.
+    const text = args.file && args.file !== true ? readFileSync(String(args.file), 'utf8').trim() : '';
+    const date = args.date && args.date !== true ? String(args.date) : now.slice(0, 10);
+    db.prepare(`UPDATE comments SET replied = 1, replied_at = COALESCE(replied_at, ?),
+        reply_text = COALESCE(NULLIF(?, ''), reply_text) WHERE id = ?`).run(date, text, id);
+    console.log(`comment ${id}: they replied${text ? ', their reply recorded' : ''}`);
   } else {
     db.prepare('UPDATE comments SET led_to_email = 1 WHERE id = ?').run(id);
     console.log(`comment ${id}: led to an email`);
