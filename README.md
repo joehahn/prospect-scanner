@@ -93,11 +93,33 @@ AI at all.
 
 ## What the AI costs
 
+At the current pace, about $13 a day in model calls, roughly $400 a month: $1.18 per
+note sent in the last full week, $1.90 the week before. From the first recorded call
+on 2026-08-25 to 2026-10-22, $441 in all, plus 1,846 search credits.
+
+Where it goes, over the last three weeks ($304): drafting 39%, judging 20%, grading
+14%, web research 7%, working out what a person wants 6%, screening 3%. Reading
+search results and pages, by far the most calls, is about 2%, because a cheap model
+does it.
+
 Each step's model is set in config and every call's cost is recorded, so moving a
-step to a cheaper model is a measured decision, not a hunch. The morning's screening and
-research go through the Batches API at half price, since nobody reads them until
-later, and prompt caching (mostly in drafting and judging) takes about a fifth off the
-weekly bill.
+step to a cheaper model is a measured decision, not a hunch. Three such moves, each
+tested on the same people first ([Measurement](docs/measurement.md)):
+
+- **Judging** moved to MiniMax M3, which agrees with my calls as well as Claude Sonnet
+  at a third of the cost.
+- **Screening** on the cheap model kept all 10 people the judge rated 3 or better
+  while costing about a sixth as much per person, so the judge's three runs go only to
+  people worth them.
+- **Grading** stays on Sonnet: on 27 drafts it agreed with a model costing more than
+  four times as much on 25 to 27 of 27, depending on the question.
+
+The morning's screening and research go through the Batches API at half price, since
+nobody reads them until later, and prompt caching (mostly in drafting and judging)
+takes about a fifth off the weekly bill. Drafts are written only when I ask for one.
+
+These figures cover the pipeline's own calls. The Claude Code sessions I use to build
+it and to run steps by hand are billed separately and are not in them.
 
 ![AI spend per note sent, by week and step, with each model change marked](docs/images/spend-per-note.png)
 <sub>AI spend per note sent, by week and step, from the dashboard's Spend page; dotted lines mark a step's model change. It fell mostly because one-off build and test work tapered off, drafts are written only when I ask for one, and grading moved to a cheaper model; drafting moved to a stronger, costlier one. The morning run is a fixed cost, so weeks with fewer sends read higher; the latest week is partial.</sub>
