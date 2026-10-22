@@ -30,6 +30,7 @@ import { loadConfig } from './config.mjs';
 import { complete } from './models.mjs';
 import { fetchPage, extractText } from './sources/web.mjs';
 import { heading, bold, dim } from './report.mjs';
+import { ensureBoardSeats } from './boards.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/read-bios.md';
@@ -55,10 +56,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS holdings (
     investor_id TEXT NOT NULL REFERENCES orgs(id), company_id TEXT NOT NULL REFERENCES orgs(id),
     status TEXT NOT NULL, source_url TEXT NOT NULL, first_seen TEXT NOT NULL,
     PRIMARY KEY (investor_id, company_id))`);
-db.exec(`CREATE TABLE IF NOT EXISTS board_seats (
-    person_id TEXT NOT NULL REFERENCES people(id), company TEXT NOT NULL,
-    company_id TEXT REFERENCES orgs(id), status TEXT NOT NULL, source_url TEXT NOT NULL,
-    first_seen TEXT NOT NULL, PRIMARY KEY (person_id, company))`);
+ensureBoardSeats(db);
 
 const orgs = orgArgs.length
   ? orgArgs.map((id) => db.prepare('SELECT * FROM orgs WHERE id = ?').get(id)).filter(Boolean)

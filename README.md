@@ -28,7 +28,8 @@ each. I edit and send every note myself, by email or LinkedIn.
   conference agendas, industry directories and, for banks, the FDIC's quarterly
   filings. Not lists of names.
 - **Vets each firm from its own website.** What it does, how big it is, who decides,
-  and for an investment firm, whose boards each partner sits on.
+  and for an investment firm, whose boards each partner sits on. A pasted profile adds
+  the person's own board seats, advisory roles and investments.
 - **Rates the strongest prospects with an AI judge that learns from me.** There are
   no scoring rules. It learns from my calls on similar people: Write first, Would
   write or Wouldn't.

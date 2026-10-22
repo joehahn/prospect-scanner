@@ -1,4 +1,6 @@
-# extract-profile — v2, 2026-09-29
+# extract-profile — v3, 2026-10-22
+
+*v3: `current_employer`, `employer_is_firm_on_file` and `other_roles`. A former agency head who had moved to a large IT services firm was marked `confirmed` at the agency, because the title on file already named the new firm and the page agreed with it. His About section said he advises and invests in two startups that sell into agencies like his old one, and nothing recorded them: his job made him no buyer, and those two companies were the route to one.*
 
 *v2: real firm names in the examples replaced with fictional ones or roles, before the repo goes public. No change in meaning.*
 
@@ -83,6 +85,30 @@ judging whether to contact them. You are recording what the page says.
    matters. Include anything that bears on whether this person can buy, whether
    they would read a message, and anything the operator's gates turn on —
    especially a title matching a capability the operator sells.
+
+7. **`current_employer`** is the organisation the experience section shows this
+   person working for now, as it names it. The headline when there is no
+   experience section. "" when the page does not say.
+
+   **`employer_is_firm_on_file`** answers whether that is the firm on file named
+   in the message. A subsidiary, a parent, a brand of the same company or a
+   renamed firm is the same firm: true. A different company is false, and then
+   `role_confirmed` is `contradicted`, whatever the title on file says. The
+   title on file may already have been rewritten to the new job; compare the
+   employer with the FIRM on file, never with the title. When
+   `current_employer` is "", this is true.
+8. **`other_roles`** are the companies this person holds a role at **besides the
+   job**: a board seat, an advisory role, an investment, a company they
+   founded. Each carries `company` as the page names it, `role` (one or more of
+   board, advisor, investor, founder), and `current`. Take them from the
+   experience section, the About section and the headline ("I invest in and
+   advise X and Y"). The current employer is not one of them. A board they
+   report to is not a seat they hold. A company they once worked for is not an
+   other role unless they now sit on its board or advise it. [] when there are
+   none.
+
+   These matter because they can be where the buyer is. Someone whose own seat
+   buys nothing can still advise a startup that would.
 
 ## What to be careful about
 

@@ -213,7 +213,7 @@ function contextFor(db, person, saidBefore = null) {
     ...(operatorSaidLines(db, person.id, saidBefore)
       ? [`## What the operator said about this person (first-hand; outranks inference)`, operatorSaidLines(db, person.id, saidBefore), ``] : []),
     ...(boardLines(db, person.id)
-      ? [`## Boards this person sits on now (each a company they can introduce the operator to)`, boardLines(db, person.id), ``] : []),
+      ? [`## Other companies this person holds a role at now: boards, advisory roles, investments (each a company they can introduce the operator to)`, boardLines(db, person.id), ``] : []),
     `## Everything on file`,
     ev.length ? ev.map(fmt).join('\n') : '(nothing — say so and return thin)',
     ``,

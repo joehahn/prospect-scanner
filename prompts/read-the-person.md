@@ -1,6 +1,8 @@
 # What is this person trying to do?
 
-**Version 8, 2026-10-14.**
+**Version 9, 2026-10-22.**
+
+*v9: when the person's own seat buys nothing, the next step can run through another company they hold a role at. A former agency head, now selling for a large IT services firm, advises and invests in two startups that sell to agencies; one of them had a problem he had posted about himself. The read only asked what he was trying to do at his employer, so it never got there.*
 
 *v8: a figure from a regulatory filing is why a firm is on the list, not what anyone there is working toward. A bank's efficiency ratio, against peers its size, was read as its COO's goal ("bring the ratio back in line with peer banks"), and the note opened by quoting the ratio to him. The ratio was high because of the business the bank's parent runs, not because anyone was pressing him about it.*
 
@@ -153,6 +155,17 @@ Three things it must not be:
   describes a problem. The step is "getting from the flag to a message that gets
   sent".
 - **Not a meeting.** The same ban as below applies here first.
+
+**When their own seat is not the buyer, look at their other companies.**
+*(v9.)* A person who sells for a large firm, or whose remit is the product
+their firm sells, can still advise, invest in or sit on the board of a smaller
+company that would buy. Those companies are listed under "Other companies this
+person holds a role at". If one of them has a need the evidence shows (their
+own post about it counts), the step is that company's, and the clause names
+it: "[the startup]'s next piece is X, and that is what I build" — with the real
+company and step. `recipient` stays `this_person`: they are the one written
+to, and the note leaves the introduction to them. Name only a company on that
+list or in their own words, never one inferred from their sector.
 
 If nothing follows obviously from the evidence, leave it empty rather than
 inventing a step. An empty field makes the drafter fall back on the

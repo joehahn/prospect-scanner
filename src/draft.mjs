@@ -260,7 +260,7 @@ ${[person.decision_role && `Decision role: ${person.decision_role}`,
    person.builds_in_house && `Builds it personally: ${person.builds_in_house}`,
    person.notes && `Operator notes: ${person.notes}`].filter(Boolean).join('\n')}
 ${boardLines(db, person.id) ? `
-## BOARDS THIS PERSON SITS ON NOW (from their firm's own site; each is a company they can introduce you to)
+## OTHER COMPANIES THIS PERSON HOLDS A ROLE AT NOW: BOARDS, ADVISORY ROLES, INVESTMENTS (each is a company they can introduce you to)
 ${boardLines(db, person.id)}
 ` : ''}${operatorSaidLines(db, person.id, saidBefore) ? `
 ## WHAT THE OPERATOR SAID ABOUT THIS PERSON (first-hand; outranks the read)
@@ -597,7 +597,19 @@ async function main() {
   const held = h.holds.find((x) => x.person_id === personId && x.release_after > today);
   if (held) refusals.push(`${person.name} is held until ${held.release_after}: ${held.condition ?? ''}`);
 
+  // A KILL IS ABOUT THE FIRM AS A BUYER, and the operator can know better
+  // about the person. Someone who sells for a firm the gates rightly killed can
+  // still advise the startup that would buy; where the operator has recorded
+  // "write" for this person, the kill stays in the dossier as a fact and the
+  // note is drafted. Do-not-contact, holds and repeat approaches still refuse.
+  const operatorSaysWrite = db.prepare(
+    `SELECT verdict FROM verdicts WHERE person_id = ? ORDER BY created_at DESC LIMIT 1`)
+    .get(personId)?.verdict === 'write';
   for (const g of h.gates.filter((x) => x.outcome === 'kill' || x.outcome === 'kill_as_buyer')) {
+    if (operatorSaysWrite) {
+      console.log(dim(`${org.name} was killed on ${g.gate_id}; drafting anyway, on the operator's "write" verdict`));
+      continue;
+    }
     refusals.push(`${org.name} was killed on ${g.gate_id}: ${g.reason ?? ''}`);
   }
 

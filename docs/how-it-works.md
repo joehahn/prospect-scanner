@@ -59,7 +59,10 @@ A prospect enters because something dated happened. Six sources:
   names, with their sessions. New conferences are found where example prospects speak
   and by searches from the targets.
 - **The operator's pastes** of a profile they read themselves, stored with a provenance
-  marker so they are never mistaken for something retrieved.
+  marker so they are never mistaken for something retrieved. Extraction checks the
+  current employer against the firm on file, and records the board seats, advisory
+  roles, investments and founder roles held besides the job, because those can be
+  where the buyer is when the person's own seat buys nothing.
 - **Firm lists** from rankings and directories, for a target limited to one kind of
   firm that publishes no events. A firm is admitted only if its own site makes it the
   target's kind, it resembles an example prospect's firm, no gate kills it, and it names
@@ -150,8 +153,10 @@ never asserted in it.
 from something the person recently said or did, the bridge to the operator's work, and
 the live offer that is the logical next step. An offer may carry variants in
 `business.yml` for a particular dated event, with their own pitch and tracked link, used
-when the lede is that event. A partner's board seats are used, and anything the
-operator has said about the person outranks the model's inference.
+when the lede is that event. A person's board seats and advisory roles are used, and
+anything the operator has said about the person outranks the model's inference. A
+"would write" verdict on someone at a firm the gates killed as a buyer lets the note
+be drafted; do-not-contact and holds still refuse.
 
 **The examples are the operator's latest sent notes** on the same kind of channel, up
 to fifteen (email, InMail and LinkedIn messages share a pool; connection notes learn

@@ -95,6 +95,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { distinctWords, otherOrgInTitle } from './org-match.mjs';
+import { ensureBoardSeats, roleWords } from './boards.mjs';
 import { nameParts as personName, pageNames, samePersonOnFile } from './people-match.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
@@ -142,7 +143,8 @@ const PROFILE_SCHEMA = {
   required: ['location', 'country', 'title', 'role_confirmed', 'role_note', 'in_seat_since',
              'hiring_for_capability', 'degree', 'email', 'platform_activity', 'followers',
              'decision_role', 'capability_authority', 'builds_in_house', 'buyer_remit',
-             'referral_value', 'other_people', 'facts'],
+             'referral_value', 'other_people', 'facts', 'current_employer',
+             'employer_is_firm_on_file', 'other_roles'],
   properties: {
     location: { type: 'string',
       description: 'Where the profile says this person is, verbatim.' },
@@ -212,6 +214,22 @@ const PROFILE_SCHEMA = {
       items: { type: 'object', additionalProperties: false,
         required: ['claim', 'quote'],
         properties: { claim: { type: 'string' }, quote: { type: 'string' } } },
+    },
+    // WHO EMPLOYS THEM NOW, AND IS IT THE FIRM ON FILE. Asked outright because
+    // role_confirmed alone came back `confirmed` for a man two jobs on from the
+    // firm on file: the title on file had already been rewritten to his new
+    // employer, and the page agreed with the title. Plain strings and a boolean,
+    // not enums -- see the note on buyer_remit about the complexity ceiling.
+    current_employer: { type: 'string', description: 'The employer the experience section shows now. See the prompt.' },
+    employer_is_firm_on_file: { type: 'boolean',
+      description: 'True when current_employer is the firm on file, a parent, subsidiary or brand of it. See the prompt.' },
+    other_roles: {
+      type: 'array',
+      description: 'Board, advisory, investor and founder roles besides the job. See the prompt.',
+      items: { type: 'object', additionalProperties: false,
+        required: ['company', 'role', 'current'],
+        properties: { company: { type: 'string' }, role: { type: 'string' },
+                      current: { type: 'boolean' } } },
     },
   },
 };
@@ -874,6 +892,12 @@ async function extractProfile(db, cfg, person, body, url, args) {
     return;
   }
 
+  // A DIFFERENT EMPLOYER IS A CONTRADICTION, whatever role_confirmed said. The
+  // model answers the employer question on its own line, and that answer wins:
+  // a person at another company is not in a seat at this one.
+  const moved = d.current_employer && res.data?.employer_is_firm_on_file === false;
+  if (moved) d.role_confirmed = 'contradicted';
+
   const set = {
     title: d.title ?? person.title,
     role_confirmed: d.role_confirmed,
@@ -954,6 +978,21 @@ async function extractProfile(db, cfg, person, body, url, args) {
   for (const f of d.facts ?? []) {
     insEv.run(person.org_id, person.id, `${f.claim} — "${truncate(f.quote, 240)}"`,
       url, new Date().toISOString());
+  }
+
+  // THE OTHER COMPANIES THIS PERSON HOLDS A ROLE AT, into board_seats, which
+  // the read and the drafter already read as routes to a buyer (boards.mjs).
+  // This page's rows are replaced, as its facts are; rows from a bio page stay.
+  const roles = (d.other_roles ?? [])
+    .map((r) => ({ company: String(r.company ?? '').trim(), role: roleWords(r.role), current: r.current !== false }))
+    .filter((r) => r.company && r.role);
+  ensureBoardSeats(db);
+  db.prepare('DELETE FROM board_seats WHERE person_id = ? AND source_url = ?').run(person.id, url);
+  const today = new Date().toISOString().slice(0, 10);
+  for (const r of roles) {
+    db.prepare(`INSERT OR REPLACE INTO board_seats (person_id, company, status, source_url, first_seen, role)
+        VALUES (?, ?, ?, ?, COALESCE((SELECT first_seen FROM board_seats WHERE person_id = ? AND company = ?), ?), ?)`)
+      .run(person.id, r.company, r.current ? 'current' : 'past', url, person.id, r.company, today, r.role);
   }
 
   // Others named on the page are the lateral moves, and they are free to capture.
@@ -1048,6 +1087,15 @@ async function extractProfile(db, cfg, person, body, url, args) {
     `${d.followers != null ? ` (${d.followers} followers)` : ''}` +
     `${d.degree ? ` · ${d.degree}° ` : ''}${d.in_seat_since ? ` · in seat since ${d.in_seat_since}` : ''}`);
   if (d.title && d.title !== person.title) console.log(dim(`  title → ${d.title}`));
+  if (moved) {
+    const orgName = db.prepare('SELECT name FROM orgs WHERE id = ?').get(person.org_id)?.name ?? person.org_id;
+    console.log(bold(`  works at ${d.current_employer} now, not ${orgName}.`)
+      + dim(`\n  If that is a move: npm run lead -- vet --name "${d.current_employer}" --domain <domain>`
+        + `\n                    npm run lead -- move --person ${person.id} --to <org_id> --url ${url}`));
+  }
+  for (const r of roles) {
+    console.log(dim(`  ${r.current ? '' : 'formerly '}${r.role} at ${r.company}`));
+  }
   if (d.role_note) console.log(dim(`  ${d.role_note}`));
   if (d.decision_role) console.log(dim(`  role: ${d.decision_role}`));
   if (d.capability_authority && d.capability_authority !== 'unclear') {

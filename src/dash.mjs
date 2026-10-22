@@ -17,6 +17,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { openDb } from './db.mjs';
+import { boardSeats } from './boards.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -490,7 +491,10 @@ function collect(db, cfg, targeting) {
   // Associates, Chief Talent Officers. They are correctly extracted and they are
   // not prospects. Only seats that matched a persona as a buyer or a router make
   // the shortlist; the rest are counted and reported, never silently dropped.
-  const eligible = people.filter((p) => !killedOrgs.has(p.org_id)
+  // A "write" verdict outranks a firm kill, as it does in draft.mjs: the kill
+  // is about the firm as a buyer, and the operator chose this person anyway.
+  const killedFor = (p) => killedOrgs.has(p.org_id) && verdictsByPerson.get(p.person_id)?.verdict !== 'write';
+  const eligible = people.filter((p) => !killedFor(p)
     && !suppressed.has(p.person_id) && !held.has(p.person_id)
     && !contactedPeople.has(p.person_id));
   // SEAT, not discounted authority. See the note in rank.mjs beside
@@ -668,7 +672,7 @@ function collect(db, cfg, targeting) {
   const inFlight = people
     .filter((p) => !seenInFlight.has(p.person_id) && seenInFlight.add(p.person_id))
     .filter((p) => contactedPeople.has(p.person_id)
-      && !killedOrgs.has(p.org_id) && !suppressed.has(p.person_id) && !held.has(p.person_id))
+      && !killedFor(p) && !suppressed.has(p.person_id) && !held.has(p.person_id))
     // No seat test here (dropped 2026-10-12). The seat decides who is worth
     // writing to; for someone already written to that is settled, and the test
     // hid four people who had just accepted a connection, drafts and all.
@@ -1933,6 +1937,8 @@ ${balanceForm}</section>`;
     <span class="title">${esc(p.title ?? '')}</span></h3></header>
   <p class="meta">${esc(p.org_name ?? '')} · ${esc(ranker)} ${match}</p>
   ${whatTheyDo(p)}
+  ${d.threadLine?.(p.person_id) ?? ''}
+  ${d.rolesLine?.(p.person_id) ?? ''}
   <p><b>${cited(pick.reason)}</b></p>
   <p class="meta">Need <b>${esc(pick.need)}</b> · Owner <b>${esc(pick.owner)}</b>${
       pick.better_recipient ? ` (→ ${esc(pick.better_recipient)})` : ''} · Value <b>${esc(pick.value)}</b> ·
@@ -2854,6 +2860,7 @@ function cards(list, cfg, d) {
       ${d.firmLine?.(p.org_id) ?? ''}
       ${addressLine(p)}
       ${d.threadLine?.(p.id) ?? ''}
+      ${d.rolesLine?.(p.id) ?? ''}
       ${inFlightPanel(p)}
       ${profilePanel(p, d)}
       ${firmOutreachPanel(p, d)}
@@ -2960,6 +2967,12 @@ function buildAll(db, cfg, targeting) {
     for (const c of db.prepare(`SELECT person_id, MAX(COALESCE(replied_at, substr(posted_at, 1, 10))) AS at
         FROM comments WHERE replied = 1 GROUP BY person_id`).all()) threads.set(c.person_id, c.at);
   }
+  // THE OTHER COMPANIES THEY HOLD A ROLE AT, where the buyer may be when their
+  // own seat buys nothing (boards.mjs; the read and the drafter see the same list).
+  d.rolesLine = (personId) => {
+    const rows = boardSeats(db, personId).filter((r) => r.status === 'current');
+    return rows.length ? `<p class="meta"><b>Also</b> ${rows.map((r) => `${esc(r.role || 'board')} at ${esc(r.company)}`).join('; ')}</p>` : '';
+  };
   d.threadLine = (personId) => threads.has(personId)
     ? `<p class="need"><b>Replied to your comment</b>${threads.get(personId) ? ` ${esc(threads.get(personId))}` : ''}; a note follows on from the thread.</p>` : '';
   d.firmLine = (orgId) => {
