@@ -116,7 +116,7 @@ in the chart below mark when each was made:
 
 The morning's screening and research go through the Batches API at half price, since
 nobody reads them until later, and prompt caching (mostly in drafting and judging)
-takes about a fifth off the weekly bill. Drafts are written only when the user requests one.
+takes about a fifth off the weekly bill. Drafts are written only when I ask for one.
 
 Claude Code sessions are billed separately and not included.
 
