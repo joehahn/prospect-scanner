@@ -11,7 +11,7 @@ does that research from public evidence, so what was hours of reading is now min
 of deciding. Each morning I get a short list of people and, when I ask, a draft note to
 each. I edit and send every note myself, by email or LinkedIn.
 
-![The dashboard's Ready page, a LinkedIn profile open in the user's own browser, and Claude Code in a terminal](docs/images/in-use.png)
+![The dashboard's Ready page, a LinkedIn profile open in my own browser, and Claude Code in a terminal](docs/images/in-use.png)
 <sub>A working morning. The firms and prospects are fictional; the LinkedIn profile is my own.</sub>
 
 **Author:** Joseph M. Hahn, Ph.D., independent AI and machine learning consultant  
