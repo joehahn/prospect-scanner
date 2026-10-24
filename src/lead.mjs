@@ -97,6 +97,7 @@ import { openDb, startRun, finishRun, slugify } from './db.mjs';
 import { distinctWords, otherOrgInTitle } from './org-match.mjs';
 import { ensureBoardSeats, roleWords } from './boards.mjs';
 import { nameParts as personName, pageNames, samePersonOnFile } from './people-match.mjs';
+import { nameParts } from './address-name.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
@@ -1293,7 +1294,7 @@ function sent(db, cfg, args) {
       console.log(`  ${bold('THIS WENT TO A PATTERN GUESS, not a verified address.')}`);
       console.log(dim('  Silence here is not evidence about the market — the note may never ' +
         'have arrived. If it bounces, record it so the denominator stays honest:\n' +
-        `    npm run lead -- reply --outreach ${row.id} --sentiment negative ` +
+        `    npm run lead -- reply --outreach ${row.id} --sentiment bounced ` +
         '--outcome "bounced: address was a guess"\n' +
         '  If a day passes with no bounce, that is the verification — promote it:\n' +
         `    npm run lead -- paste --person ${person.id} --url <profile> --email ${to}`));
@@ -1685,25 +1686,6 @@ const PATTERNS = [
   { id: 'lastf',      fn: (f, l) => `${l}${f[0]}` },
 ];
 
-const nameParts = (name) => {
-  const bits = String(name ?? '').toLowerCase()
-    .replace(/[^a-z\s'-]/g, ' ').replace(/\b(jr|sr|ii|iii|phd|cpa|mba)\b/g, '')
-    .split(/\s+/).filter(Boolean);
-  // HONORIFICS ARE STRIPPED FROM THE FRONT, not from anywhere. The suffix list
-  // above ran everywhere and this one cannot: `dr` is also a surname, and
-  // dropping it wherever it appeared would mangle a real one. It only ever
-  // masquerades as a first name when it leads.
-  //
-  // An executive vice chancellor came through as "Dr. Jane Doe" — the
-  // title had been captured into the name field upstream — and a first.last
-  // pattern turned that into dr.reeves@, which is not an address anyone holds.
-  // A wrong address is the worst failure this file can produce: it fails
-  // SILENTLY, so the note reads as ignored rather than undelivered, and the
-  // send lands in the denominator as evidence about a market it never reached.
-  while (bits.length > 2 && /^(dr|mr|mrs|ms|miss|prof|professor|rev|sir|dame|hon|sgt|capt|col|gen|lt)$/
-    .test(bits[0])) bits.shift();
-  return bits.length >= 2 ? { first: bits[0], last: bits[bits.length - 1] } : null;
-};
 
 /**
  * Pull a bare address out of whatever string holds it. The seed's guesses carry
@@ -1823,7 +1805,9 @@ async function emails(db, args) {
     if (!parts) { rows.push({ p, addr: '—', state: 'no surname' }); continue; }
     const addr = `${shape.fn(parts.first, parts.last)}@${domain}`;
     upd.run(addr, p.id);
-    rows.push({ p, addr, state: 'guess' });
+    // A surname particle may be a middle name instead: show the other reading.
+    rows.push({ p, addr, state: parts.alt
+      ? `guess; or ${shape.fn(parts.first, parts.alt)}@` : 'guess' });
   }
 
   console.log(heading(`${org.name} — pattern "${pattern}" from ${basis}`));
@@ -1836,9 +1820,9 @@ async function emails(db, args) {
     addr: r.addr, state: r.state,
   })), [
     { key: 'name', label: 'NAME', width: 24 }, { key: 'title', label: 'TITLE', width: 36 },
-    { key: 'addr', label: 'ADDRESS', width: 34 }, { key: 'state', label: '', width: 10 },
+    { key: 'addr', label: 'ADDRESS', width: 34 }, { key: 'state', label: '', width: 28 },
   ]));
-  console.log(dim(`\n${rows.filter((r) => r.state === 'guess').length} written to email_guess, ` +
+  console.log(dim(`\n${rows.filter((r) => r.state.startsWith('guess')).length} written to email_guess, ` +
     'not to email. A guess raises reachability but is scored below a verified address, ' +
     'because a bounce costs more than a delay.'));
   console.log(dim('Verify before sending — most mail providers accept a probe, and a firm\'s ' +
