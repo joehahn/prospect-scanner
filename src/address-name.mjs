@@ -12,6 +12,12 @@
 // Vietnamese name is usually a middle name, and Minh Van Contoso's address is
 // mcontoso@, not mvancontoso@. So when one is absorbed, `alt` carries the last
 // word alone, and the caller shows both rather than silently choosing.
+//
+// A middle word is the same kind of guess. Usually it is a middle name and the
+// address drops it, but a two-word given name keeps it: a note to a Singapore
+// director named like "Wei Ming Fabrikam" went to wei.fabrikam@ and bounced, where
+// weiming.fabrikam@ was the likelier reading. `altFirst` carries the joined given
+// name, shown beside the guess, never chosen over it.
 
 const fold = (s) => String(s ?? '').replace(/ß/g, 'ss').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -42,5 +48,7 @@ export function nameParts(name) {
   while (start > 1 && PARTICLES.has(bits[start - 1])) start -= 1;
   const last = bits.slice(start).join('');
   const alt = bits[bits.length - 1];
-  return alt === last ? { first: bits[0], last } : { first: bits[0], last, alt };
+  const parts = alt === last ? { first: bits[0], last } : { first: bits[0], last, alt };
+  if (start > 1) parts.altFirst = bits.slice(0, start).join('').replace(/-/g, '');
+  return parts;
 }

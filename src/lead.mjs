@@ -1805,9 +1805,12 @@ async function emails(db, args) {
     if (!parts) { rows.push({ p, addr: '—', state: 'no surname' }); continue; }
     const addr = `${shape.fn(parts.first, parts.last)}@${domain}`;
     upd.run(addr, p.id);
-    // A surname particle may be a middle name instead: show the other reading.
-    rows.push({ p, addr, state: parts.alt
-      ? `guess; or ${shape.fn(parts.first, parts.alt)}@` : 'guess' });
+    // A surname particle may be a middle name, and a middle name may be half
+    // of the given name: show the other readings.
+    const others = [parts.alt && shape.fn(parts.first, parts.alt),
+      parts.altFirst && shape.fn(parts.altFirst, parts.last)].filter(Boolean);
+    rows.push({ p, addr, state: others.length
+      ? `guess; or ${others.map((x) => `${x}@`).join(' or ')}` : 'guess' });
   }
 
   console.log(heading(`${org.name} — pattern "${pattern}" from ${basis}`));
