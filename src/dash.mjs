@@ -2608,8 +2608,9 @@ function reachLine(p, d = null) {
   }
   // An address is shown where it is recommended, with a copy button.
   const addr = (x) => (x.addr ? ` <code>${esc(x.addr)}</code> <button type="button" class="copy" data-copy="${esc(x.addr)}">copy</button>` : '');
-  return `<p class="need"><b>Reach by:</b> ${esc(o[0].text)}${addr(o[0])} <span class="dim">(${esc(o[0].why)})</span>${
-    o[1] ? ` <span class="dim">&middot; else ${esc(o[1].text)}</span>${addr(o[1])} <span class="dim">(${esc(o[1].why)})</span>` : ''}${note}</p>`;
+  // Each recommendation is bold, so the channel is the first thing seen.
+  return `<p class="need"><b>Reach by:</b> <b>${esc(o[0].text)}</b>${addr(o[0])} <span class="dim">(${esc(o[0].why)})</span>${
+    o[1] ? ` <span class="dim">&middot; else</span> <b>${esc(o[1].text)}</b>${addr(o[1])} <span class="dim">(${esc(o[1].why)})</span>` : ''}${note}</p>`;
 }
 
 /** The operator's latest call on a person, as a filter value: first, write, skip or none. */
