@@ -2564,9 +2564,8 @@ function reachOptions(p, d = null) {
     why: `${credits}${quiet ? '; it also alerts them by email, which matters for someone rarely on LinkedIn' : ''}${
       strong ? '' : '; a borderline card, so weigh keeping the credit for a stronger one'}` };
   const connect = { channel: 'linkedin_connect_note',
-    text: `a connection request with a note (up to ${CONNECT_NOTE_MAX} characters)`,
-    why: knows ? 'free, and they know you, so it will be recognised'
-      : `free, but a stranger's request may never be accepted${quiet ? '; rarely on LinkedIn' : ''}` };
+    text: 'a connection request with a note', bold: 'connection request',
+    why: knows ? 'free, and they know you, so it will be recognised' : '' };
   // THE OPERATOR'S RULE (2026-09-27): "if he is inmail worthy we should inmail,
   // if not then research his email." Revised below for 2nd degree.
   const out = [];
@@ -2608,9 +2607,16 @@ function reachLine(p, d = null) {
   }
   // An address is shown where it is recommended, with a copy button.
   const addr = (x) => (x.addr ? ` <code>${esc(x.addr)}</code> <button type="button" class="copy" data-copy="${esc(x.addr)}">copy</button>` : '');
-  // Each recommendation is bold, so the channel is the first thing seen.
-  return `<p class="need"><b>Reach by:</b> <b>${esc(o[0].text)}</b>${addr(o[0])} <span class="dim">(${esc(o[0].why)})</span>${
-    o[1] ? ` <span class="dim">&middot; else</span> <b>${esc(o[1].text)}</b>${addr(o[1])} <span class="dim">(${esc(o[1].why)})</span>` : ''}${note}</p>`;
+  // Each recommendation is bold, so the channel is the first thing seen; where
+  // an option names its channel inside a phrase, only that name is bold.
+  const label = (x) => {
+    const i = x.bold ? x.text.indexOf(x.bold) : -1;
+    return i < 0 ? `<b>${esc(x.text)}</b>`
+      : `${esc(x.text.slice(0, i))}<b>${esc(x.bold)}</b>${esc(x.text.slice(i + x.bold.length))}`;
+  };
+  const why = (x) => (x.why ? ` <span class="dim">(${esc(x.why)})</span>` : '');
+  return `<p class="need"><b>Reach by:</b> ${label(o[0])}${addr(o[0])}${why(o[0])}${
+    o[1] ? ` <span class="dim">&middot; else</span> ${label(o[1])}${addr(o[1])}${why(o[1])}` : ''}${note}</p>`;
 }
 
 /** The operator's latest call on a person, as a filter value: first, write, skip or none. */
