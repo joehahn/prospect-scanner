@@ -2540,8 +2540,9 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
 // if connected; then a card worth a credit (a Write first or a 4-5) gets an
 // InMail, which lands, alerts by email, and is refunded on a reply; a weaker
 // card is told to find a real address before anything else. A connection
-// request leads only for someone who knows the operator; otherwise it is a
-// fallback, since a stranger's request may never be accepted. Channels already tried on this person are
+// request leads for someone who knows the operator, and for a strong card at
+// 2nd degree (see below); otherwise it is a fallback, since a stranger's
+// request may never be accepted. Channels already tried on this person are
 // skipped (never the same channel twice to a non-responder).
 function reachOptions(p, d = null) {
   const inmailLeft = d?.inmailLeft ?? null;
@@ -2567,15 +2568,24 @@ function reachOptions(p, d = null) {
     why: knows ? 'free, and they know you, so it will be recognised'
       : `free, but a stranger's request may never be accepted${quiet ? '; rarely on LinkedIn' : ''}` };
   // THE OPERATOR'S RULE (2026-09-27): "if he is inmail worthy we should inmail,
-  // if not then research his email." A one-line connection request from a
-  // stranger has no evidence behind it (3 sent, 1 reply) and gates the pitch
-  // behind an acceptance, so it is a fallback, never the lead, for anyone.
+  // if not then research his email." Revised below for 2nd degree.
   const out = [];
   if (p.email && !tried.has('email')) out.push({ channel: 'email', text: 'email, free', addr: p.email, why: 'a real address, which reaches them wherever they are' });
   if (deg === '1' && !tried.has('linkedin_message')) out.push({ channel: 'linkedin_message', text: 'LinkedIn message, free', why: 'you are connected' });
   if (knows && deg !== '1' && li && !tried.has('linkedin_connect_note')) out.push(connect);
+  // REVISED (2026-10-26, the operator: "make that change"). A strong card at
+  // 2nd degree gets the free connection request first: since September the
+  // request-then-message route drew replies at about the InMail rate (2 of 16
+  // messages; 1 of 45 InMails) without spending a credit. InMail still leads
+  // where that route is shut or too slow: 3rd degree and beyond, someone rarely
+  // on LinkedIn (an InMail also reaches them by email), or a dated event under
+  // two weeks old that an acceptance could take days to open.
+  const fresh = (j?.pick?.timing_days ?? 9e9) <= 14;
+  const connectFirst = strong && deg === '2' && li && !quiet && !fresh
+    && !tried.has('linkedin_connect_note') && !out.includes(connect);
+  if (connectFirst) out.push(connect);
   if (strong) {
-    if (canInMail) out.push(inmail);
+    if (canInMail) out.push(connectFirst ? { ...inmail, why: `${inmail.why}; only if the request goes unaccepted` } : inmail);
   } else if (!p.email) {
     out.push({ channel: null, text: 'find a real address first',
       why: li ? 'check the Contact info on their LinkedIn profile, then paste the profile again'

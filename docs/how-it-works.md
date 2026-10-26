@@ -128,8 +128,10 @@ offer, geography, the operator's call, who decides, and whether a profile is pas
 - **Events and facts,** dated, in the source's own words, linked to the source; facts
   from a pasted profile are marked as the operator's.
 - **Reach by:** a real address, else a message if connected, a connection request if
-  they know the operator, a paid InMail if worth a credit, a guessed address marked as a
-  guess. Addresses have a copy button; channels tried are skipped.
+  they know the operator or are a strong card at 2nd degree, a paid InMail for a strong
+  card at 3rd degree, rarely on LinkedIn, or with a dated event under two weeks old, a
+  guessed address marked as a guess. Addresses have a copy button; channels tried are
+  skipped.
 - **A profile search link** the operator clicks, and a box to paste what they read.
 - **The operator's call:** *Write first*, *Would write* or *Wouldn't*, with a reason.
 - **The note:** latest draft, channel and recipient, a character count where the channel
