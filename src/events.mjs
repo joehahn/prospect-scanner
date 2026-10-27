@@ -502,6 +502,20 @@ export function sessionDayInEvent(sessionDate, when) {
   return sessionDate >= when.starts_on && sessionDate <= end ? sessionDate : null;
 }
 
+/**
+ * THE DAY A SPEAKER'S SIGNAL IS DATED. Added 2026-10-27: every signal was dated
+ * the day the agenda was read, so a keynote given in July, found in October,
+ * looked one day old to the judge and read as a fresh reason to write. A talk
+ * already given is dated by the talk: its session day, else the event's last
+ * day. A talk still to come, or one with no date, is dated today, the day it
+ * became known.
+ */
+export function signalDay(r, today) {
+  const sd = isoDay(r.session_date);
+  const past = sd ?? (r.when ? (r.when.ends_on ?? r.when.starts_on) : null);
+  return past && past < today ? past : today;
+}
+
 export async function loadSpeakers(db, runId, all, { model, judge = true, source = 'conference_agendas' } = {}) {
   const today = new Date().toISOString().slice(0, 10);
   all = all.map((r) => ({ ...r, session_date: sessionDayInEvent(r.session_date, r.when) }));
@@ -587,7 +601,7 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
   if (judge) {
     const prompt = readFileSync(resolve(ROOT, JUDGE_PROMPT), 'utf8');
     const sig = db.prepare(`INSERT INTO signals (org_id,trigger_id,detected_at,decays_at,weight,evidence_id)
-      SELECT @org,'practitioner_aired_ai_difficulty',@today,date(@today,'+180 days'),4,@ev
+      SELECT @org,'practitioner_aired_ai_difficulty',@day,date(@day,'+180 days'),4,@ev
        WHERE NOT EXISTS (SELECT 1 FROM signals x WHERE x.org_id=@org
          AND x.trigger_id='practitioner_aired_ai_difficulty' AND x.retracted_at IS NULL)`);
     // ONE PLACEHOLDER PER VALUE, which this did not have. It built the IN list
@@ -598,16 +612,18 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
     // provided" and took the whole judging pass down AFTER the harvest had been
     // written, so the run looked half-successful and the signals never fired.
     const urls = [...new Set(hits.map((h) => h.url))];
-    const rows = db.prepare(`SELECT e.id ev, e.org_id, e.body, p.name, p.title, o.name firm
+    const rows = db.prepare(`SELECT e.id ev, e.org_id, e.source_url url, e.body, p.name, p.title, o.name firm
       FROM evidence e JOIN people p ON p.id=e.person_id JOIN orgs o ON o.id=e.org_id
      WHERE e.source_url IN (${urls.map(() => '?').join(',') || "''"})`).all(...urls);
+    // Each speaker record's talk day, so a signal is dated by the talk.
+    const dayOf = new Map(hits.map((h) => [`${h.url}|${slug(h.name)}`, signalDay(h, today)]));
     let fired = 0;
     for (const r of rows) {
       const res = await complete(db, runId, { model, maxTokens: 3000, schema: JUDGE_SCHEMA, system: prompt,
         messages: [{ role: 'user', content: `Speaker: ${r.name} — ${r.title}, ${r.firm}\n\n${r.body}` }] });
       spent += res.cost_usd ?? 0;
       if (res.data?.verdict === 'fires') {
-        fired++; sig.run({ org: r.org_id, ev: r.ev, today });
+        fired++; sig.run({ org: r.org_id, ev: r.ev, day: dayOf.get(`${r.url}|${slug(r.name)}`) ?? today });
         console.log(`  ${bold('FIRES')} ${r.name} @ ${r.firm} — ${res.data.difficulty}`);
       }
     }

@@ -5,7 +5,7 @@
 // write" while carrying only the date the agenda was fetched, so the angle
 // writer guessed the tense and guessed it differently each time.
 const R = decodeURIComponent(new URL('../src/', import.meta.url).pathname);
-const { eventDateFrom, tenseFor, dateForAgenda, markAgendaDays } = await import(R+'events.mjs');
+const { eventDateFrom, tenseFor, dateForAgenda, markAgendaDays, signalDay } = await import(R+'events.mjs');
 
 const CASES = [
   // --- THE REAL ONE. Biomanufacturing World Summit, from its own landing page.
@@ -118,6 +118,18 @@ for (const [text, start, end] of [
   if (dayA < 0 || dayB < 0 || dayB < a || /\[DAY [^\]]*\]\s*<p>x/.test(out)) {
     fail++; console.log('  FAIL  markAgendaDays did not label each day block, or labelled a non-date id');
   } else pass++;
+}
+
+// A signal is dated by the talk once it has been given, not by the day the
+// agenda was read: a July keynote found in October is not one day old.
+for (const [r, want, label] of [
+  [{ session_date: '2026-07-15' }, '2026-07-15', 'a past session day dates the signal'],
+  [{ when: { starts_on: '2026-07-14', ends_on: '2026-07-15' } }, '2026-07-15', "a past event's last day dates it"],
+  [{ session_date: '2026-11-09' }, '2026-10-27', 'a talk still to come is dated today'],
+  [{}, '2026-10-27', 'an undated talk is dated today'],
+]) {
+  const got = signalDay(r, '2026-10-27');
+  if (got !== want) { fail++; console.log(`  FAIL ${label}: ${got}`); } else pass++;
 }
 
 console.log(`\n  ${pass} pass, ${fail} fail`);
