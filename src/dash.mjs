@@ -707,6 +707,7 @@ const STYLE = `
   border:1px solid #cfd6e0;background:#fffffff2;color:#334;border-radius:999px;
   padding:.55rem .9rem;font:600 12px/1 system-ui,sans-serif;cursor:pointer;
   box-shadow:0 2px 10px #0000002e;backdrop-filter:blur(3px)}
+a#totop{text-decoration:none}
 #totop:hover{background:#fff;border-color:#8fa1b8;color:#111}
 #totop b{font-weight:600;color:#7a8699;margin-left:.45rem}
 @media print{#totop{display:none!important}}
@@ -1143,15 +1144,24 @@ function selectInstead(b) {
 }
 ${script}
 
-// JUMP TO TOP, and say where you are while doing it. The count is the useful
-// half: on a page of cards the question is usually "how far down am I", and a
-// percentage answers it without a scrollbar to squint at.
+// ALL PROSPECTS, one click from anywhere down a page of cards (operator,
+// 2026-10-27: it replaced a jump-to-top button). On All prospects itself a link
+// to the same page does nothing, so there it still jumps to the top. The count
+// is the useful half: on a page of cards the question is usually "how far down
+// am I", and a percentage answers it without a scrollbar to squint at.
 (function () {
-  const btn = document.createElement('button');
+  const home = /(^|\\/)(index\\.html)?$/.test(location.pathname);
+  const btn = document.createElement(home ? 'button' : 'a');
   btn.id = 'totop';
-  btn.type = 'button';
-  btn.innerHTML = '\u2191 top<b></b>';
-  btn.title = 'Back to the top of the page';
+  if (home) {
+    btn.type = 'button';
+    btn.innerHTML = '\u2191 top<b></b>';
+    btn.title = 'Back to the top of the page';
+  } else {
+    btn.href = 'index.html';
+    btn.innerHTML = 'All prospects<b></b>';
+    btn.title = 'Go to All prospects';
+  }
   document.body.appendChild(btn);
   const pct = btn.querySelector('b');
   let ticking = false;
@@ -1168,7 +1178,7 @@ ${script}
   addEventListener('resize', update, { passive: true });
   // A CLICK, NOT A HASH. Setting location.hash would push a history entry and
   // put the back button one press further from where the operator came in.
-  btn.addEventListener('click', () => {
+  if (home) btn.addEventListener('click', () => {
     scrollTo({ top: 0, behavior: 'smooth' });
   });
   update();
@@ -2537,13 +2547,9 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
 // channels by replies (1 of 31 InMails, 1 of 7 emails, 1 of 3 connection notes).
 // TAILORED (2026-09-27, the operator: "should solution make tailored
 // recommendations?"). What is on file decides: a real address first, a message
-// if connected; then a card worth a credit (a Write first or a 4-5) gets an
-// InMail, which lands, alerts by email, and is refunded on a reply; a weaker
-// card is told to find a real address before anything else. A connection
-// request leads for someone who knows the operator, and for a strong card at
-// 2nd degree (see below); otherwise it is a fallback, since a stranger's
-// request may never be accepted. Channels already tried on this person are
-// skipped (never the same channel twice to a non-responder).
+// if connected; then a free connection request for anyone active on LinkedIn,
+// and an InMail only in the narrow case below. Channels already tried on this
+// person are skipped (never the same channel twice to a non-responder).
 function reachOptions(p, d = null) {
   const inmailLeft = d?.inmailLeft ?? null;
   const tried = d?.triedChannels?.(p.person_id) ?? new Set();
@@ -2560,9 +2566,9 @@ function reachOptions(p, d = null) {
   const credits = inmailLeft == null ? 'spends a credit' : `spends 1 of your ${inmailLeft} credits`;
   const li = isProfile(p.profile_url);
   const canInMail = li && inmailLeft !== 0 && !tried.has('linkedin_inmail');
+  const pace = inmailLeft ? `, about ${Math.ceil(inmailLeft / 4)} a week to last the month` : '';
   const inmail = { channel: 'linkedin_inmail', text: 'InMail',
-    why: `${credits}${quiet ? '; it also alerts them by email, which matters for someone rarely on LinkedIn' : ''}${
-      strong ? '' : '; a borderline card, so weigh keeping the credit for a stronger one'}` };
+    why: `${credits}${pace}${quiet ? '; it also alerts them by email, which matters for someone rarely on LinkedIn' : ''}` };
   const connect = { channel: 'linkedin_connect_note',
     text: 'a connection request with a note', bold: 'connection request',
     why: knows ? 'free, and they know you, so it will be recognised' : '' };
@@ -2572,30 +2578,34 @@ function reachOptions(p, d = null) {
   if (p.email && !tried.has('email')) out.push({ channel: 'email', text: 'email, free', addr: p.email, why: 'a real address, which reaches them wherever they are' });
   if (deg === '1' && !tried.has('linkedin_message')) out.push({ channel: 'linkedin_message', text: 'LinkedIn message, free', why: 'you are connected' });
   if (knows && deg !== '1' && li && !tried.has('linkedin_connect_note')) out.push(connect);
-  // REVISED (2026-10-26, the operator: "make that change"). A strong card at
-  // 2nd degree gets the free connection request first: since September the
-  // request-then-message route drew replies at about the InMail rate (2 of 16
-  // messages; 1 of 45 InMails) without spending a credit. InMail still leads
-  // where that route is shut or too slow: 3rd degree and beyond, someone rarely
-  // on LinkedIn (an InMail also reaches them by email), or a dated event under
-  // two weeks old that an acceptance could take days to open.
+  // REVISED (2026-10-27, the operator: "make both changes"). A connection
+  // request first for anyone active on LinkedIn, at any degree and any rating:
+  // of 52 InMails two weeks old none drew an interested reply, while a third of
+  // 92 requests were accepted, for free, and an acceptance opens a free message
+  // and a reader for his posts. A credit is spent only where all three hold: a
+  // 4-5 or Write first card, a dated event under two weeks old, and no other way
+  // in (a request unaccepted for two weeks, or someone rarely on LinkedIn with
+  // no address, whom an InMail also reaches by email). The credits are paced to
+  // last the month, since LinkedIn refills them monthly.
   const fresh = (j?.pick?.timing_days ?? 9e9) <= 14;
-  const connectFirst = strong && deg === '2' && li && !quiet && !fresh
-    && !tried.has('linkedin_connect_note') && !out.includes(connect);
-  if (connectFirst) out.push(connect);
-  if (strong) {
-    if (canInMail) out.push(connectFirst ? { ...inmail, why: `${inmail.why}; only if the request goes unaccepted` } : inmail);
-  } else if (!p.email) {
+  const reqSent = d?.connectSentAt?.(p.person_id);
+  const reqStale = Boolean(reqSent) && deg !== '1' && Date.now() - Date.parse(reqSent) >= 14 * 86_400_000;
+  if (deg !== '1' && li && !quiet && !tried.has('linkedin_connect_note') && !out.includes(connect)) out.push(connect);
+  if (canInMail && strong && fresh && (reqStale || (quiet && !p.email))) out.push(inmail);
+  if (!p.email && (quiet || !li) && !out.includes(inmail)) {
     out.push({ channel: null, text: 'find a real address first',
-      why: li ? 'check the Contact info on their LinkedIn profile, then paste the profile again'
+      why: li ? 'rarely on LinkedIn, so a request may go unseen; check the Contact info on their profile, then paste it again'
         : 'find them on LinkedIn and paste the profile; its Contact info may list one' });
   }
   if (!p.email && p.email_guess && !tried.has('email')) {
     out.push({ channel: 'email', text: 'email to a guessed address', addr: p.email_guess,
       why: 'guessed from the firm\'s pattern; it may bounce, or fail silently' });
   }
-  if (deg === '2' && li && !tried.has('linkedin_connect_note') && !out.includes(connect)) out.push(connect);
-  if (!strong && canInMail) out.push(inmail);
+  // A request that went unanswered is an answer: nothing more is sent.
+  if (!out.length && tried.has('linkedin_connect_note') && deg !== '1') {
+    out.push({ channel: null, text: 'nothing more for now',
+      why: 'the connection request went unaccepted; an InMail needs a dated event under two weeks old' });
+  }
   return out;
 }
 function reachLine(p, d = null) {
@@ -2943,6 +2953,11 @@ function buildAll(db, cfg, targeting) {
     tried.get(r.person_id).add(r.channel);
   }
   d.triedChannels = (pid) => tried.get(pid) ?? new Set();
+  // When the latest connection request went out: one unaccepted for two weeks
+  // is what lets a fresh event spend an InMail.
+  const reqAt = new Map(db.prepare(`SELECT person_id, MAX(sent_at) t FROM outreach
+      WHERE channel = 'linkedin_connect_note' GROUP BY person_id`).all().map((r) => [r.person_id, r.t]));
+  d.connectSentAt = (pid) => reqAt.get(pid) ?? null;
   // InMail credits left: the balance LinkedIn showed, less InMails recorded since.
   d.inmailLeft = (() => {
     if (!db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'balances'`).get()) return null;

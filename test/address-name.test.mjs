@@ -14,6 +14,12 @@ test('a middle word may be half of the given name, so it is offered as one', () 
   assert.deepEqual(nameParts('Jane Doe'), { first: 'jane', last: 'doe' });
 });
 
+test('a surname shown only as an initial yields no guess', () => {
+  assert.equal(nameParts('Jane D.'), null);
+  assert.equal(nameParts('Ana Contoso F'), null);
+  assert.equal(nameParts('Jane Q. Doe').last, 'doe');
+});
+
 test('a particle that leads is a first name, not a surname', () => {
   assert.deepEqual(nameParts('De Contoso'), { first: 'de', last: 'contoso' });
 });

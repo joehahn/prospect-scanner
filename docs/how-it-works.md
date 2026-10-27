@@ -127,11 +127,13 @@ offer, geography, the operator's call, who decides, and whether a profile is pas
   in full* opens the judge's reasoning, each point tied to its evidence.
 - **Events and facts,** dated, in the source's own words, linked to the source; facts
   from a pasted profile are marked as the operator's.
-- **Reach by:** a real address, else a message if connected, a connection request if
-  they know the operator or are a strong card at 2nd degree, a paid InMail for a strong
-  card at 3rd degree, rarely on LinkedIn, or with a dated event under two weeks old, a
-  guessed address marked as a guess. Addresses have a copy button; channels tried are
-  skipped.
+- **Reach by:** a real address, else a message if connected, else a connection request
+  for anyone active on LinkedIn, at any degree. A paid InMail only for a 4–5 card with a
+  dated event under two weeks old and no other way in (a request unaccepted for two
+  weeks, or someone rarely on LinkedIn with no address), paced to last the month.
+  Someone rarely on LinkedIn is otherwise asked for a real address; a guessed address
+  is marked as a guess. Addresses have a copy button; channels tried are skipped, and an
+  unaccepted request is not chased.
 - **A profile search link** the operator clicks, and a box to paste what they read.
 - **The operator's call:** *Write first*, *Would write* or *Wouldn't*, with a reason.
 - **The note:** latest draft, channel and recipient, a character count where the channel

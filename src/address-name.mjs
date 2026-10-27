@@ -43,6 +43,11 @@ export function nameParts(name) {
   while (bits.length > 2 && /^(dr|mr|mrs|ms|miss|prof|professor|rev|sir|dame|hon|sgt|capt|col|gen|lt)$/
     .test(bits[0])) bits.shift();
   if (bits.length < 2) return null;
+  // A SURNAME THAT IS ONLY AN INITIAL IS NO SURNAME. LinkedIn shows "Jane
+  // N." outside your network, and first-initial-last-initial built jn@ from it,
+  // which bounced (2026-10-27). With one letter there is nothing to build from,
+  // so no guess, and the card asks for a real address instead.
+  if (bits[bits.length - 1].length < 2) return null;
   // Particles are absorbed backwards from the last word, never into the first.
   let start = bits.length - 1;
   while (start > 1 && PARTICLES.has(bits[start - 1])) start -= 1;
