@@ -122,7 +122,7 @@ function ensureTable(db) {
     url         TEXT NOT NULL,               -- the agenda or speaker page, or the event page
     found_on    TEXT,                        -- the page it was found on
     found_via   TEXT,                        -- 'example' or 'search', and which
-    status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused
+    status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused | stale
     reason      TEXT,
     speakers    INTEGER,                     -- speakers read off the page and verified
     country     TEXT,                        -- where the event is, as the page said
@@ -240,6 +240,22 @@ async function find(db, cfg, b, args) {
 // ---- read -----------------------------------------------------------------
 
 /**
+ * THE AGENDA MAY BE LAST YEAR'S. Added 2026-10-27: an event site's header
+ * advertised next year's edition while the agenda below it, titled "... 2026 |
+ * Agenda" and offering "the 2026 agenda", was the July 2026 one. The event was
+ * filed as 2027, and nine people who had already spoken went into the book as
+ * speaking, one note saying "you're keynoting" a talk given in July.
+ *
+ * Returns the year the page's own title names, when that is before the
+ * event's year; otherwise null. The title only: body text links archived
+ * agendas ("the 2025 agenda") on current pages, and would misfire.
+ */
+export function staleAgendaYear(page, eventYear) {
+  const y = Number((String(page.title ?? '').match(/\b(20\d\d)\b/) ?? [])[1]);
+  return eventYear && y && y < eventYear ? y : null;
+}
+
+/**
  * Only speakers the page itself names, with a title and a firm. A model reading
  * a page can return a plausible name that is not on it; that person never spoke
  * there, and one note naming a talk they did not give is worse than none.
@@ -276,7 +292,8 @@ async function read(db, cfg, b, args) {
   const hosts = hostsOf(cfg);
   const limit = Number(args.limit ?? 3);
   const ids = args.ids && args.ids !== true ? String(args.ids).split(',').map(Number) : null;
-  const rows = db.prepare(`SELECT * FROM conferences WHERE status = 'pending' ORDER BY id`).all()
+  const rows = db.prepare(`SELECT * FROM conferences WHERE status = 'pending'
+      OR (status = 'stale' AND read_at < datetime('now', '-30 days')) ORDER BY id`).all()
     .filter((r) => !ids || ids.includes(r.id)).slice(0, ids ? undefined : limit);
   if (!rows.length) { console.log('no conferences waiting. Run with --find first.'); return; }
   const runId = startRun(db, 'conferences-read', { model: cfg.models?.cheap });
@@ -323,6 +340,15 @@ async function read(db, cfg, b, args) {
     // is dropped, and the speaker record says the date is not published.
     const named = Number((String(c.name).match(/\b(20\d\d)\b/) ?? [])[1]);
     const when = parsed && named && Math.abs(Number(parsed.starts_on.slice(0, 4)) - named) > 1 ? null : parsed;
+    // An earlier edition's agenda: its talks are past and undated, so they are
+    // no dated reason to write. Left as 'stale' and read again in a month, by
+    // when the new edition's speakers may be out.
+    const stale = staleAgendaYear(page, Number(when?.starts_on?.slice(0, 4)) || named || null);
+    if (stale) {
+      done.run('stale', `the agenda is the ${stale} edition's; the page advertises a later one`, 0, now, c.id);
+      console.log(`  ${dim('stale')}   ${c.name} (agenda is ${stale})`);
+      continue;
+    }
     // A session's calendar link outranks the reader: it is the page's own
     // statement of the day, and the reader may not have been shown the headings.
     const cal = calendarSessions(page.html);

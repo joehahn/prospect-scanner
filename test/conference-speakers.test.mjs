@@ -6,7 +6,7 @@
 // have (case, accents, extra spacing, punctuation) without letting a near-miss
 // through.
 const R = decodeURIComponent(new URL('../', import.meta.url).pathname);
-const { verifiedSpeakers, allowedCountries, inOperatorCountries } = await import(R + 'src/conferences.mjs');
+const { verifiedSpeakers, allowedCountries, inOperatorCountries, staleAgendaYear } = await import(R + 'src/conferences.mjs');
 
 let fail = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}`); if (!ok) fail++; };
@@ -32,6 +32,12 @@ check(!inOperatorCountries('Germany', allowed), 'a country no one works in is le
 check(inOperatorCountries('', allowed) && inOperatorCountries('Online', allowed), 'unstated or online is let through');
 check(inOperatorCountries('United States and United Kingdom', allowed), 'an event in several countries passes if one is ours');
 check(!inOperatorCountries('Germany, Austria', allowed), 'an event only in others does not');
+
+// Last year's agenda under next year's header: past talks, not upcoming ones.
+check(staleAgendaYear({ title: 'Summit 2026 | Agenda' }, 2027) === 2026, "an agenda titled with last year's edition is stale");
+check(staleAgendaYear({ title: 'Summit 2027 | Agenda' }, 2027) === null, 'an agenda titled with the event year is current');
+check(staleAgendaYear({ title: 'Agenda', text: 'see the 2025 agenda' }, 2026) === null, 'an archive link in the body is not the page');
+check(staleAgendaYear({ title: 'Summit 2026' }, null) === null, 'no event year, no verdict');
 
 if (fail) { console.log(`\n${fail} failed`); process.exit(1); }
 console.log('\nall passed');
