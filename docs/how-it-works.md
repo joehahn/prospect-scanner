@@ -200,13 +200,6 @@ their level, not what a product already does, a lede that is theirs). Flags show
 card with the words that failed. Revisions are in plain words; every version is kept,
 **Sent** records the exact text and channel, and replies link to the note that drew them.
 
-**The channel test.** Every person rated 4+ with an address at the firm's own domain
-(published, or guessed from a published pattern) is assigned email or LinkedIn
-alternately, so channel is not confounded with who publishes an address. The operator
-still chooses; what was sent is counted, and the Scoreboard compares reply rates on
-sends at least fourteen days old, bounces apart from silence. Personal addresses do
-not qualify.
-
 ## Steps and their commands
 
 Each step runs on its own, by command or by asking Claude Code; the daily run chains

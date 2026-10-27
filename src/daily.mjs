@@ -28,9 +28,7 @@
 //   4c. grade     those drafts, by a model other than the drafter; a failing
 //                 one is flagged on its card with the words that failed
 //   4d. addresses for the firms of writable people rated 4+ where nobody has
-//                 one, read off the firm's own pages (up to --addresses firms);
-//                 then the channel test gives each new 4+ person with an
-//                 address the arm, email or LinkedIn, the last one did not get
+//                 one, read off the firm's own pages (up to --addresses firms)
 //   5. dash       rebuild the pages
 //
 // Every stage records its own cost in `runs`; the summary at the end adds them
@@ -55,7 +53,6 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
 import { strongWritable, pasteQueue } from './funnel.mjs';
 import { ratingOf } from './measures.mjs';
-import { assign, candidates } from './channel-test.mjs';
 import { heading, bold, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -307,14 +304,13 @@ if (draftN > 0) {
 // named, is flagged on the card before the operator edits it.
 if (draftN > 0) run('4c. grade · this morning\'s drafts', ['grade', '--', '--since', started], BATCH ?? {});
 
-// 4d. ADDRESSES, THEN THE CHANNEL TEST (channel-test.mjs, 2026-10-08). Email
-// can only be tested on people with an address, and the firms that publish
-// one are not a random sample, so look one up for every firm with a writable
-// 4+ person and none on file, then alternate the channel among those who have
-// one. `addresses` reads the firm's own pages, then at most one press search.
+// 4d. ADDRESSES. A real address is the free channel that reaches someone
+// wherever they are, so look one up for every firm with a writable 4+ person
+// and none on file. `addresses` reads the firm's own pages, then at most one
+// press search. (The email-or-LinkedIn test these once fed was stopped on
+// 2026-10-27, operator: "stop the channel test".)
 const addrN = argN('--addresses', 8);
 const ADDR_RECHECK_DAYS = 14;   // a firm that published nothing is not asked again for two weeks
-let assigned = [];
 if (addrN > 0 && !dry) {
   const db = openDb();
   let firms = [];
@@ -338,10 +334,6 @@ if (addrN > 0 && !dry) {
     const got = q(`SELECT COUNT(*) n FROM people WHERE org_id = ? AND (email IS NOT NULL OR email_guess IS NOT NULL)`, f.id)[0].n;
     console.log(`  ${got ? `${got} address(es) on file` : 'none usable'}`);
   }
-  const db2 = openDb();
-  try { assigned = assign(db2, candidates(db2)); } finally { db2.close(); }
-  console.log(`\n${bold('4d. channel test')} ${assigned.length} assigned`
-    + (assigned.length ? `: ${assigned.map((a) => `${a.person_id} → ${a.arm}`).join(', ')}` : ''));
 }
 
 // 5. pages
@@ -380,7 +372,7 @@ if (!dry) {
   try { waiting = readFileSync(resolve(ROOT, 'data/dash/ready.html'), 'utf8').match(/(\d+) to decide/)?.[1] ?? '0'; } catch { /* no page yet */ }
   console.log(heading('done'));
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
-    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${assigned.length} into the channel test · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
+    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
   // THE OPERATOR'S PART OF THE MORNING: the few strongest writable people whose
   // seat is the open question and who have no profile on file (funnel.mjs).
