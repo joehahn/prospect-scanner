@@ -57,7 +57,9 @@ export function sameName(head, name) {
 
 /** The subject's name: the line above their degree, skipping a pronoun line. */
 export function headerName(text) {
-  const lines = String(text).split(/\r?\n/).map((l) => l.trim());
+  // Only the subject's own part: a page whose header has no degree line (it
+  // happens) otherwise took the first name in "More profiles for you".
+  const lines = ownPart(text).split(/\r?\n/).map((l) => l.trim());
   for (let i = 0; i < Math.min(lines.length, 120); i++) {
     if (!/^·\s*(1st|2nd|3rd\+?)$/.test(lines[i])) continue;
     for (let j = i - 1; j >= 0; j--) {

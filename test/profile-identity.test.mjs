@@ -34,3 +34,9 @@ test('a headline above the degree is not read as a name', () => {
   assert.equal(sameName(nameKey('Jane C.'), 'Jane Contoso'), true);
   assert.equal(sameName(nameKey('Jane C.'), 'Jane Northwind'), false);
 });
+
+test('a page with no degree in its header does not take a name from the rails', () => {
+  const p = 'Cover photo\nJane Contoso\nCEO at Fabrikam\nFabrikam\nAbout\nI run Fabrikam.\nMore profiles for you\nAnn Other\n· 3rd\nCIO at Northwind\n';
+  assert.equal(headerName(p), null);
+  assert.equal(notThisPerson(p, 'Jane Contoso', 'Fabrikam'), null);
+});
