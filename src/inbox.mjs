@@ -126,15 +126,78 @@ function urlFrom(text) {
 // the URL, then the nav chrome, then the person. Matching against the book
 // rather than guessing at structure is what makes this reliable across the
 // layout changes that have already broken two parsers in this project.
+//
+// THE HEADER FIRST (2026-10-29). The page names its subject once, on the line
+// just above their degree ("Jane Q. Doe" then "· 2nd"), and that line is not
+// always the name on file: "Dr. Jane Doe" is "Jane Doe" on the page, so
+// the scan below found a commenter instead. Where the header is there, it alone
+// decides, on first name and surname; a header that matches no one, or two,
+// is a refusal, never a fall back to some other name on the page.
+const SUFFIX = /^(jr|sr|ii|iii|iv|phd|ph\.d|md|mba|cpa|pmp|cfa|cfp|esq)\.?$/;
+const nameKey = (s) => {
+  const raw = String(s ?? '').split(',')[0];
+  // "Robert (Rob) Roe": the name in brackets is the one he goes by.
+  const alias = (raw.match(/\(([^)]+)\)/)?.[1] ?? '').toLowerCase().trim();
+  const w = raw.replace(/\([^)]*\)/g, ' ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z\s.'-]/g, ' ').split(/\s+/)
+    .filter((x) => x && !/^(dr|mr|mrs|ms|prof)\.?$/.test(x));
+  while (w.length > 2 && SUFFIX.test(w[w.length - 1])) w.pop();
+  return w.length < 2 ? null
+    : { first: w[0].replace(/\.$/, ''), last: w[w.length - 1].replace(/\.$/, ''), alias };
+};
+// "Joe" is "Joseph", "Doug" is "Douglas", "Mike" is "Michael": the same first
+// three letters, or one name the start of the other, with the surname exact.
+const sameFirst = (a, b) => a === b || a.startsWith(b) || b.startsWith(a)
+  || (a.length >= 3 && b.length >= 3 && a.slice(0, 3) === b.slice(0, 3))
+  || NICK.some((n) => n.includes(a) && n.includes(b));
+const NICK = [['mike', 'michael'], ['bill', 'william'], ['bob', 'robert'], ['jim', 'james'],
+  ['dick', 'richard'], ['peggy', 'margaret'], ['ted', 'edward'], ['jack', 'john'], ['liz', 'elizabeth'],
+  ['beth', 'elizabeth'], ['tony', 'anthony'], ['chuck', 'charles']];
+function headerName(text) {
+  const lines = String(text).split(/\r?\n/).map((l) => l.trim());
+  for (let i = 0; i < Math.min(lines.length, 120); i++) {
+    if (!/^·\s*(1st|2nd|3rd\+?)$/.test(lines[i])) continue;
+    // Pronouns sit between the name and the degree when someone sets them.
+    for (let j = i - 1; j >= 0; j--) if (lines[j] && !/^\w+\s*\/\s*\w+$/.test(lines[j])) return lines[j];
+  }
+  return null;
+}
 function matchPerson(db, text) {
-  const hay = String(text).slice(0, 4000).toLowerCase();
+  const head = nameKey(headerName(text));
+  if (head) {
+    const all = db.prepare(`SELECT p.id, p.name, p.title, o.name org
+      FROM people p LEFT JOIN orgs o ON o.id = p.org_id`).all();
+    const same = all.filter((r) => {
+      const k = nameKey(r.name);
+      if (!k) return false;
+      // OUTSIDE YOUR NETWORK the surname is an initial: "Frantz F."
+      if (head.last.length === 1) return k.first === head.first && k.last[0] === head.last;
+      return k.last === head.last && (sameFirst(k.first, head.first)
+        || (head.alias && sameFirst(k.first, head.alias)));
+    });
+    return same.map((r) => ({ ...r, at: 0 }));
+  }
+  // THE RAILS ARE OTHER PEOPLE. Everything from the first of LinkedIn's
+  // suggestion rails on is someone else's name and headline; on 282 stored
+  // pastes, matching into them picked the wrong person 95 times.
+  const rail = String(text).search(/^\s*(More profiles for you|People you may know|You might like|Get expert advice)/mi);
+  const hay = String(text).slice(0, rail >= 0 ? Math.min(rail, 4000) : 4000).toLowerCase();
   const rows = db.prepare(`SELECT p.id, p.name, p.title, o.name org,
       EXISTS(SELECT 1 FROM evidence e WHERE e.person_id = p.id
              AND e.provenance = 'operator_supplied' AND e.body IS NOT NULL) has_profile
     FROM people p LEFT JOIN orgs o ON o.id = p.org_id`).all();
-  const hits = rows.filter((r) => r.name && r.name.length > 5 && hay.includes(r.name.toLowerCase()));
-  // Longest name wins: "Alex Chen" also matches inside "Alex Chenoweth".
-  return hits.sort((a, b) => b.name.length - a.name.length);
+  const hits = rows.filter((r) => r.name && r.name.length > 5 && hay.includes(r.name.toLowerCase()))
+    .map((r) => ({ ...r, at: hay.indexOf(r.name.toLowerCase()) }));
+  // A name inside a longer one is not a second person: "Alex Chen" also matches
+  // inside "Alex Chenoweth".
+  const kept = hits.filter((h) => !hits.some((o) => o !== h && o.name.length > h.name.length
+    && o.name.toLowerCase().includes(h.name.toLowerCase())));
+  // EARLIEST WINS, not longest (2026-10-29). A profile's first 4,000 characters
+  // carry its Activity too, and a repost names someone else ("join <subject>'s
+  // team" sat under a recruiter's longer name). The subject's name
+  // comes first, after the nav chrome; a paste that ingests itself on arrival
+  // has no one looking at the match before it is written.
+  return kept.sort((a, b) => a.at - b.at);
 }
 
 function page(db, { note = '', text = '', err = '' } = {}) {
@@ -175,7 +238,8 @@ ${note ? `<p class="ok">${esc(note)}</p>` : ''}
 </form>
 <h2>Waiting on a profile <span class="dim">(top ${waiting.length} by score)</span></h2>
 <ul class="dim">${waiting.map((w) =>
-  `<li><code>${esc(w.id)}</code> — ${esc(w.name)}${w.title ? `, ${esc(w.title)}` : ''}${w.org ? ` · ${esc(w.org)}` : ''}</li>`).join('')}</ul>`;
+  `<li><code>${esc(w.id)}</code> — ${esc(w.name)}${w.title ? `, ${esc(w.title)}` : ''}${w.org ? ` · ${esc(w.org)}` : ''}</li>`).join('')}</ul>
+${AUTO_PASTE}`;
 }
 
 const db = openDb();
@@ -205,9 +269,14 @@ function serveDash(req, res, url) {
     'content-type': MIME[ext] ?? 'application/octet-stream',
     'cache-control': 'no-store, must-revalidate',
     pragma: 'no-cache',
-  }).end(banner ? readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner) : readFileSync(file));
+  }).end(ext === '.html' ? withAutoPaste(readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner))
+    : readFileSync(file));
   return true;
 }
+
+// The script goes last in the body, where the body it appends to exists.
+const withAutoPaste = (html) => (html.includes('</body>')
+  ? html.replace(/<\/body>(?![\s\S]*<\/body>)/, `${AUTO_PASTE}</body>`) : html + AUTO_PASTE);
 
 /** Ingest, then re-rank and rebuild so the card the operator is looking at is current. */
 // READ ON PASTE, not on the click (2026-10-12). The read took 75 of the 140
@@ -251,7 +320,7 @@ function ingest(fields) {
   if (!personId) {
     const hits = matchPerson(db, text);
     if (!hits.length) throw new Error('No one in the book matches a name in that text.');
-    if (hits.length > 1 && hits[0].name.length === hits[1].name.length) {
+    if (hits.length > 1 && hits[0].at === hits[1].at) {
       throw new Error(`That text matches ${hits.length} people: ${hits.map((h) => h.id).join(', ')}.`);
     }
     personId = hits[0].id;
@@ -380,6 +449,78 @@ function pasteBanner() {
   return `<div style="position:sticky;top:0;z-index:98;padding:8px 16px;font-size:13px;white-space:pre-wrap;${
     failed.length ? 'background:#b3261e;color:#fff' : 'background:#fdf3d0;color:#3d3200'}">${line}${fails}</div>`;
 }
+
+// A PASTE INGESTS ITSELF (2026-10-29). The operator: "i'd like the make profile
+// pasting less time consuming." Per person it was: open the profile, copy it,
+// come back, open the card's box, click into it, paste, press Go. Now a page
+// pasted anywhere on a served page that is not some other field goes straight
+// in, matched by name exactly as the bulk form matches it, and a paste into a
+// card's own box submits that box. A lone profile URL (from the address bar) is
+// held and rides along with the next page pasted, so the order does not matter.
+//
+// Nothing here reads linkedin.com: it handles what the operator copied himself.
+// A short or single-line paste is left alone, so pasting a word into a page
+// does nothing surprising; a refusal comes back on the bulk form with the text
+// still in it, as before.
+const AUTO_PASTE = String.raw`<script>(() => {
+  const URL_RE = /^https?:\/\/(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[^\s"'<>)]+$/i;
+  const MIN_CHARS = 300;
+  const tag = document.createElement('div');
+  tag.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99;padding:8px 12px;'
+    + 'font:13px system-ui;border-radius:6px;background:#1d3b5a;color:#fff;max-width:440px;display:none';
+  document.body.appendChild(tag);
+  const say = (m) => { tag.textContent = m; tag.style.display = m ? 'block' : 'none'; };
+  let held = '';
+  try { held = sessionStorage.getItem('pasteUrl') || ''; } catch {}
+  if (held) say('Profile URL held: ' + held + '. Paste the page anywhere.');
+  const hold = (u) => {
+    held = u;
+    try { u ? sessionStorage.setItem('pasteUrl', u) : sessionStorage.removeItem('pasteUrl'); } catch {}
+  };
+  const field = (form, name, value) => {
+    let el = form.querySelector('[name="' + name + '"]');
+    if (!el) { el = document.createElement('input'); el.type = 'hidden'; el.name = name; form.appendChild(el); }
+    el.value = value;
+    return el;
+  };
+  document.addEventListener('paste', (e) => {
+    const text = ((e.clipboardData && e.clipboardData.getData('text/plain')) || '').trim();
+    if (!text) return;
+    const el = document.activeElement;
+    const box = el && el.tagName === 'TEXTAREA' && el.name === 'text' && el.form ? el : null;
+    const typing = el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
+    // A WHOLE PROFILE IS NEVER MEANT FOR SOME OTHER BOX. The first live test
+    // went nowhere: focus was still in a field on the page, and the paste was
+    // left to it. A page carrying a "· 2nd" line goes in wherever focus is.
+    const profile = text.length >= MIN_CHARS && /^\s*·\s*(1st|2nd|3rd\+?)\s*$/m.test(text);
+    if (typing && !box && !profile) return;
+    if (URL_RE.test(text)) {
+      e.preventDefault();
+      const u = box && box.form.querySelector('[name="url"]');
+      if (u) u.value = text;
+      hold(text);
+      say('Profile URL held: ' + text + '. Paste the page anywhere.');
+      return;
+    }
+    if (text.length < MIN_CHARS || !text.includes('\n')) return;
+    e.preventDefault();
+    let form = box && box.form;
+    if (!form) {
+      form = document.createElement('form');
+      form.method = 'post';
+      form.action = '/paste';
+      form.style.display = 'none';
+      document.body.appendChild(form);
+      field(form, 'back', location.pathname + location.hash);
+    }
+    field(form, 'text', text);
+    const u = form.querySelector('[name="url"]');
+    if (held && !(u && u.value.trim())) field(form, 'url', held);
+    hold('');
+    say('Ingesting the paste...');
+    form.requestSubmit ? form.requestSubmit() : form.submit();
+  });
+})();</script>`;
 
 // A FRESH POST IN THE PASTE (2026-10-17). `comment` looks at the Activity
 // section and costs nothing unless a post is a week old or less; when one is,
@@ -672,7 +813,7 @@ createServer((req, res) => {
       }
       // AMBIGUITY IS SHOWN, NEVER GUESSED. Writing a profile onto the wrong
       // person is silent and hard to notice later.
-      if (hits.length > 1 && hits[0].name.length === hits[1].name.length) {
+      if (hits.length > 1 && hits[0].at === hits[1].at) {
         return send(page(db, { text, err:
           `That text matches ${hits.length} people: ${hits.map((h) => `${h.id} (${h.name})`).join(', ')}. `
           + 'Pick one in the Person id field.' }));

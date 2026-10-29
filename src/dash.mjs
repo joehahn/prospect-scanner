@@ -2371,7 +2371,8 @@ function pasteBox(p) {
       <div class="pbrow"><input type="text" name="url" size="44"
         placeholder="profile URL from the address bar (optional, but it counts)">
         <button type="submit">Go</button></div>
-      <p class="pbnote">Paste and press Go — connection degree, follower count, location and how
+      <p class="pbnote">Paste and it goes in by itself, here or anywhere on this page outside
+        a box (Go is for a paste you edited) — connection degree, follower count, location and how
         active they are are all read out of the text. A select-all copy leaves out the address
         bar, so put the profile URL in the box beside Go: rank counts a profile on file as a
         way to reach them, and the card then links straight to it. Nothing fetches
