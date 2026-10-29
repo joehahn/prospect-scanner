@@ -980,7 +980,9 @@ const layoutFor = (extra) => Object.assign({
 (function () {
   const bar = document.querySelector('nav.tabs[data-filter]');
   if (!bar) return;
-  const AXES = ['service', 'capability', 'form', 'sectors', 'geo', 'status', 'channel', 'call', 'owner', 'pasted'];
+  // PERSON HAS NO CHIP (2026-10-29): it is for a hand-picked list sent as a
+  // link, e.g. the ten whose profile is likeliest to move a 3 to a 4.
+  const AXES = ['service', 'capability', 'form', 'sectors', 'geo', 'status', 'channel', 'call', 'owner', 'pasted', 'person'];
   const cards = Array.from(document.querySelectorAll('article.card[data-service]'));
   const count = document.getElementById('fcount');
   const clear = document.getElementById('fclear');
@@ -1903,7 +1905,8 @@ ${balanceForm}</section>`;
   const orgFirm = new Map((d.firms ?? []).map((f) => [f.org_id, f]));
   const svcOf = (p) => d.offerId((firmOf.get(p.person_id) ?? orgFirm.get(p.org_id))?.package_id ?? 'none');
   const readyAxes = (p) => ` data-sectors="${esc(d.tgt.of(p.person_id, p.org_id).join(','))}"`
-    + ` data-service="${esc(svcOf(p))}" data-geo="${esc(p.geo_bucket ?? 'unknown')}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"`;
+    + ` data-service="${esc(svcOf(p))}" data-geo="${esc(p.geo_bucket ?? 'unknown')}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"`
+    + ` data-person="${esc(p.person_id)}"`;
   // The chips' counts on this page are of this page's cards; what was sent and
   // replied stays the whole record, since a segment's history is the same.
   d.readyCounts = (all) => {
@@ -2858,7 +2861,8 @@ function cards(list, cfg, d) {
       ` data-capability="${esc(p.firm?.work_id ?? 'none')}"` +
       ` data-form="${esc(p.firm?.work_form ?? 'none')}"` +
       ` data-geo="${esc(p.geo_bucket ?? 'unknown')}"` +
-      ` data-status="${status}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"`;
+      ` data-status="${status}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"` +
+      ` data-person="${esc(p.person_id)}"`;
     return `<article class="card" id="p-${esc(p.person_id)}" data-name="${esc(p.name)}"${axes}>
       <header><h3>${status === 'in_flight' ? '<span class="rank flag">sent</span>'
         : j ? `<span class="rank rating ${j.rating >= 3 ? '' : 'flag'}">judge: ${j.rating}/5${j.spread >= 2 ? ' ±' : ''}</span>`
