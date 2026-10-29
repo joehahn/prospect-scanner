@@ -116,3 +116,22 @@ export function notThisPerson(text, name, orgName) {
   }
   return null;
 }
+
+/**
+ * The page without LinkedIn's messaging overlay. A select-all copy carries the
+ * operator's open conversations after the page footer (other people's private
+ * messages, and his replies), and 19 stored pastes held one when this was
+ * added on 2026-10-29. None of it is about the subject, so it is cut before
+ * anything is stored or sent to a model. It always follows the footer, so the
+ * cut loses nothing of the profile.
+ */
+export function withoutMessaging(text) {
+  const t = String(text);
+  const at = t.search(/^.*You are on the messaging overlay/m);
+  if (at < 0) return t;
+  // The footer's last lines ("Select language", then the operator's own name)
+  // lead into it; stop at the footer's language picker when it is there.
+  const head = t.slice(0, at);
+  const lang = head.lastIndexOf('Select language');
+  return (lang >= 0 && head.length - lang < 200 ? head.slice(0, lang) : head).replace(/\s+$/, '\n');
+}

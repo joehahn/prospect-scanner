@@ -104,7 +104,7 @@ import { loadTargeting } from './targeting.mjs';
 import { complete, batchMode } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
-import { notThisPerson } from './profile-identity.mjs';
+import { notThisPerson, withoutMessaging } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EXTRACT_PROMPT = 'prompts/extract-profile.md';
@@ -625,10 +625,12 @@ async function paste(db, cfg, args) {
     process.exit(2);
   }
 
-  const body = args.file && args.file !== true
+  let body = args.file && args.file !== true
     ? readFileSync(String(args.file), 'utf8')
     : readFileSync(0, 'utf8');
   if (!body.trim()) throw new Error('nothing to paste: stdin was empty and no --file given');
+  // Never the messaging overlay: his conversations, not the subject (profile-identity.mjs).
+  body = withoutMessaging(body);
 
   // A PROFILE PASTED ONTO THE WRONG CARD becomes that person's record: on
   // 2026-10-16 one director's page went onto a colleague's card at the same
