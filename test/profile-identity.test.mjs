@@ -1,0 +1,36 @@
+// A pasted profile is written to a card only if it is that card's person.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { notThisPerson, headerName, nameKey, sameName } from '../src/profile-identity.mjs';
+
+const page = (name, headline, firm, rail = '') => `Skip to main content\nHome\nCover photo\n${name}\n\nShe/Her\n\n· 2nd\n\n`
+  + `${headline}\n\nAustin, Texas\n\nContact info\n\n${firm}\n\nAbout\nI lead the data team.\n${rail}`;
+
+test('the search led to someone else entirely', () => {
+  const p = page('Ann Other', 'CIO at Fabrikam', 'Fabrikam');
+  assert.match(notThisPerson(p, 'Jane Contoso', 'Fabrikam'), /Ann Other's page, not Jane Contoso's/);
+});
+
+test('same name, another firm: a different person', () => {
+  const p = page('Jane Contoso', 'CFO at Northwind Traders', 'Northwind Traders');
+  assert.match(notThisPerson(p, 'Jane Contoso', 'Fabrikam Health, Inc.'), /never mentions Fabrikam Health/);
+});
+
+test('the right page passes, whatever form the name takes', () => {
+  assert.equal(notThisPerson(page('Jane Contoso', 'CIO at Fabrikam Health', 'Fabrikam Health'), 'Dr. Jane Contoso', 'Fabrikam Health, Inc.'), null);
+  assert.equal(notThisPerson(page('Joseph Contoso', 'COO', 'Fabrikam'), 'Joe Contoso', 'Fabrikam'), null);
+  assert.equal(notThisPerson(page('Ana Tayo-Contoso', 'COO', 'Fabrikam'), 'Ana Tayo Contoso', 'Fabrikam'), null);
+  assert.equal(notThisPerson(page('G. Quinn Contoso', 'COO', 'Fabrikam'), 'Quinn Contoso', 'Fabrikam'), null);
+  assert.equal(notThisPerson(page('Ned Contoso', 'COO', 'Fabrikam'), 'Edmond "Ned" R. Contoso', 'Fabrikam'), null);
+});
+
+test('a firm named only in the suggestion rails does not count', () => {
+  const p = page('Jane Contoso', 'CFO at Northwind', 'Northwind', '\nMore profiles for you\nAnn Other\n· 2nd\nCIO at Fabrikam\n');
+  assert.match(notThisPerson(p, 'Jane Contoso', 'Fabrikam'), /never mentions Fabrikam/);
+});
+
+test('a headline above the degree is not read as a name', () => {
+  assert.equal(headerName('Cover photo\nGroup Chief Claims Officer at Fabrikam\n· 3rd\n'), null);
+  assert.equal(sameName(nameKey('Jane C.'), 'Jane Contoso'), true);
+  assert.equal(sameName(nameKey('Jane C.'), 'Jane Northwind'), false);
+});

@@ -104,6 +104,7 @@ import { loadTargeting } from './targeting.mjs';
 import { complete, batchMode } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
+import { notThisPerson } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EXTRACT_PROMPT = 'prompts/extract-profile.md';
@@ -638,6 +639,15 @@ async function paste(db, cfg, args) {
   // box shows the refusal with the text still in it. --force when it really is
   // them under another name.
   if (person && (args.kind && args.kind !== true ? String(args.kind) : 'profile') === 'profile' && !args.force) {
+    // THE SEARCH'S FIRST RESULT IS NOT ALWAYS THEM (2026-10-29): 10-20% of the
+    // time, most often a same-named person at another firm, and the paste box
+    // now ingests without a look. The page's own header must be this person,
+    // and their own part of the page must name this firm (profile-identity.mjs).
+    // On 651 stored pastes this refused 4 that were someone else's page, 1
+    // whose card was stale, and 1 that named the parent company instead.
+    const firmName = db.prepare('SELECT name FROM orgs WHERE id = ?').get(person.org_id)?.name;
+    const stranger = notThisPerson(body, person.name, firmName);
+    if (stranger) throw new Error(`${stranger}\nNothing stored. Paste the right page, or run again with --force if it is them.`);
     const parts = personName(person.name);
     if (parts && !pageNames(body, person.name)) {
       throw new Error(`This page never mentions "${parts.last}", so it is probably not ${person.name}'s profile. ` +

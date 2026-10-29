@@ -26,6 +26,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
 import { operatorLastSaid } from './operator-said.mjs';
+import { nameKey, sameName, headerName, firmOnPage, ownPart } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.INBOX_PORT ?? 8787);
@@ -133,55 +134,21 @@ function urlFrom(text) {
 // the scan below found a commenter instead. Where the header is there, it alone
 // decides, on first name and surname; a header that matches no one, or two,
 // is a refusal, never a fall back to some other name on the page.
-const SUFFIX = /^(jr|sr|ii|iii|iv|phd|ph\.d|md|mba|cpa|pmp|cfa|cfp|esq)\.?$/;
-const nameKey = (s) => {
-  const raw = String(s ?? '').split(',')[0];
-  // "Robert (Rob) Roe": the name in brackets is the one he goes by.
-  const alias = (raw.match(/\(([^)]+)\)/)?.[1] ?? '').toLowerCase().trim();
-  const w = raw.replace(/\([^)]*\)/g, ' ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z\s.'-]/g, ' ').split(/\s+/)
-    .filter((x) => x && !/^(dr|mr|mrs|ms|prof)\.?$/.test(x));
-  while (w.length > 2 && SUFFIX.test(w[w.length - 1])) w.pop();
-  return w.length < 2 ? null
-    : { first: w[0].replace(/\.$/, ''), last: w[w.length - 1].replace(/\.$/, ''), alias };
-};
-// "Joe" is "Joseph", "Doug" is "Douglas", "Mike" is "Michael": the same first
-// three letters, or one name the start of the other, with the surname exact.
-const sameFirst = (a, b) => a === b || a.startsWith(b) || b.startsWith(a)
-  || (a.length >= 3 && b.length >= 3 && a.slice(0, 3) === b.slice(0, 3))
-  || NICK.some((n) => n.includes(a) && n.includes(b));
-const NICK = [['mike', 'michael'], ['bill', 'william'], ['bob', 'robert'], ['jim', 'james'],
-  ['dick', 'richard'], ['peggy', 'margaret'], ['ted', 'edward'], ['jack', 'john'], ['liz', 'elizabeth'],
-  ['beth', 'elizabeth'], ['tony', 'anthony'], ['chuck', 'charles']];
-function headerName(text) {
-  const lines = String(text).split(/\r?\n/).map((l) => l.trim());
-  for (let i = 0; i < Math.min(lines.length, 120); i++) {
-    if (!/^·\s*(1st|2nd|3rd\+?)$/.test(lines[i])) continue;
-    // Pronouns sit between the name and the degree when someone sets them.
-    for (let j = i - 1; j >= 0; j--) if (lines[j] && !/^\w+\s*\/\s*\w+$/.test(lines[j])) return lines[j];
-  }
-  return null;
-}
 function matchPerson(db, text) {
   const head = nameKey(headerName(text));
   if (head) {
     const all = db.prepare(`SELECT p.id, p.name, p.title, o.name org
       FROM people p LEFT JOIN orgs o ON o.id = p.org_id`).all();
-    const same = all.filter((r) => {
-      const k = nameKey(r.name);
-      if (!k) return false;
-      // OUTSIDE YOUR NETWORK the surname is an initial: "Frantz F."
-      if (head.last.length === 1) return k.first === head.first && k.last[0] === head.last;
-      return k.last === head.last && (sameFirst(k.first, head.first)
-        || (head.alias && sameFirst(k.first, head.alias)));
-    });
-    return same.map((r) => ({ ...r, at: 0 }));
+    const same = all.filter((r) => sameName(head, r.name));
+    // TWO OF THE SAME NAME: the one whose firm the page names (profile-identity.mjs).
+    // A same-named stranger matches no one's firm, so lead paste refuses it.
+    const atFirm = same.filter((r) => firmOnPage(text, r.org));
+    return (atFirm.length ? atFirm : same).map((r) => ({ ...r, at: 0 }));
   }
   // THE RAILS ARE OTHER PEOPLE. Everything from the first of LinkedIn's
   // suggestion rails on is someone else's name and headline; on 282 stored
   // pastes, matching into them picked the wrong person 95 times.
-  const rail = String(text).search(/^\s*(More profiles for you|People you may know|You might like|Get expert advice)/mi);
-  const hay = String(text).slice(0, rail >= 0 ? Math.min(rail, 4000) : 4000).toLowerCase();
+  const hay = ownPart(text).slice(0, 4000).toLowerCase();
   const rows = db.prepare(`SELECT p.id, p.name, p.title, o.name org,
       EXISTS(SELECT 1 FROM evidence e WHERE e.person_id = p.id
              AND e.provenance = 'operator_supplied' AND e.body IS NOT NULL) has_profile
