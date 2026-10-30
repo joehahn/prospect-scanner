@@ -83,7 +83,7 @@ AI at all.
 
 | Step and model | What it does, and why AI rather than code |
 |---|---|
-| **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and pulls out what a firm does, who decides, and whose boards a partner sits on. Finding a firm's own website uses Claude with Anthropic's web search tool. Pages vary endlessly, and a fixed schema keeps the output checkable. |
+| **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and pulls out what a firm does, who decides, and whose boards a partner sits on. Claude with Anthropic's web search tool finds a firm's own website, confirms a news event on it, finds a person's official bio, and researches the strongest people (LinkedIn blocked). Pages vary endlessly, and a fixed schema keeps the output checkable. |
 | **LLM screening**<br/>Claude Haiku | Asks the judge's question once, with the same prompt and evidence, on the cheap model, so the judge's three runs go only to people worth them. I measure how well the screen predicts the judge, and set its pass mark from that. |
 | **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (MiniMax M3: agrees with my calls as well as Sonnet, at a third of the cost), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
 | **LLM writing**<br/>Claude Opus | Works out the note's storyline, drafts it, and revises it when I ask. A separate call then checks every claim against its source before the note is saved. |
@@ -93,8 +93,9 @@ AI at all.
 
 ## What the AI costs
 
-Model calls cost $1 to $2 per note sent. Paid web search is via Tavily and adds a few
-cents per note.
+Model calls cost $1 to $2 per note sent. Paid web search adds a few
+cents per note: Anthropic's web search tool for sites, bios and research (about 6 cents),
+and Tavily for news and events (under 2 cents).
 
 Where it goes, by the rows of the table above: writing 40%, judgment 25%, reading
 15%, grading 15%, screening 5%. Judgment makes about half of all calls but a quarter

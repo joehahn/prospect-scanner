@@ -33,9 +33,10 @@ OpenRouter (`src/openrouter.mjs`), which pins the hosts each model may run on an
 its price; that is how the judge runs on MiniMax M3. Its calls are costed like any
 other but do not go through Anthropic's Batches API. Moving to a provider outside
 OpenRouter (Azure OpenAI, say) means rewriting that function: the request, structured
-JSON output against a schema, and the price list. Two steps also
-use Anthropic's built-in web search (finding a firm's website, and confirming a news
-event on the firm's own site); those need another search in its place. The prompts
+JSON output against a schema, and the price list. Four steps also
+use Anthropic's built-in web search (finding a firm's website, confirming a news
+event on the firm's own site, finding a person's official bio, and researching a
+person across the web); those need another search in its place. The prompts
 are plain text and carry over, but they were tuned on Claude, so the first week on a
 new model is the time to watch the Scoreboard. Measuring whether a change like this
 helped or hurt is what the scoreboard is for. Claude Code is optional: every step is
