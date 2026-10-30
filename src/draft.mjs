@@ -568,6 +568,12 @@ async function main() {
         // An explicit --service overrides which package is quoted, but never
         // which buyer is argued from: that is what rank decided.
         if (service) return resolveBuyer(cfg, c.id);
+        // THE NOTE AFTER AN ACCEPT SELLS NOTHING (2026-10-30). It carries no
+        // offer, so an accepted engagement partner was refused for lacking one.
+        if (!svcPick?.service?.id && isFollowup(db, personId, channel)) {
+          console.log(dim(`no offer fits ${org.name}, and none is needed: the note after an accept carries none`));
+          return resolveBuyer(cfg, c.id);
+        }
         if (!svcPick?.service?.id) {
           throw new Error(`Pitch "${c.id}" fits ${org.name} but no OFFER under it does: ` +
             'nothing in the evidence satisfies what any of its services ask for. ' +
