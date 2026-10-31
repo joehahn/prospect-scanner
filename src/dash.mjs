@@ -23,7 +23,7 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBu
 import { loadTargeting } from './targeting.mjs';
 import { scoreboard, searchFunnel, spend, draftArms, gradePredictsEdits, timingText } from './measures.mjs';
 import { channelResults } from './channel-test.mjs';
-import { loadBusiness, targetsOfPeople, inSeat } from './business.mjs';
+import { loadBusiness, targetsOfPeople, inSeat, outsideCountries } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
@@ -1942,7 +1942,9 @@ ${balanceForm}</section>`;
   <header><h3><span class="rank rating ${rating >= 3 ? '' : 'flag'}">judge: ${rating}/5${
       spread >= 2 ? ' ±' : ''}</span> ${esc(p.name)}
     <span class="title">${esc(p.title ?? '')}</span></h3></header>
-  <p class="meta"><span class="firm">${esc(p.org_name ?? '')}</span> · ${esc(ranker)} ${match}</p>
+  <p class="meta"><span class="firm">${esc(p.org_name ?? '')}</span> · ${esc(ranker)} ${match}${(() => {
+    const away = outsideCountries(biz(), { country: p.country, location: p.location, kind: p.org_kind });
+    return away ? ` · <span class="flag">outside your countries (${esc(away)})</span>` : ''; })()}</p>
   ${whatTheyDo(p)}
   ${d.threadLine?.(p.person_id) ?? ''}
   ${d.rolesLine?.(p.person_id) ?? ''}
@@ -2822,6 +2824,10 @@ function sellLine(p, cfg, d0) {
     quote a rate.</p>` : ''}`;
 }
 
+// The business, loaded once for the country check on each card.
+let BIZ = null;
+const biz = () => (BIZ ??= loadBusiness(cfg, targeting));
+
 function cards(list, cfg, d) {
   return list.map((p, i) => {
     const warnGates = (d.gatesByOrg.get(p.org_id) ?? []).filter((g) => g.outcome === 'warn');
@@ -2840,6 +2846,7 @@ function cards(list, cfg, d) {
     // ranker's "blocked" mixed that rule with its own scoring judgments.
     const status = statusOfCard(p);
     const cooling = coolingLines(p);
+    const abroad = outsideCountries(biz(), { country: p.country, location: p.location, kind: p.org_kind });
     const j = d.judgeOf?.(p.person_id);
     // WHAT WAS PITCHED BEATS WHAT WAS FORECAST. `firm.package_id` is the
     // ranking's guess at the right thing to sell. Once a note has gone out, the
@@ -2874,6 +2881,8 @@ function cards(list, cfg, d) {
         : j ? `<span class="rank rating ${j.rating >= 3 ? '' : 'flag'}">judge: ${j.rating}/5${j.spread >= 2 ? ' ±' : ''}</span>`
         : '<span class="rank rating flag">not judged</span>'} ${esc(p.name)}
         <span class="title">${esc(p.title ?? 'title unknown')}</span></h3></header>
+      ${abroad ? `<div class="blocked"><h4>Outside your countries</h4><ul><li>${esc(p.location ?? abroad)}: no target of yours covers ${
+        esc(abroad)} for a firm of this kind</li></ul></div>` : ''}
       ${cooling.length ? `<div class="blocked"><h4>Cooling off</h4><ul>${
         cooling.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></div>` : ''}
       ${status === 'in_flight' ? '' : judgeBlock(j)}

@@ -1,4 +1,6 @@
-# draft-cold-note — v34, 2026-10-20
+# draft-cold-note — v35, 2026-10-31
+
+*v35: "recently" has a date. Two drafts led with a March talk and a seven-month-old post as if current ("I see you're on the Tech & GenAI stream", "saw your post"). A lede is from the last 60 days, counted from today; an age stamp on a pasted page ("7mo", "2w") counts back from that item's RETRIEVED date. Older is background, not a lede. The words match the date: a talk that is over is "spoke on", never "you're on".*
 
 *v34: the open door after an accepted connection is no longer given as wording to copy. Every follow-up drafted since v32 said "Nothing needed now", and the operator cut it from six of the seven he sent: one sentence in every note is the template tell the retired phrases exist to remove, and a note with no ask does not need to announce it. The rule says what the door is for; the words are new each time.*
 
@@ -120,6 +122,12 @@ the firm does, and work out:
    their words, a talk and its abstract, a post, the AI subjects they follow.
    A recent fact that has nothing to do with the goal is not a lede, however
    fresh. If none bears on it, open on the circumstance itself.
+   **Recently means within 60 days of today.** Date each candidate first: an
+   agenda gives the talk's date; an age stamp on a pasted page ("7mo", "2w")
+   counts back from that item's RETRIEVED date. Anything older is background
+   and never opens the note. The verb matches the date: a talk that is over
+   is "spoke on" or "your talk on", never "you're on"; a post months old is not
+   "saw your post".
 3. **The bridge.** Why an AI consultant and builder is the natural next step
    from that lede toward that goal. One plain clause; the reader should not
    have to work it out.

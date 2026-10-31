@@ -225,7 +225,10 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
   const recentLines = [...new Set(recent)].slice(0, 10);
 
   const fmtEv = (e) => {
-    const head = `- [${e.provenance}${e.kind ? `/${e.kind}` : ''}] ${retense(e.claim)}\n  SOURCE: ${e.source_url}`;
+    // RETRIEVED, so an age stamp on the page ("7mo", "2w") can be dated: it counts
+    // back from the day the page was read, not from today (2026-10-31).
+    const head = `- [${e.provenance}${e.kind ? `/${e.kind}` : ''}] ${retense(e.claim)}\n  SOURCE: ${e.source_url}`
+      + (e.retrieved_at ? `\n  RETRIEVED: ${String(e.retrieved_at).slice(0, 10)}` : '');
     // Pasted profile text is the richest evidence there is; include it whole.
     return e.provenance === 'operator_supplied' && e.body
       ? `${head}\n  FULL TEXT:\n${e.body.split('\n').map((l) => `    ${l}`).join('\n')}`
@@ -450,9 +453,26 @@ async function main() {
   //
   // Explicit --service still wins, and a read that names nothing changes
   // nothing: the router keeps its say wherever no thesis has an opinion.
-  const readPick = db.prepare(`SELECT suggests_package FROM reads
+  const readSaid = db.prepare(`SELECT suggests_package FROM reads
      WHERE person_id = ? AND rejected_at IS NULL AND suggests_package <> ''
      ORDER BY id DESC LIMIT 1`).get(personId)?.suggests_package ?? null;
+  // A READ'S PICK MUST STILL FIRE (2026-10-31). The read named pilot oversight
+  // for an operating partner on nothing but an inference that a portfolio
+  // company "starts an AI pilot"; the offer fires only on a live vendor-pilot or
+  // integrator signal, and none was on file, so the note offered to do his own
+  // job. Where the offer names triggers and the firm has none live, the read's
+  // choice gives way to the router.
+  const readPick = (() => {
+    const pkg = readSaid ? cfg.packages.find((x) => x.id === readSaid) : null;
+    const need = pkg?.fires_when?.triggers_any ?? [];
+    if (!need.length || !org?.id) return readSaid;
+    const live = db.prepare(`SELECT 1 FROM signals WHERE org_id = ? AND retracted_at IS NULL
+        AND (decays_at IS NULL OR decays_at > date('now'))
+        AND trigger_id IN (${need.map(() => '?').join(',')}) LIMIT 1`).get(org.id, ...need);
+    if (live) return readSaid;
+    console.log(dim(`the read chose ${readSaid}, but it fires only on ${need.join(' or ')} and ${org.name} has none live; the router decides`));
+    return null;
+  })();
   const serviceId = args.service && args.service !== true ? String(args.service)
     : (readPick ?? null);
   if (!args.service && readPick) {
@@ -875,9 +895,9 @@ async function main() {
   let claimCheck = null;
   if (!args['no-check']) {
     const checkPrompt = readFileSync(resolve(ROOT, 'prompts/check-claims.md'), 'utf8');
-    const ev = db.prepare(`SELECT id, kind, claim, body FROM evidence
+    const ev = db.prepare(`SELECT id, kind, claim, body, retrieved_at FROM evidence
        WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL)) ORDER BY id`).all(personId, org.id)
-      .map((e) => `- [id ${e.id}] ${retense(e.claim)}`
+      .map((e) => `- [id ${e.id}${e.retrieved_at ? `, retrieved ${String(e.retrieved_at).slice(0, 10)}` : ''}] ${retense(e.claim)}`
         + (e.body && String(e.body).trim().length > 80
           ? `\n${retense(String(e.body).trim()).slice(0, e.kind === 'operator_profile' ? 30000 : 2200).split('\n').map((l) => `    ${l}`).join('\n')}` : ''))
       .join('\n');
@@ -901,7 +921,7 @@ async function main() {
       model: cfg.models.draft ?? cfg.models.default, maxTokens: 6000,
       schema: CLAIM_SCHEMA, system: checkPrompt,
       messages: [{ role: 'user', content:
-        `## The note\n\n${body}\n\n## The evidence on file\n\n${ev || '(none)'}`
+        `Today is ${today}.\n\n## The note\n\n${body}\n\n## The evidence on file\n\n${ev || '(none)'}`
         + (said ? `\n\n## What the operator knows first-hand (counts as evidence)\n\n${said}` : '') }],
     });
     claimCheck = chk.data ?? null;

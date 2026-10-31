@@ -85,6 +85,17 @@ function fieldsNear(text, name) {
     out.location = loc;
     const parts = loc.split(',').map((x) => x.trim());
     if (parts.length > 1) out.country = parts[parts.length - 1];
+  } else {
+    // A METRO WITH NO COUNTRY (2026-10-31): "Greater Paris Metropolitan Region",
+    // "Detroit Metropolitan Area". Kept as the location; the country only where
+    // the city settles it, so a card can say a Paris profile is abroad.
+    const metro = head.split('\n').map((l) => l.trim())
+      .find((l) => /^(Greater\s+)?[A-Z][\w .'-]+\s+(Metropolitan\s+)?(Area|Region)$/.test(l));
+    if (metro) {
+      out.location = metro;
+      const city = Object.keys(METRO_COUNTRY).find((c) => new RegExp(`\\b${c}\\b`, 'i').test(metro));
+      if (city) out.country = METRO_COUNTRY[city];
+    }
   }
 
   // ACTIVITY FROM HOW OLD THE POSTS ARE, which is the only honest source for it.
@@ -116,6 +127,18 @@ function fieldsNear(text, name) {
   }
   return out;
 }
+
+// Metros LinkedIn prints without a country, by the country they settle.
+const METRO_COUNTRY = { Paris: 'France', Lyon: 'France', London: 'United Kingdom', Manchester: 'United Kingdom',
+  Frankfurt: 'Germany', Munich: 'Germany', Berlin: 'Germany', Hamburg: 'Germany', Milan: 'Italy', Rome: 'Italy',
+  Madrid: 'Spain', Barcelona: 'Spain', Amsterdam: 'Netherlands', Zurich: 'Switzerland', Geneva: 'Switzerland',
+  Stockholm: 'Sweden', Oslo: 'Norway', Copenhagen: 'Denmark', Helsinki: 'Finland', Dublin: 'Ireland',
+  Toronto: 'Canada', Montreal: 'Canada', Vancouver: 'Canada', Dubai: 'United Arab Emirates', Singapore: 'Singapore',
+  Sydney: 'Australia', Detroit: 'United States', Chicago: 'United States', Boston: 'United States',
+  Dallas: 'United States', Houston: 'United States', Austin: 'United States', Atlanta: 'United States',
+  Seattle: 'United States', Denver: 'United States', Phoenix: 'United States', Philadelphia: 'United States',
+  'New York': 'United States', 'Los Angeles': 'United States', 'San Francisco': 'United States',
+  'Washington DC': 'United States', Minneapolis: 'United States', Miami: 'United States', Charlotte: 'United States' };
 
 /** Pull a linkedin.com/in/ URL out of pasted text. Nothing fetches it. */
 function urlFrom(text) {

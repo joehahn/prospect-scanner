@@ -514,14 +514,34 @@ function merge(db, args) {
  * and its listed subsidiary can share one too. `--list` shows the pairs; which
  * are one firm is the operator's call.
  */
+const FIRM_FILLER = new Set(['the', 'of', 'and', 'inc', 'llc', 'ltd', 'lp', 'l', 'p', 'co', 'corp', 'corporation',
+  'company', 'companies', 'group', 'holdings', 'partners', 'capital', 'management', 'state', 'department',
+  'agency', 'office', 'services', 'international', 'na', 'national', 'association', 'plc', 'gmbh', 'sa', 'ag', 'limited']);
+/** A firm's name with corporate and agency filler dropped, words sorted: equal keys are likely one firm. */
+export function firmNameKey(name) {
+  return String(name ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9 ]/g, ' ')
+    .split(/\s+/).filter((w) => w && !FIRM_FILLER.has(w)).sort().join(' ');
+}
+
 function mergeOrg(db, args) {
   if (args.list) {
     const rows = db.prepare(`SELECT domain, GROUP_CONCAT(id || ' (' || name || ')', '  |  ') ids
         FROM orgs WHERE domain IS NOT NULL AND TRIM(domain) <> ''
        GROUP BY LOWER(domain) HAVING COUNT(*) > 1 ORDER BY domain`).all();
-    if (!rows.length) { console.log('no two firms share a domain'); return; }
     for (const r of rows) console.log(`${bold(r.domain)}  ${r.ids}`);
-    console.log(dim(`\n${rows.length} domain(s) shared. Merge the ones that are one firm:` +
+    if (!rows.length) console.log('no two firms share a domain');
+    // THE SAME NAME, SHORT AND LONG (2026-10-31). "CVC" and "CVC Capital
+    // Partners", a state agency named two ways by two sources: fifteen such
+    // records hid second notes from the one-note-per-firm check. Names that are
+    // equal once corporate and agency filler is dropped are listed too.
+    const names = new Map();
+    for (const o of db.prepare('SELECT id, name FROM orgs').all()) {
+      const k = firmNameKey(o.name);
+      if (k) (names.get(k) ?? names.set(k, []).get(k)).push(`${o.id} (${o.name})`);
+    }
+    const same = [...names.entries()].filter(([, v]) => v.length > 1);
+    for (const [k, v] of same) console.log(`${bold(k)}  ${v.join('  |  ')}`);
+    console.log(dim(`\n${rows.length} domain(s) shared, ${same.length} name(s) alike. Merge the ones that are one firm:` +
       ' npm run lead -- merge-org --from <id> --into <id>'));
     return;
   }

@@ -160,14 +160,43 @@ export function inSeat(target, title) {
 export const targetId = (t) => String(t.name).toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
   .slice(0, 4).join('-');
 
-const ALIASES = { 'united arab emirates': ['uae'], 'saudi arabia': ['ksa'] };
+const ALIASES = { 'united arab emirates': ['uae'], 'saudi arabia': ['ksa'],
+  us: ['united states', 'usa'], 'united kingdom': ['uk', 'england', 'scotland', 'wales'] };
 /** Whether a location string (countries and headquarters, joined) names one of `countries`. */
 export function inCountries(here, countries = []) {
   const h = String(here).toLowerCase();
   return countries.some((c) => {
     const k = String(c).toLowerCase();
-    return h.includes(k) || (ALIASES[k] ?? []).some((a) => new RegExp(`\\b${a}\\b`).test(h));
+    // A short code is a word, not a substring: "us" is inside "Cyprus" and "Russia".
+    const hit = k.length <= 3 ? new RegExp(`\\b${k}\\b`).test(h) : h.includes(k);
+    return hit || (ALIASES[k] ?? []).some((a) => new RegExp(`\\b${a}\\b`).test(h));
   });
+}
+
+const US_STATES = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+  'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine',
+  'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada',
+  'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma',
+  'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah',
+  'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming', 'District of Columbia'];
+
+/**
+ * The countries a firm of this kind may be written to in: the business's own,
+ * plus each target's, where that target names no kinds or names this one.
+ */
+export function countriesFor(business, kind) {
+  return [...(business.where?.countries ?? []), ...(business.targets ?? [])
+    .filter((t) => t.where?.countries?.length && (!t.where.kinds?.length || t.where.kinds.includes(kind)))
+    .flatMap((t) => t.where.countries)];
+}
+
+/** The person's stated country when it is outside every country they may be written to in, else null. */
+export function outsideCountries(business, { country, location, kind }) {
+  const here = [country, location].filter(Boolean).join(' | ');
+  if (!country) return null;
+  // "Texas Metropolitan Area" was once stored as a country: a state is the US.
+  if (US_STATES.some((st) => new RegExp(`\\b${st}\\b`, 'i').test(country))) return null;
+  return inCountries(here, countriesFor(business, kind)) ? null : country;
 }
 
 /**

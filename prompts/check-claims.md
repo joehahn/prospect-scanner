@@ -1,6 +1,11 @@
 # Does every factual claim in this note trace to the evidence?
 
-**Version 3, 2026-10-08.**
+**Version 4, 2026-10-31.**
+
+*v4: when a thing happened is a claim. "I see you're on the Tech & GenAI stream"
+was written about a talk seven months past, and "saw your post" about one seven
+months old; both read as current and neither was flagged. Each evidence item now
+carries the day it was retrieved, and today's date is given.*
 
 *v3: saying the operator attended, watched or heard them is a claim about them,
 not one of his own credentials. "Caught the AI arms race panel at ITC Vegas last
@@ -16,6 +21,14 @@ something in the evidence?**
 You are not judging the note. Not the tone, not the offer, not whether it will
 work. Only whether it says things that are true of this recipient and this firm
 according to what is on file.
+
+**Time is a fact.** A note that places an event in time ("you're speaking",
+"I see you're on", "saw your post", "just announced", "this week") makes a claim
+about when, and it is supported only if the evidence dates it that way. Date
+each event from the evidence: an agenda's date, or an age stamp on a pasted page
+("7mo", "2w") counted back from that item's retrieved date. Flag present tense
+for an event that is over, and "saw" or "just" for anything more than 60 days
+before today.
 
 ---
 
