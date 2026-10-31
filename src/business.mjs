@@ -192,14 +192,20 @@ export function targetsOfPeople(db, business) {
       }
     }
   }
+  // COUNTRIES AND KINDS TOGETHER MEAN BOTH (2026-10-31): "investors in these
+  // countries". Countries alone file every firm there under the target, which
+  // is right for the Gulf and would be wrong for a PE target that includes the US.
   const placed = targets.filter((t) => t.where?.countries?.length);
   if (placed.length) {
-    for (const o of db.prepare(`SELECT o.id, COALESCE(o.hq, '') || ' | ' || COALESCE((SELECT group_concat(DISTINCT
+    for (const o of db.prepare(`SELECT o.id, o.kind, COALESCE(o.hq, '') || ' | ' || COALESCE((SELECT group_concat(DISTINCT
         country) FROM people p WHERE p.org_id = o.id), '') here FROM orgs o`).all()) {
-      for (const t of placed) if (inCountries(o.here, t.where.countries)) add(o.id, t.id);
+      for (const t of placed) {
+        if (t.where.kinds?.length && !t.where.kinds.includes(o.kind)) continue;
+        if (inCountries(o.here, t.where.countries)) add(o.id, t.id);
+      }
     }
   }
-  for (const t of targets.filter((x) => x.where?.kinds?.length)) {
+  for (const t of targets.filter((x) => x.where?.kinds?.length && !x.where?.countries?.length)) {
     for (const o of db.prepare(`SELECT id FROM orgs WHERE kind IN (${t.where.kinds.map(() => '?').join(',')})`)
       .all(...t.where.kinds)) add(o.id, t.id);
   }
