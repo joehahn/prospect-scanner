@@ -100,6 +100,10 @@ where:
 targets:
   - name: "Software companies that just met a compliance requirement"
     label: "New compliance need"   # optional: the short name on a dashboard filter chip
+    # optional: countries this target may be written to in beyond `where.countries`
+    # above. It files no firm under the target; it only says a firm there is not
+    # abroad. (`where.countries` on a target files every firm in those countries.)
+    # reach: [US, Canada]
     description: "A software company of 30 to 300 people that has just raised a round,
       signed its first enterprise customer, or been handed a security questionnaire it
       cannot answer, and has no one whose job security is."

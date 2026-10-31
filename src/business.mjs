@@ -185,9 +185,12 @@ const US_STATES = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Co
  * plus each target's, where that target names no kinds or names this one.
  */
 export function countriesFor(business, kind) {
-  return [...(business.where?.countries ?? []), ...(business.targets ?? [])
-    .filter((t) => t.where?.countries?.length && (!t.where.kinds?.length || t.where.kinds.includes(kind)))
-    .flatMap((t) => t.where.countries)];
+  const ts = business.targets ?? [];
+  return [...(business.where?.countries ?? []),
+    ...ts.filter((t) => t.where?.countries?.length && (!t.where.kinds?.length || t.where.kinds.includes(kind)))
+      .flatMap((t) => t.where.countries),
+    // `reach`: where a target may be written to, without filing firms under it.
+    ...ts.flatMap((t) => t.reach ?? [])];
 }
 
 /** The person's stated country when it is outside every country they may be written to in, else null. */

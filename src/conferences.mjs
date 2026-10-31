@@ -90,7 +90,7 @@ const ALIASES = { usa: 'united states', 'u s': 'united states', 'u s a': 'united
   england: 'united kingdom' };
 const countryName = (c) => { const n = norm(c); return CODES[String(c).trim().toUpperCase()] ?? ALIASES[n] ?? n; };
 export function allowedCountries(b) {
-  const list = [...(b.where?.countries ?? []), ...(b.targets ?? []).flatMap((t) => t.where?.countries ?? [])];
+  const list = [...(b.where?.countries ?? []), ...(b.targets ?? []).flatMap((t) => [...(t.where?.countries ?? []), ...(t.reach ?? [])])];
   return new Set(list.map(countryName));
 }
 export function inOperatorCountries(country, allowed) {
