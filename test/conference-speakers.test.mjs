@@ -6,7 +6,7 @@
 // have (case, accents, extra spacing, punctuation) without letting a near-miss
 // through.
 const R = decodeURIComponent(new URL('../', import.meta.url).pathname);
-const { verifiedSpeakers, allowedCountries, inOperatorCountries, staleAgendaYear } = await import(R + 'src/conferences.mjs');
+const { verifiedSpeakers, allowedCountries, inOperatorCountries, staleAgendaYear, schedulePageOf } = await import(R + 'src/conferences.mjs');
 
 let fail = 0;
 const check = (ok, label) => { console.log(`${ok ? 'ok  ' : 'FAIL'}  ${label}`); if (!ok) fail++; };
@@ -36,6 +36,13 @@ check(!inOperatorCountries('Germany, Austria', allowed), 'an event only in other
 // Last year's agenda under next year's header: past talks, not upcoming ones.
 check(staleAgendaYear({ title: 'Summit 2026 | Agenda' }, 2027) === 2026, "an agenda titled with last year's edition is stale");
 check(staleAgendaYear({ title: 'Summit 2027 | Agenda' }, 2027) === null, 'an agenda titled with the event year is current');
+{
+  const page = { url: 'https://summit.example.com/2026/speakerlist',
+    html: '<a href="/2026/benefits">x</a><a href="https://other.example.org/agenda">y</a><a href="/2026/schedule-of-events">z</a>' };
+  check(schedulePageOf(page) === 'https://summit.example.com/2026/schedule-of-events', "a speaker list's own schedule page is found");
+  check(schedulePageOf({ url: page.url, html: '<a href="https://other.example.org/agenda">y</a>' }) === null, "another site's agenda is not this event's");
+  check(schedulePageOf({ url: 'https://s.example.com/agenda', html: '<a href="/agenda/">self</a>' }) === null, 'the page itself is not its own schedule');
+}
 check(staleAgendaYear({ title: 'Agenda', text: 'see the 2025 agenda' }, 2026) === null, 'an archive link in the body is not the page');
 check(staleAgendaYear({ title: 'Summit 2026' }, null) === null, 'no event year, no verdict');
 

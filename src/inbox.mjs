@@ -26,7 +26,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
 import { operatorLastSaid } from './operator-said.mjs';
-import { nameKey, sameName, headerName, firmOnPage, ownPart } from './profile-identity.mjs';
+import { nameKey, sameName, headerName, firmOnPage, firmShare, ownPart } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.INBOX_PORT ?? 8787);
@@ -143,7 +143,10 @@ function matchPerson(db, text) {
     // TWO OF THE SAME NAME: the one whose firm the page names (profile-identity.mjs).
     // A same-named stranger matches no one's firm, so lead paste refuses it.
     const atFirm = same.filter((r) => firmOnPage(text, r.org));
-    return (atFirm.length ? atFirm : same).map((r) => ({ ...r, at: 0 }));
+    // Several firms on the page: the one named most fully. A tie stays a tie.
+    const best = Math.max(0, ...atFirm.map((r) => firmShare(text, r.org)));
+    const top = atFirm.length > 1 ? atFirm.filter((r) => firmShare(text, r.org) === best) : atFirm;
+    return (top.length ? top : same).map((r) => ({ ...r, at: 0 }));
   }
   // THE RAILS ARE OTHER PEOPLE. Everything from the first of LinkedIn's
   // suggestion rails on is someone else's name and headline; on 282 stored

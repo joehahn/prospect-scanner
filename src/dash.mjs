@@ -752,6 +752,9 @@ header h1 { font-size:26px; margin:0 0 4px; letter-spacing:-.01em; }
 .rank.flag { min-width:0; font-size:.72em; letter-spacing:.04em; text-transform:uppercase;
   border:1px solid var(--line); border-radius:3px; padding:.1em .45em; color:var(--text2); }
 .title { color:var(--text2); font-weight:400; font-size:13.5px; }
+/* The firm in the accent colour, so a long firm name never reads as the person's. */
+.firm { color:var(--acc); font-weight:600; }
+.who { color:var(--text); font-weight:600; }
 .need { font-size:12.5px; color:var(--text2); margin:8px 0 4px;
   border-left:2px solid var(--line); padding-left:9px; }
 .score { font-size:24px; font-weight:600; color:var(--acc); font-variant-numeric:tabular-nums;
@@ -1692,9 +1695,12 @@ function searchName(name) {
 
 // NAME, THEN FIRM, ONE CLICK TO COPY, for pasting into LinkedIn's search box.
 // A button with the page's copy handler, dressed as the text it copies.
+const nameFirm = (name, org) => `<span class="who">${esc(name ?? '')}</span>${org ? ` <span class="firm">${esc(org)}</span>` : ''}`;
+
 function copyLine(name, org) {
   const text = `${searchName(name)} ${searchFirm(org)}`.trim();
-  return `<button class="copy copyname" data-copy="${esc(text)}" title="Click to copy">${esc(text)}</button>`;
+  // Copies as one string; shows the name and the firm apart, the firm in its colour.
+  return `<button class="copy copyname" data-copy="${esc(text)}" title="Click to copy">${nameFirm(searchName(name), searchFirm(org))}</button>`;
 }
 
 // A PROFILE URL IS A LINKEDIN PROFILE ONLY IF IT IS ONE. Conference speakers
@@ -1936,7 +1942,7 @@ ${balanceForm}</section>`;
   <header><h3><span class="rank rating ${rating >= 3 ? '' : 'flag'}">judge: ${rating}/5${
       spread >= 2 ? ' ±' : ''}</span> ${esc(p.name)}
     <span class="title">${esc(p.title ?? '')}</span></h3></header>
-  <p class="meta">${esc(p.org_name ?? '')} · ${esc(ranker)} ${match}</p>
+  <p class="meta"><span class="firm">${esc(p.org_name ?? '')}</span> · ${esc(ranker)} ${match}</p>
   ${whatTheyDo(p)}
   ${d.threadLine?.(p.person_id) ?? ''}
   ${d.rolesLine?.(p.person_id) ?? ''}
@@ -2871,12 +2877,12 @@ function cards(list, cfg, d) {
       ${cooling.length ? `<div class="blocked"><h4>Cooling off</h4><ul>${
         cooling.map((b) => `<li>${esc(b)}</li>`).join('')}</ul></div>` : ''}
       ${status === 'in_flight' ? '' : judgeBlock(j)}
-      <p class="lookup"><code>${esc(lookup)}</code>
+      <p class="lookup"><code>${nameFirm(p.name, p.org_name)}</code>
         <button class="copy" data-copy="${esc(lookup)}">copy</button>
         ${searchLink(p.name, p.org_name, p.profile_url)}
         <span class="dim">${esc(p.title ?? 'title unknown')}</span></p>
       ${verdictBox(p, (d.backstory ?? d).verdictsByPerson?.get(p.person_id) ?? null)}
-      <p class="meta">${esc(p.org_name)} · ${esc(p.org_kind ?? 'kind unknown')}
+      <p class="meta"><span class="firm">${esc(p.org_name)}</span> · ${esc(p.org_kind ?? 'kind unknown')}
         ${p.location ? `· ${esc(p.location)}` : p.firm?.hq ? `· ${esc(p.firm.hq)} (firm HQ)` : ''}
         ${p.in_seat_since ? `· in seat since ${esc(p.in_seat_since)}` : ''}
         ${p.platform_activity ? `· LinkedIn ${esc(p.platform_activity)}${
@@ -3296,7 +3302,7 @@ excluding them silently would hide names that are about to become the best avail
 <table><thead><tr><th>Releases</th><th>Person</th><th>Firm</th><th>Why held</th></tr></thead><tbody>
 ${d.releasing.map((r) => `<tr><td><b>${esc(r.release_after)}</b></td>
   <td>${esc(r.name)}<br><span class="dim">${esc(r.title ?? '')}</span>
-    <p class="lookup"><code>${esc(`${r.name} ${r.org_name}`)}</code>
+    <p class="lookup"><code>${nameFirm(r.name, r.org_name)}</code>
     <button class="copy" data-copy="${esc(`${r.name} ${r.org_name}`)}">copy</button>
     ${searchLink(r.name, r.org_name, r.profile_url)}</p></td>
   <td>${esc(r.org_name)}</td><td>${esc(r.condition ?? '')}</td></tr>`).join('')}

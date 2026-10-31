@@ -222,6 +222,10 @@ export async function complete(db, runId, {
   cacheTtl = null,
   schema = null,
   tools = null,
+  // Batch this call whatever CLAUDE_BATCH says: for a step that mixes calls a
+  // person waits on with a burst nobody does (conferences: page reads, then a
+  // session judgment per speaker). The caller must send the burst at once.
+  batch = null,
 }) {
   if (!model) throw new Error('complete() needs a model id from config/runtime.yml');
   if (isOpenRouter(model)) {
@@ -264,7 +268,7 @@ export async function complete(db, runId, {
   let res;
   let batched = false;
   try {
-    if (batchMode()) {
+    if (batch ?? batchMode()) {
       ({ res, batched } = await enqueue(req));
     } else {
       // STREAM WHEN THE CEILING IS HIGH. The SDK refuses a non-streaming request

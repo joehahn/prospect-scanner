@@ -1,7 +1,7 @@
 // A pasted profile is written to a card only if it is that card's person.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { notThisPerson, headerName, nameKey, sameName, withoutMessaging } from '../src/profile-identity.mjs';
+import { notThisPerson, headerName, nameKey, sameName, withoutMessaging, firmShare } from '../src/profile-identity.mjs';
 
 const page = (name, headline, firm, rail = '') => `Skip to main content\nHome\nCover photo\n${name}\n\nShe/Her\n\n· 2nd\n\n`
   + `${headline}\n\nAustin, Texas\n\nContact info\n\n${firm}\n\nAbout\nI lead the data team.\n${rail}`;
@@ -49,4 +49,11 @@ test('the messaging overlay after the footer is never stored', () => {
   assert.ok(out.includes('I run IT.'));
   assert.ok(!/Private words|Ann Other|messaging overlay|A\. Operator/.test(out));
   assert.equal(withoutMessaging('no overlay here\n'), 'no overlay here\n');
+});
+
+test('one shared word does not name a firm as fully as its own name', () => {
+  const p = page('Jo P.', 'Quality Leader at Fabrikam Industrial Works', 'Fabrikam Industrial Works')
+    + 'Spoke on: Smart Automotive Manufacturing Using AI\n';
+  assert.ok(firmShare(p, 'Fabrikam Industrial Works') > firmShare(p, 'Contoso (Automotive Trade Alliance)'));
+  assert.equal(firmShare(p, ''), 0);
 });

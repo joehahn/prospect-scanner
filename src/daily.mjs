@@ -219,8 +219,10 @@ if (args.includes('--conferences') || findAge >= 0.5) {
 } else {
   console.log(`\n${bold('1c. find conferences')} ${dim(`skipped: last run ${findAge.toFixed(1)} days ago, daily (--conferences to force)`)}`);
 }
+// FIFTEEN A DAY since 2026-10-30 (it was four): finding ran daily while reading
+// took four, and 183 found events had piled up unread. A read is one cheap call.
 {
-  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '4']);
+  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '15']);
   const w = out.match(/wrote (\d+) people/);
   if (w) { agendas = true; console.log(`  ${w[1]} people from new agendas`); }
 }

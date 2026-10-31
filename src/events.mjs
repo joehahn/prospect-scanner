@@ -618,9 +618,18 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
     // Each speaker record's talk day, so a signal is dated by the talk.
     const dayOf = new Map(hits.map((h) => [`${h.url}|${slug(h.name)}`, signalDay(h, today)]));
     let fired = 0;
-    for (const r of rows) {
-      const res = await complete(db, runId, { model, maxTokens: 3000, schema: JUDGE_SCHEMA, system: prompt,
-        messages: [{ role: 'user', content: `Speaker: ${r.name} — ${r.title}, ${r.firm}\n\n${r.body}` }] });
+    // ONE BATCH, HALF PRICE (2026-10-30). Judged one at a time on the default
+    // model, a backlog of about a thousand speakers was three hours and some
+    // $20; nobody waits on this pass, so every session goes out at once as one
+    // Batches API request (models.mjs falls back to direct calls past its
+    // deadline). Same model and prompt, so the same answers.
+    const results = await Promise.all(rows.map((r) => complete(db, runId, { model, maxTokens: 3000,
+      schema: JUDGE_SCHEMA, system: prompt, batch: true,
+      messages: [{ role: 'user', content: `Speaker: ${r.name} — ${r.title}, ${r.firm}\n\n${r.body}` }] })
+      .catch((err) => ({ error: err }))));
+    for (const [i, r] of rows.entries()) {
+      const res = results[i];
+      if (res.error) { console.log(`  ${dim('failed')}  ${r.name}: ${String(res.error.message ?? res.error).slice(0, 80)}`); continue; }
       spent += res.cost_usd ?? 0;
       if (res.data?.verdict === 'fires') {
         fired++; sig.run({ org: r.org_id, ev: r.ev, day: dayOf.get(`${r.url}|${slug(r.name)}`) ?? today });

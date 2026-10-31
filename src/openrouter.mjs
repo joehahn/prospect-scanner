@@ -28,7 +28,7 @@ const URL_ = 'https://openrouter.ai/api/v1/chat/completions';
 // `hosts` pins the providers a model may run on, so a measurement and the live
 // stage use the same one: price and behaviour differ by host.
 const CAPABILITIES = {
-  // Pinned to ModelRun (fp8). On CoreWeave (fp4) it reasoned a fifth as much
+  // Pinned to ModelRun (fp8). On another host (fp4) it reasoned a fifth as much
   // and its judge verdicts matched the operator 78% against 86% on ModelRun,
   // 2026-10-19: same id, different model in practice.
   // schemaInPrompt: ModelRun stopped taking a strict json_schema on 2026-10-20

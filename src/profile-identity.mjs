@@ -101,6 +101,19 @@ export function firmOnPage(text, orgName) {
 }
 
 /**
+ * How much of the firm's name the subject's own part of the page carries, 0 to
+ * 1. FIRM WORDS ARE NOT EQUAL (2026-10-30): "Kevin P." outside the network fit
+ * two Kevins, and one firm passed firmOnPage on "automotive" alone, from the
+ * other's talk title. The firm the page names most fully is the subject's.
+ */
+export function firmShare(text, orgName) {
+  const words = firmWords(orgName);
+  if (!words.length) return 0;
+  const page = ownPart(text).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return words.filter((w) => new RegExp(`(^|[^a-z0-9])${w}($|[^a-z0-9])`).test(page)).length / words.length;
+}
+
+/**
  * Why this page is not this person's, or null when it is. `name` and `orgName`
  * are what the card says.
  */

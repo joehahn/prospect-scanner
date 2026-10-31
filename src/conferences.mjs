@@ -41,7 +41,7 @@ import { loadConfig } from './config.mjs';
 import { loadBusiness } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
-import { fetchPage, extractText } from './sources/web.mjs';
+import { fetchPage, extractText, extractTitle } from './sources/web.mjs';
 import { exemplarText } from './exemplars.mjs';
 import { loadSpeakers, eventDateFrom, jsonLdEventDate, markAgendaDays, calendarSessions, sessionDayFrom } from './events.mjs';
 import { heading, bold, dim, truncate } from './report.mjs';
@@ -240,6 +240,23 @@ async function find(db, cfg, b, args) {
 // ---- read -----------------------------------------------------------------
 
 /**
+ * The event's own schedule page, linked from a page that listed speakers with
+ * no sessions: same host, a path naming a schedule, agenda, program or
+ * sessions, and not the page itself. Null when the page links none.
+ */
+export function schedulePageOf(page) {
+  let here;
+  try { here = new URL(page.url); } catch { return null; }
+  for (const m of String(page.html ?? '').matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
+    let u;
+    try { u = new URL(m[1], here); } catch { continue; }
+    if (u.host !== here.host || u.pathname.replace(/\/$/, '') === here.pathname.replace(/\/$/, '')) continue;
+    if (/(schedule|agenda|program|sessions)/i.test(u.pathname)) return u.href;
+  }
+  return null;
+}
+
+/**
  * THE AGENDA MAY BE LAST YEAR'S. Added 2026-10-27: an event site's header
  * advertised next year's edition while the agenda below it, titled "... 2026 |
  * Agenda" and offering "the 2026 agenda", was the July 2026 one. The event was
@@ -300,7 +317,12 @@ async function read(db, cfg, b, args) {
   const done = db.prepare(`UPDATE conferences SET status = ?, reason = ?, speakers = ?, read_at = ? WHERE id = ?`);
   const all = [];
   console.log(heading(`Reading ${rows.length} agenda(s)`));
+  // ONE FAILED CALL MUST NOT LOSE THE REST (2026-10-30). A connection error
+  // fifty events in killed the run after twenty had been marked read, and their
+  // speakers, held for the write at the end, were lost. A failure now leaves
+  // that event waiting; the write still happens for everything read.
   for (const c of rows) {
+   try {
     const now = new Date().toISOString();
     if (forbidden(c.url, hosts)) { done.run('refused', 'forbidden host', 0, now, c.id); continue; }
     let page = await fetchPage(c.url);
@@ -318,6 +340,23 @@ async function read(db, cfg, b, args) {
         if (!p2.ok) continue;
         const g2 = await speakersOn(db, cfg, runId, p2);
         if (g2.kept.length) { page = p2; got = g2; break; }
+      }
+    }
+    // A PAGE BUILT BY JAVASCRIPT reads as empty to a fetch (2026-10-30: 31 events
+    // "empty", MODEX and CHAINge among them). The fetch succeeding means robots.txt
+    // allowed the path; the browser succeeding means the site serves one; the
+    // forbidden-host check above and the browser's own blocklist keep LinkedIn out.
+    // Those are CLAUDE.md's three conditions. Said in the reason, so which events
+    // needed a browser stays auditable.
+    let browsed = false;
+    if (!got.kept.length && !page.viaBrowser) {
+      const { fetchPageWithBrowser } = await import('./sources/browser.mjs');
+      const b = await fetchPageWithBrowser(page.url);
+      if (b.ok) {
+        const html = b.text ?? '';
+        const bp = { ok: true, url: b.finalUrl ?? page.url, html, title: extractTitle(html), text: extractText(html), viaBrowser: true };
+        const gb = await speakersOn(db, cfg, runId, bp);
+        if (gb.kept.length) { page = bp; got = gb; browsed = true; }
       }
     }
     if (got.country && !inOperatorCountries(got.country, allowed)) {
@@ -354,10 +393,31 @@ async function read(db, cfg, b, args) {
     const cal = calendarSessions(page.html);
     const dayOf = (s) => (cal.length ? sessionDayFrom(cal, s.session) : null) ?? s.session_date;
     all.push(...got.kept.map((s) => ({ ...s, session_date: dayOf(s), event: c.key, event_name: c.name, url: page.url, when })));
-    done.run('read', got.dropped ? `${got.dropped} name(s) not found on the page, dropped` : null, got.kept.length, now, c.id);
-    console.log(`  ${bold('read')}    ${c.name}: ${got.kept.length} speakers` +
+    // A SPEAKER LIST IS NOT AN AGENDA (2026-10-30). One organizer's speaker
+    // page carried names and titles but no sessions, its schedule page had a
+    // session for every speaker, and a whole sector was nearly written off as
+    // "agendas name nobody's topic". Queue the site's own schedule page.
+    const sessionless = got.kept.length > 0 && !got.kept.some((s) => s.session);
+    const sibling = sessionless ? schedulePageOf(page) : null;
+    if (sibling) {
+      db.prepare(`INSERT OR IGNORE INTO conferences (key, name, organizer, when_text, url, found_on, found_via, found_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'operator', ?)`).run(`${c.key}_schedule`, `${c.name} (schedule)`, c.organizer, c.when_text,
+        sibling, page.url, now);
+    }
+    done.run('read', [got.dropped ? `${got.dropped} name(s) not found on the page, dropped` : null,
+      sessionless ? `speaker list only, no sessions on this page${sibling ? `; queued ${sibling}` : ''}` : null,
+      browsed ? 'needed a browser: the page is built by JavaScript' : null]
+      .filter(Boolean).join('; ') || null, got.kept.length, now, c.id);
+    if (sessionless) {
+      console.log(`  ${bold('NO SESSIONS')} on ${page.url}: names and titles only, so no talk says what anyone works on`);
+      console.log(dim(sibling ? `    queued the schedule page: ${sibling}` : '    no schedule page linked; find one before judging this event'));
+    }
+    console.log(`  ${bold('read')}    ${c.name}: ${got.kept.length} speakers${browsed ? ' (browser)' : ''}` +
       `${got.kept.filter((s) => s.session).length ? `, ${got.kept.filter((s) => s.session).length} with a session` : ''}` +
       `${got.dropped ? dim(` (${got.dropped} unverifiable, dropped)`) : ''}${when ? dim(` · ${when.text}`) : ''}`);
+   } catch (err) {
+    console.log(`  ${dim('failed')}  ${c.name}: ${String(err.message ?? err).slice(0, 80)} (left waiting)`);
+   }
   }
   if (args.dry) {
     for (const s of all.slice(0, 40)) console.log(dim(`    ${s.name} · ${truncate(s.title, 40)} · ${s.firm} · ${truncate(s.session, 50)}`));
@@ -368,7 +428,16 @@ async function read(db, cfg, b, args) {
     console.log(dim('\n  --dry: nothing written to the book'));
     return;
   }
-  if (all.length) await loadSpeakers(db, runId, all, { model: cfg.models?.default, source: 'conference_discovery' });
+  if (all.length) {
+    try {
+      await loadSpeakers(db, runId, all, { model: cfg.models?.default, source: 'conference_discovery' });
+    } catch (err) {
+      // Nothing was written, so nothing these events gave is on file: wait again.
+      const keys = [...new Set(all.map((x) => x.event))];
+      db.prepare(`UPDATE conferences SET status = 'pending', read_at = NULL WHERE key IN (${keys.map(() => '?').join(',')})`).run(...keys);
+      throw err;
+    }
+  }
   finishRun(db, runId, {});
   if (all.length) console.log(dim('  next: npm run gate && npm run rank'));
 }
