@@ -139,7 +139,13 @@ function matchPerson(db, text) {
   if (head) {
     const all = db.prepare(`SELECT p.id, p.name, p.title, o.name org
       FROM people p LEFT JOIN orgs o ON o.id = p.org_id`).all();
-    const same = all.filter((r) => sameName(head, r.name));
+    const loose = all.filter((r) => sameName(head, r.name));
+    // AN EXACT FIRST NAME OUTRANKS A NICKNAME MATCH (2026-10-31). sameName lets
+    // "Kathy" find "Katherine" on three shared letters, which also matched two
+    // different first names sharing their first three; where the page's first
+    // name is someone's own, it is theirs.
+    const exact = loose.filter((r) => nameKey(r.name)?.first === head.first);
+    const same = exact.length ? exact : loose;
     // TWO OF THE SAME NAME: the one whose firm the page names (profile-identity.mjs).
     // A same-named stranger matches no one's firm, so lead paste refuses it.
     const atFirm = same.filter((r) => firmOnPage(text, r.org));
