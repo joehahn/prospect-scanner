@@ -71,7 +71,7 @@ flowchart TD
   classDef you fill:#fff3d6,stroke:#b8860b,color:#111
 ```
 
-<sub>Blue: an LLM step for reading, judgment or writing; each call returns a structured output. All run on Claude except the judge, which runs on MiniMax M3. Purple: an AI agent that uses tools. Grey: deterministic code, search, and the database every step reads and writes. Amber: you.</sub>
+<sub>Blue: an LLM step for reading, judgment or writing; each call returns a structured output. All run on Claude. Purple: an AI agent that uses tools. Grey: deterministic code, search, and the database every step reads and writes. Amber: you.</sub>
 
 ## Where AI is used, and where it isn't
 
@@ -85,7 +85,7 @@ AI at all.
 |---|---|
 | **LLM reading**<br/>Claude Haiku, Sonnet | Turns Tavily search results and web pages into structured facts: keeps only real, dated events, and pulls out what a firm does, who decides, and whose boards a partner sits on. Claude with Anthropic's web search tool finds a firm's own website, confirms a news event on it, finds a person's official bio, and researches the strongest people (LinkedIn blocked). Pages vary endlessly, and a fixed schema keeps the output checkable. |
 | **LLM screening**<br/>Claude Haiku | Asks the judge's question once, with the same prompt and evidence, on the cheap model, so the judge's three runs go only to people worth them. I measure how well the screen predicts the judge, and set its pass mark from that. |
-| **LLM judgment**<br/>MiniMax M3, Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (MiniMax M3: agrees with my calls as well as Sonnet, at a third of the cost), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
+| **LLM judgment**<br/>Claude Sonnet | Rates each prospect 1-5 from my own Write first / Would write / Wouldn't calls (Sonnet 5.5: agreed with 87% of my calls in each of two runs, more than the cheaper MiniMax M3), and works out what the person is after and which offer fits (Sonnet). My taste is learned from examples, not written down as rules. |
 | **LLM writing**<br/>Claude Opus | Works out the note's storyline, drafts it, and revises it when I ask. A separate call then checks every claim against its source before the note is saved. |
 | **LLM grading**<br/>Claude Sonnet | Grades every draft as it is written, with a different model from the one that wrote it, so no model grades its own work. Are the claims on file? Does the note recite the reader's own facts back to them? Does it claim anything I never claim, break a channel rule, or point at something that isn't there? A failing draft is flagged on its card with the words that failed, and every grade is kept, so a defect rate traces back to the model and prompt that wrote the note. |
 | **AI agent**<br/>Claude Code | Runs any step when I ask in plain English. Open-ended requests need an agent that can use tools. |
@@ -103,15 +103,17 @@ of the cost, and reading a quarter of the calls but a sixth of the cost, because
 less expensive models do both.
 
 Each step's model is set in config and every call's cost is recorded, so moving a
-step to a cheaper model is a measured decision, not a hunch. Three such moves, each
+step to another model is a measured decision, not a hunch. Each move is
 tested on the same people first ([Measurement](docs/measurement.md)); the dotted lines
 in the chart below mark when each was made:
 
-- **Judging** moved to MiniMax M3, which agrees with my calls as well as Claude Sonnet
-  at a third of the cost.
-- **Screening** on the cheap model kept all 10 people the judge rated 3 or better
-  while costing about a sixth as much per person, so the judge's three runs go only to
-  people worth them.
+- **Judging** runs on Claude Sonnet 5.5. On 150 people I had already decided about, it
+  agreed with 87% of my calls in each of two runs and gave the same answer both times
+  on 147 of 149. MiniMax M3, at a third of the price, agreed with 81% to 87% depending
+  on the run.
+- **Screening** runs on Claude Haiku 5.5. On 150 people the judge had rated, it kept
+  all 37 the judge rated 3 or better in both runs, at a tenth of the per-person cost of
+  Haiku 4.5, so the judge's three runs go only to people worth them.
 - **Grading** moved to Sonnet: on 27 drafts, it agreed with a model costing over four
   times as much on at least 25 of them, on every question.
 
@@ -147,7 +149,7 @@ Claude Code sessions are billed separately and not included.
 - **I log replies.** The Scoreboard, Searches and Spend pages show what's working and
   what it costs.
 - **Any step also runs from the command line,** or by asking Claude Code in plain
-  English. Most steps run on Claude and the judge on MiniMax M3; every model call
+  English. Every step runs on Claude; every model call
   goes through one small adapter, so moving a step to another provider is a config
   change (see [Setup](docs/setup.md)).
 

@@ -27,8 +27,10 @@ cheap model, and only people it rates 2 or higher go on to the judge. Whether th
 loses anyone the judge would rate 3+ is checked by screening people the judge has
 already rated: `npm run judge -- --screen --eval`. On 80 such people the screen kept
 all 10 the judge rated 3+ while sending 52 of the 80 on, at about a sixth of the
-judge's cost per person. Ten is a small number, so the check is re-run as judgments
-accumulate.
+judge's cost per person. On 150 people, two runs each, Claude Haiku 5.5 kept all 37 the
+judge rated 3+ in both runs while sending 113 and 117 on; Haiku 4.5 kept 35 and 36 while
+sending 135 and 129, at ten times the cost per person ($0.0039 against $0.0004). The
+screen runs on Haiku 5.5, and the check is re-run as judgments accumulate.
 
 **The daily funnel.** Every day is counted stage by stage: found, screened, judged,
 rated 3+, still writable, profile pasted, drafted, draft passed grading, sent,
@@ -103,14 +105,16 @@ the words do not support, with the reason.
 - **A judge that learns, measured against a formula.** The judge learns from the
   operator's calls rather than from weights and exemptions, and the formula running
   alongside it is the standard it has to beat.
-- **The cheapest judge that agrees with the operator.** On 150 people the operator
+- **The judge that agrees with the operator.** On 150 people the operator
   had already decided about (75 write, 75 skip), Claude Sonnet agreed with him 83-84%
   of the time and with itself on 96% of write/skip calls. MiniMax M3 agreed with him
-  86-87% and with itself 94%, at a third of Sonnet's batched price per call, so it
-  judges. Haiku 5.5, GPT-5.6 Luna and DeepSeek V4.1 Flash tied Sonnet within noise;
+  86-87% and with itself 94%, at a third of Sonnet's batched price per call. Measured
+  again on the same people on 2026-11-02, Claude Sonnet 5.5 agreed with him 87% in
+  each of two runs and gave the same verdict on 147 of 149, while MiniMax M3 that day
+  agreed 81%. Sonnet 5.5 judges. Haiku 5.5, GPT-5.6 Luna and DeepSeek V4.1 Flash tied Sonnet within noise;
   GLM-5.3 and Qwen 3.8 fell well short. The host matters as much as the model: the
   same MiniMax id on a host serving a more compressed copy reasoned a fifth as much
-  and agreed with him 78%, so the judge is pinned to the host that was measured.
+  and agreed with him 78%, so each OpenRouter model is pinned to the host it was measured on.
   That host does not enforce an answer's schema, so the schema goes in the request
   and each answer is checked against it here. Re-measured that way on the same 149
   people: 82.6% agreement, and it still ranked his writes above his skips better than
@@ -124,6 +128,6 @@ the words do not support, with the reason.
   rating. The judge runs three times and the spread is shown; one run is never treated
   as a measurement.
 - **Models are right-sized by step.** Cheap models read pages, extract facts and
-  screen; the judge is the cheapest model that agrees with the operator; the most
+  screen; the judge is the model that agrees with the operator most, and most steadily; the most
   capable model drafts. Because cost is recorded per step and per model, a change of
   tier is a measured decision rather than a guess.

@@ -30,7 +30,7 @@ cost is recorded, its effect on cost is measured.
 **Using another AI provider.** Every model call goes through one function in one file
 (`src/models.mjs`). A model id that does not start with `claude-` is sent through
 OpenRouter (`src/openrouter.mjs`), which pins the hosts each model may run on and holds
-its price; that is how the judge runs on MiniMax M3. Its calls are costed like any
+its price; that is how other providers' models are measured against Claude's. Their calls are costed like any
 other but do not go through Anthropic's Batches API. Moving to a provider outside
 OpenRouter (Azure OpenAI, say) means rewriting that function: the request, structured
 JSON output against a schema, and the price list. Four steps also

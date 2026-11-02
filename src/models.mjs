@@ -36,6 +36,8 @@ const CAPABILITIES = {
   'claude-fable-5':    { thinking: true, effort: true },
   'claude-sonnet-5':   { thinking: true, effort: true },
   'claude-sonnet-4-6': { thinking: true, effort: true },
+  // Adaptive only, on by default; effort low through max.
+  'claude-haiku-5-5':  { thinking: true, effort: true },
   'claude-haiku-4-5':  { thinking: false, effort: false },
 };
 
@@ -63,6 +65,9 @@ const PRICING = {
   // 1.5x its real cost, which is the one error the runs table must not make.
   'claude-sonnet-5':   { in: 2.00, out: 10.00 },
   'claude-sonnet-4-6': { in: 3.00, out: 15.00 },
+  // The rate for a prompt of 100K tokens or fewer; above that it is $0.50/$2.50,
+  // which no stage here reaches.
+  'claude-haiku-5-5':  { in: 0.10, out: 0.50 },
   'claude-haiku-4-5':  { in: 1.00, out: 5.00 },
 };
 

@@ -45,6 +45,8 @@
 //   npm run judge -- --screen --eval [--limit 60]
 //                                             screen people the full judge has rated and
 //                                             report how well the screen predicts it
+//                                  [--model <id>] [--no-store]  another screen model,
+//                                             nothing written to `screens`
 //   npm run judge -- --passed [--min 3] [--limit 150]
 //                                             judge, in full, the best screened people
 //                                             not yet judged
@@ -340,7 +342,7 @@ function ensureScreens(db) {
   db.exec('CREATE INDEX IF NOT EXISTS idx_screens_person ON screens(person_id)');
 }
 
-async function screenOne(db, cfg, targeting, personId, { model, runId, decisions }) {
+async function screenOne(db, cfg, targeting, personId, { model, runId, decisions, store = true }) {
   const f = features(db, personId);
   if (!f) throw new Error(`no person "${personId}"`);
   const t = timing(db, f);
@@ -350,7 +352,7 @@ async function screenOne(db, cfg, targeting, personId, { model, runId, decisions
   const res = await complete(db, runId, { model, system: readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8'),
     schema: SCHEMA, effort: 'low', maxTokens: 2000, messages: [{ role: 'user', content }] });
   const c = Number(res.data?.compelling);
-  db.prepare(`INSERT INTO screens (person_id, org_id, compelling, target, reason, model, prompt_file, cost_usd, run_id, created_at)
+  if (store) db.prepare(`INSERT INTO screens (person_id, org_id, compelling, target, reason, model, prompt_file, cost_usd, run_id, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(personId, f.person.org_id, Number.isFinite(c) ? c : null,
     res.data?.target ?? null, res.data?.reason ?? null, res.model ?? model, PROMPT_FILE, res.cost_usd ?? 0, runId,
     new Date().toISOString());
@@ -490,7 +492,9 @@ async function main() {
   if (args.screen) {
     ensureScreens(db);
     const decisions = pastDecisions(db);
-    const cheap = cfg.models?.cheap;
+    // --model tries another screen model against the same truth (F3); the live
+    // screen always runs on models.cheap.
+    const cheap = (args.model && args.model !== true) ? String(args.model) : cfg.models?.cheap;
     if (!cheap) throw new Error('no models.cheap in config/runtime.yml');
     let sids;
     let truth = null;
@@ -515,7 +519,7 @@ async function main() {
       : Math.max(1, Number(args.jobs && args.jobs !== true ? args.jobs : 8) || 8);
     const work = async () => {
       for (let i = cur++; i < sids.length; i = cur++) {
-        try { const x = await screenOne(db, cfg, targeting, sids[i], { model: cheap, runId, decisions }); scost += x.cost; got.push(x); }
+        try { const x = await screenOne(db, cfg, targeting, sids[i], { model: cheap, runId, decisions, store: !args['no-store'] }); scost += x.cost; got.push(x); }
         catch (e) { console.log(`  FAILED ${sids[i]}: ${e.message}`); }
       }
     };

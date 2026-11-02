@@ -102,7 +102,7 @@ the operator's past calls on the most similar people with their reasons, and it 
 evidence by id. It also rates who decides (owns the budget, influences, or
 neither) and records which target the person fits. A **screen** first asks the same
 question once on the cheap model, and only people it rates 2 or more are judged in
-full. The judge is MiniMax M3 through OpenRouter, on the host it was measured on, and a
+full. The judge is Claude Sonnet 5.5, and a
 weighted formula runs beside it as the baseline it must beat
 ([Measurement](measurement.md)).
 
@@ -232,8 +232,8 @@ the routine ones.
 | Daily | `npm run daily` | the routine run, once a weekday: searches and agendas weekly, vet, gate, rank, screen, judge, research, addresses, dashboard; no drafts | as above |
 
 
-Tiers map to models in `config/runtime.yml` ([Setup](setup.md)): the judge is MiniMax
-M3 through OpenRouter, the rest are Claude. The daily run's Claude calls use the
+Tiers map to models in `config/runtime.yml` ([Setup](setup.md)), all of them Claude:
+Haiku 5.5 for the cheap tier, Sonnet for the default and the judge, Opus for drafting. The daily run's Claude calls use the
 Batches API at half price.
 
 **Prompts live in versioned files** under `prompts/`, each noting why it last changed,
