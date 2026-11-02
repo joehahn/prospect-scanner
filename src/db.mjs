@@ -352,6 +352,15 @@ CREATE TABLE IF NOT EXISTS hold (
   seeded        INTEGER NOT NULL DEFAULT 0
 );
 
+-- People the operator asked to see pasted, whatever the judge rates them: the
+-- top of Ready and of Profiles to paste until a profile arrives, then the
+-- re-judge after the paste places them like anyone else.
+CREATE TABLE IF NOT EXISTS paste_asks (
+  person_id TEXT PRIMARY KEY REFERENCES people(id),
+  asked_at  TEXT NOT NULL,
+  note      TEXT
+);
+
 CREATE TABLE IF NOT EXISTS marketplace_registrations (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   org_id            TEXT NOT NULL REFERENCES orgs(id),

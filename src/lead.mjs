@@ -63,6 +63,9 @@
 //   npm run lead -- accepted   --person <id> [--date YYYY-MM-DD]
 //                              they accepted your connection request: recorded on the
 //                              latest one sent them, and NOT counted as a reply
+//   npm run lead -- paste-ask  --person <id>[,<id>...] [--note "..."] | --drop <id>[,...]
+//                              put people at the top of Ready and Profiles to paste,
+//                              whatever their rating, until their profile is pasted
 //   npm run lead -- reply      --outreach <id> --sentiment positive|negative|neutral|bounced
 //                              [--date YYYY-MM-DD] [--outcome "..."] [--file reply.txt]
 //   npm run lead -- banks      --thesis <id> --state "Texas" [--min 2] [--max 25] [--dry]
@@ -491,6 +494,11 @@ function merge(db, args) {
       if (left) db.prepare(`DELETE FROM ${t} WHERE person_id = ?`).run(from);
       if (n) moved.push(`${t} ${n}`);
     }
+    // A judgment batch is "<person id>@<time>" and the latest is MAX(batch), so a
+    // moved batch keeping the old id sorts by name, not time: "miguel_…@" beat
+    // "jose_miguel_…@" and an older rating read as the current one.
+    db.prepare(`UPDATE judgments SET batch = ? || substr(batch, ?) WHERE person_id = ? AND batch LIKE ? ESCAPE '\\'`)
+      .run(into, from.length + 1, into, `${from.replace(/[\\%_]/g, '\\$&')}@%`);
     // Blank fields on the kept record take the other's value; nothing is overwritten.
     const cols = db.prepare('PRAGMA table_info(people)').all().map((c) => c.name)
       .filter((c) => !['id', 'org_id', 'name'].includes(c) && b[c] == null && a[c] != null);
@@ -1362,6 +1370,31 @@ function sent(db, cfg, args) {
       'so this is recorded as sent text without a before.'));
   }
   return row.id;
+}
+
+/**
+ * ASKED TO PASTE: people the operator wants in front of him to paste, whatever
+ * the judge rates them. Not a ranking change: nothing about their rating moves,
+ * and once the profile arrives the re-judge after a paste places them.
+ */
+function pasteAsk(db, args) {
+  const ids = (v) => String(v).split(',').map((s) => s.trim()).filter(Boolean);
+  if (args.drop && args.drop !== true) {
+    for (const id of ids(args.drop)) {
+      const n = db.prepare('DELETE FROM paste_asks WHERE person_id = ?').run(id).changes;
+      console.log(n ? `dropped ${id}` : `not on the list: ${id}`);
+    }
+    return;
+  }
+  const at = new Date().toISOString();
+  const note = args.note && args.note !== true ? String(args.note) : null;
+  for (const id of ids(requireArg(args, 'person', 'paste-ask'))) {
+    const p = db.prepare('SELECT name FROM people WHERE id = ?').get(id);
+    if (!p) { console.log(`no person "${id}"`); continue; }
+    db.prepare(`INSERT INTO paste_asks (person_id, asked_at, note) VALUES (?, ?, ?)
+                ON CONFLICT(person_id) DO UPDATE SET asked_at = excluded.asked_at, note = excluded.note`).run(id, at, note);
+    console.log(`asked: ${bold(p.name)}`);
+  }
 }
 
 /** Record a reply the operator pasted in. Classifies nothing automatically yet. */
@@ -2580,6 +2613,7 @@ async function main() {
       case 'merge':      merge(db, args); break;
       case 'merge-org':  mergeOrg(db, args); break;
       case 'accepted':   accepted(db, args); break;
+      case 'paste-ask':  pasteAsk(db, args); break;
       case 'reply':      reply(db, args); break;
       case 'list': case undefined: list(db, args); break;
       default:
@@ -2589,7 +2623,7 @@ async function main() {
     // Rebuild only for the verbs that alter a card. `vet`, `domains` and the
     // sweeps are bulk stages the operator runs deliberately and follows with
     // rank; rebuilding mid-sweep would be noise.
-    if (['paste', 'sent', 'move', 'unsend', 'reply', 'add-person'].includes(cmd)
+    if (['paste', 'sent', 'move', 'unsend', 'reply', 'add-person', 'paste-ask'].includes(cmd)
         && !args['no-dash']) {
       try {
         const { execFileSync } = await import('node:child_process');

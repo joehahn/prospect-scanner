@@ -2011,8 +2011,13 @@ ${balanceForm}</section>`;
   // here, 70 of them rated 1 or 2; the day's list is the ones worth a note.
   // The rest stay on All prospects, in the judge's order.
   const MIN_RATING = 3;
-  const below = cards.filter((c) => !decided(c) && c.rating < MIN_RATING).length;
-  const open = cards.filter((c) => !decided(c) && c.rating >= MIN_RATING).sort(BLIND
+  // ASKED TO PASTE (lead paste-ask): first on the page at any rating until the
+  // profile arrives; the re-judge after the paste then places them.
+  const askedIds = askedToPaste(db);
+  const asked = cards.filter((c) => askedIds.has(c.p.person_id))
+    .sort((a, b) => askedIds.get(a.p.person_id) - askedIds.get(b.p.person_id));
+  const below = cards.filter((c) => !decided(c) && c.rating < MIN_RATING && !askedIds.has(c.p.person_id)).length;
+  const open = cards.filter((c) => !decided(c) && c.rating >= MIN_RATING && !askedIds.has(c.p.person_id)).sort(BLIND
     ? (a, b) => hash(a.p.org_id) - hash(b.p.org_id) || String(a.p.name).localeCompare(String(b.p.name))
     : ORDER === 'ranker' ? byRanker : byJudge);
   // An undecided card, rated: the judge's call and reasons, the evidence, and the
@@ -2042,7 +2047,10 @@ ${balanceForm}</section>`;
     return card(c) + (rest.length ? `<p class="meta" style="margin:-6px 0 14px 12px">Also at ${esc(c.p.org_name ?? '')}: ${
       rest.map((x) => `${esc(x.p.name)} (judge ${x.rating}/5)`).join(', ')}</p>` : '');
   };
-  return intro + pastePanel(db)
+  const askedPanel = asked.length ? `<section class="panel"><h2>Asked to paste: ${asked.length}</h2>
+<p class="lead">You asked for these, whatever their rating. Each leaves this list once its profile is pasted.</p>
+${asked.map((c) => (BLIND && !decided(c) ? blindCard(c) : openCard(c))).join('')}</section>` : '';
+  return intro + pastePanel(db) + askedPanel
     + `<section class="panel"><h2>${open.length} to decide${BLIND ? ', blind' : ', best first'}</h2>
 <p class="lead">${BLIND ? 'The judge has rated these 1 to 5; its rating stays hidden until you click, and the order here is neutral, so your answer is yours.'
   : ORDER === 'ranker'
@@ -2207,13 +2215,35 @@ Plotly.newPlot('c-stage', [{ type:'bar', orientation:'h', y:${JSON.stringify(byS
 // PASTE THESE TODAY: the few strongest people whose seat is in doubt
 // (funnel.mjs pasteQueue). Each links to
 // its card below, where the paste box and the profile search are.
+// Person id -> order asked, for people asked to paste (lead paste-ask) whose
+// profile has not arrived since, and who have not been written to.
+function askedToPaste(db) {
+  if (!db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'paste_asks'`).get()) return new Map();
+  const rows = db.prepare(`SELECT a.person_id FROM paste_asks a
+      WHERE NOT EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = a.person_id
+                          AND e.kind = 'operator_profile' AND e.retrieved_at >= a.asked_at)
+        AND a.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
+      ORDER BY a.asked_at, a.rowid`).pluck().all();
+  return new Map(rows.map((id, i) => [id, i]));
+}
+
 function pastePanel(db) {
-  const q = pasteQueue(db);
+  const askedIds = askedToPaste(db);
+  const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id
+      FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...askedIds.keys()].map(() => '?').join(',')})`)
+    .all(...askedIds.keys()).sort((a, b) => askedIds.get(a.person_id) - askedIds.get(b.person_id)) : [];
+  const askedHtml = askedList.length ? `<p class="lead"><b>You asked for these:</b></p>
+<ol>${askedList.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> ·
+  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}</li>`).join('')}</ol>` : '';
+  const q = pasteQueue(db).filter((p) => !askedIds.has(p.person_id));
+  if (askedHtml && !q.length) {
+    return `<section class="panel"><h2>Profiles to paste today: ${askedList.length}</h2>${askedHtml}</section>`;
+  }
   if (!q.length) {
     return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
       + 'whose seat is in doubt has a profile on file. Draft the rest straight from their cards.</p></section>';
   }
-  return `<section class="panel"><h2>Profiles to paste today: ${q.length}</h2>
+  return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${askedHtml}
 <p class="lead">Rated 3+ on a title alone, or on a seat the judge doubts owns the work, with no profile
 on file. The profile settles whether they are the right person. Anyone rated on a dated event can be
 drafted without one; paste theirs when you open it to send, if it shows something.</p>
