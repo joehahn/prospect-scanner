@@ -361,6 +361,15 @@ CREATE TABLE IF NOT EXISTS paste_asks (
   note      TEXT
 );
 
+-- Picks from the Worth a paste lists (funnel.mjs worthPasting), recorded the
+-- first time each is offered, so the lists' hit rate can be read later.
+CREATE TABLE IF NOT EXISTS paste_picks (
+  person_id TEXT NOT NULL REFERENCES people(id),
+  band      INTEGER NOT NULL,     -- the judge's middle rating when picked
+  picked_at TEXT NOT NULL,
+  PRIMARY KEY (person_id, band)
+);
+
 CREATE TABLE IF NOT EXISTS marketplace_registrations (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   org_id            TEXT NOT NULL REFERENCES orgs(id),

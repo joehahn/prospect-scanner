@@ -53,6 +53,94 @@ export function strongWritable(db) {
 }
 
 /**
+ * WORTH A PASTE: people a profile is most likely to lift a band, chosen with no
+ * model. Asked for on 2026-11-01 after a hand-picked test: of 2s chosen this way,
+ * 7 in 19 rose to an average of 3.5 or more once pasted, against 2 in 30 pasted
+ * without choosing. What lifted them was a profile showing AI work already under
+ * way, which nothing on file shows beforehand; what the choice can do is keep
+ * to people the judge held back only for thin evidence, in a seat that owns the
+ * work, at a firm neither too small nor too big to buy.
+ *
+ * `from` is the judge's middle rating now (2 or 3); `goal` the average a paste
+ * has to reach to count as a lift. Each pick is recorded in paste_picks the first
+ * time it is offered, so `pickResults` can say whether the list keeps earning
+ * its place. Not a ranking change: no rating moves.
+ */
+const THIN = /no (visible|named|dated|specific|concrete|fresh)|nothing (on file|named|dated|specific)|thin|unconfirmed|not yet named|generic|plausible but/i;
+const STRUCTURAL = /too (big|large|small)|caps the|sells|vendor of|competitor|consultanc|already staffed|outside the operator/i;
+export const PICK_BANDS = [{ from: 2, goal: 3.5 }, { from: 3, goal: 4.5 }];
+
+export function worthPasting(db, { from, n = 10 } = {}) {
+  const rows = db.prepare(`SELECT j.person_id, j.compelling, j.verdict, j.need, j.owner, j.value, j.timing_days,
+        j.reason, j.need_why, j.value_why, j.target, p.name, p.title, p.org_id, o.name AS org_name, o.kind, o.headcount_est
+      FROM judgments j JOIN people p ON p.id = j.person_id LEFT JOIN orgs o ON o.id = p.org_id
+      JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l
+        ON l.person_id = j.person_id AND l.b = j.batch
+     WHERE ${WRITABLE}
+       AND NOT EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id AND e.kind = 'operator_profile')
+       AND p.id NOT IN (SELECT person_id FROM hold WHERE release_after > date('now'))`).all();
+  const by = new Map();
+  for (const r of rows) { if (!by.has(r.person_id)) by.set(r.person_id, []); by.get(r.person_id).push(r); }
+  const out = [];
+  for (const rs of by.values()) {
+    const c = rs.map((r) => r.compelling ?? (r.verdict === 'write' ? 4 : 1)).sort((a, b) => a - b);
+    if (c[Math.floor(c.length / 2)] !== from) continue;
+    const half = rs.length / 2;
+    const said = (re, f) => rs.filter((r) => re.test(f(r))).length;
+    if (rs.filter((r) => r.owner === 'owns').length <= half) continue;
+    if (rs.filter((r) => r.need === 'none').length >= half) continue;
+    if (said(STRUCTURAL, (r) => `${r.reason} ${r.value_why}`)) continue;
+    // Under one of the operator's targets, in the judge's own reading.
+    if (rs.filter((r) => r.target).length <= half) continue;
+    // A size on file, in the band an outside builder can sell to; an unknown
+    // size let a global insurer through.
+    const hc = Number(rs[0].headcount_est) || null;
+    if (rs[0].kind !== 'investor' && (hc == null || hc < 100 || hc > 5000)) continue;
+    const thin = said(THIN, (r) => `${r.reason} ${r.need_why}`);
+    if (thin <= half) continue;
+    const soon = rs.some((r) => r.timing_days != null && r.timing_days <= 120);
+    out.push({ ...rs[0], rating: from, score: c.reduce((a, b) => a + b, 0) + thin
+      + Math.max(...rs.map((r) => Number(r.value) || 0)) + (soon ? 1 : 0) });
+  }
+  out.sort((a, b) => b.score - a.score || String(a.name).localeCompare(String(b.name)));
+  const firms = new Set();
+  const picks = [];
+  for (const p of out) {
+    if (firms.has(p.org_id)) continue;
+    firms.add(p.org_id); picks.push(p);
+    if (picks.length >= n) break;
+  }
+  return picks;
+}
+
+/** Record picks the first time they are offered (the record pickResults reads). */
+export function recordPicks(db, picks, from) {
+  const ins = db.prepare(`INSERT OR IGNORE INTO paste_picks (person_id, band, picked_at) VALUES (?, ?, ?)`);
+  const at = new Date().toISOString();
+  for (const p of picks) ins.run(p.person_id, from, at);
+}
+
+/**
+ * Per band: picks pasted since they were offered, and how many of those the
+ * re-judge after the paste put at the goal or above.
+ */
+export function pickResults(db) {
+  return PICK_BANDS.map(({ from, goal }) => {
+    const rows = db.prepare(`SELECT k.person_id,
+        (SELECT AVG(COALESCE(j.compelling, CASE j.verdict WHEN 'write' THEN 4 ELSE 1 END)) FROM judgments j
+          WHERE j.person_id = k.person_id
+            AND j.batch = (SELECT MAX(batch) FROM judgments WHERE person_id = k.person_id)) AS now_avg,
+        (SELECT MAX(created_at) FROM judgments WHERE person_id = k.person_id) AS judged_at,
+        (SELECT MIN(retrieved_at) FROM evidence e WHERE e.person_id = k.person_id
+          AND e.kind = 'operator_profile' AND e.retrieved_at >= k.picked_at) AS pasted_at
+      FROM paste_picks k WHERE k.band = ?`).all(from);
+    const judged = rows.filter((r) => r.pasted_at && r.judged_at >= r.pasted_at);
+    return { from, goal, offered: rows.length, pasted: judged.length,
+      lifted: judged.filter((r) => r.now_avg >= goal).length };
+  });
+}
+
+/**
  * THE PROFILES TO PASTE TODAY: five, and only where the seat is the open
  * question. Cut from twenty on 2026-10-08, on the record: across 184 people
  * judged before and after a paste, half the ratings moved (a third move on a

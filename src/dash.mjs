@@ -28,7 +28,7 @@ import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { upcomingTalks } from './events.mjs';
-import { pasteQueue, funnelDays, sourceYield } from './funnel.mjs';
+import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = resolve(ROOT, 'data/dash');
@@ -2016,8 +2016,18 @@ ${balanceForm}</section>`;
   const askedIds = askedToPaste(db);
   const asked = cards.filter((c) => askedIds.has(c.p.person_id))
     .sort((a, b) => askedIds.get(a.p.person_id) - askedIds.get(b.p.person_id));
-  const below = cards.filter((c) => !decided(c) && c.rating < MIN_RATING && !askedIds.has(c.p.person_id)).length;
-  const open = cards.filter((c) => !decided(c) && c.rating >= MIN_RATING && !askedIds.has(c.p.person_id)).sort(BLIND
+  // WORTH A PASTE (funnel.mjs worthPasting): per band, the people a profile is
+  // most likely to lift, each recorded the first time it is offered.
+  const cardOf = new Map(cards.map((c) => [c.p.person_id, c]));
+  const picked = PICK_BANDS.map((band) => {
+    const ps = worthPasting(db, { from: band.from }).filter((p) => !askedIds.has(p.person_id) && cardOf.has(p.person_id));
+    recordPicks(db, ps, band.from);
+    return { ...band, cs: ps.map((p) => cardOf.get(p.person_id)) };
+  });
+  const pickedIds = new Set(picked.flatMap((b) => b.cs.map((c) => c.p.person_id)));
+  const aside = (c) => askedIds.has(c.p.person_id) || pickedIds.has(c.p.person_id);
+  const below = cards.filter((c) => !decided(c) && c.rating < MIN_RATING && !aside(c)).length;
+  const open = cards.filter((c) => !decided(c) && c.rating >= MIN_RATING && !aside(c)).sort(BLIND
     ? (a, b) => hash(a.p.org_id) - hash(b.p.org_id) || String(a.p.name).localeCompare(String(b.p.name))
     : ORDER === 'ranker' ? byRanker : byJudge);
   // An undecided card, rated: the judge's call and reasons, the evidence, and the
@@ -2050,7 +2060,16 @@ ${balanceForm}</section>`;
   const askedPanel = asked.length ? `<section class="panel"><h2>Asked to paste: ${asked.length}</h2>
 <p class="lead">You asked for these, whatever their rating. Each leaves this list once its profile is pasted.</p>
 ${asked.map((c) => (BLIND && !decided(c) ? blindCard(c) : openCard(c))).join('')}</section>` : '';
-  return intro + pastePanel(db) + askedPanel
+  const record = new Map(pickResults(db).map((r) => [r.from, r]));
+  const pickPanel = picked.some((b) => b.cs.length) ? `<section class="panel"><h2>Worth a paste</h2>
+<p class="lead">The people a pasted profile is most likely to lift: the judge held them back only for thin
+evidence, in a seat that owns the work, at a firm neither too small nor too big. What lifts them is a
+profile showing AI work already under way.</p>
+${picked.filter((b) => b.cs.length).map((b) => { const r = record.get(b.from);
+    return `<h3>Rated ${b.from}, likely to reach ${b.goal} or more: ${b.cs.length}</h3>
+<p class="lead dim">So far: ${r.pasted ? `${r.lifted} of ${r.pasted} pasted reached ${b.goal}` : 'none pasted yet'}.</p>
+${b.cs.map((c) => (BLIND && !decided(c) ? blindCard(c) : openCard(c))).join('')}`; }).join('')}</section>` : '';
+  return intro + pastePanel(db) + askedPanel + pickPanel
     + `<section class="panel"><h2>${open.length} to decide${BLIND ? ', blind' : ', best first'}</h2>
 <p class="lead">${BLIND ? 'The judge has rated these 1 to 5; its rating stays hidden until you click, and the order here is neutral, so your answer is yours.'
   : ORDER === 'ranker'
