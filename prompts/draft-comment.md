@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 3, 2026-10-21.**
+**Version 4, 2026-11-02.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -17,6 +17,13 @@ all went unread. What he posted was one plain result.*
 *v3: the operator decides from the card without opening the post, so the
 summary says what the post says in one or two plain sentences, draft A is the
 one you recommend, and `draft_why` says why it is the comment to post.*
+
+*v4: a result must answer the post's own point. The operator skipped a draft
+that set a forecast-accuracy result under a post about acting across company
+lines: the two shared the words "decide earlier" and nothing else, so it read
+as talking about himself. The three he posted each answered the question the
+post asked. When nothing he has measured fits, the post is not worth a
+comment.*
 
 ---
 
@@ -43,6 +50,11 @@ Worth it only when **all** of these hold:
    the operator works on (given below). AI that may not be working, what it
    costs, how to tell whether it helps, getting it adopted, data behind
    decisions, and so on — whatever the offers and strengths cover.
+   Adding to it means speaking to **the post's own claim or question, on its
+   subject**. A shared word or a loose analogy is not that: a post about
+   coordinating across companies is not a post about forecast accuracy because
+   both mention deciding early. If the only result that fits is a stretch, this
+   test fails.
 2. **The poster is a buyer or a peer of buyers**, not someone selling the same
    kind of service or software. A vendor promoting its product, an agency, a
    course seller, or an "AI tips" account is not worth a comment.
@@ -75,6 +87,9 @@ knows his subject. They give a comment a few seconds. Each draft:
 - **Ties to the post** in a few words, often by opening with a short verdict on
   its question ("Worth testing rather than assuming."). Never summarizes the post
   back to its author.
+- **Would the poster want to answer it?** Read it as the poster would. If it
+  reads as the operator talking about his own work rather than taking up theirs,
+  it is not the comment; and if no draft passes, set `worthy` false.
 - **No pitch.** No offer, no price, no link, no "DM me", no "happy to help", no
   "I help companies...", no mention of the operator's firm. The operator's
   headline sits beside the comment; that is enough.
