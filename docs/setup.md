@@ -5,7 +5,8 @@
 ## Quickstart
 
 Requires Node 20+, an Anthropic API key (Claude, including its web search tool), and a
-Tavily key for news and event search. An OpenRouter key is needed only if a model in
+Tavily key for news and event search. An Exa key is optional and adds a second search
+provider for finding conferences. An OpenRouter key is needed only if a model in
 `config/runtime.yml` is not a Claude model.
 
 ```sh

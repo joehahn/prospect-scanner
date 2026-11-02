@@ -57,7 +57,8 @@ A prospect enters because something dated happened. Six sources:
 - **Appointment columns** in trade press, for newly named data and AI leaders.
 - **Conference agendas** from the organiser's own pages, keeping only speakers the page
   names, with their sessions. New conferences are found where example prospects speak
-  and by searches from the targets.
+  and by searches from the targets, each search sent to both Tavily and Exa: on 27
+  searches they found 56 and 60 conferences and shared only 18.
 - **The operator's pastes** of a profile they read themselves, stored with a provenance
   marker so they are never mistaken for something retrieved. Extraction checks the
   current employer against the firm on file, and records the board seats, advisory

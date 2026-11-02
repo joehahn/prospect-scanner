@@ -95,7 +95,7 @@ AI at all.
 
 Model calls cost $1 to $2 per note sent. Paid web search adds a few
 cents per note: Anthropic's web search tool for sites, bios and research (about 6 cents),
-and Tavily for news and events (under 2 cents).
+and Tavily and Exa for news and events (under 2 cents).
 
 Where it goes, by the rows of the table above: writing 40%, judgment 25%, reading
 15%, grading 15%, screening 5%. Judgment makes about half of all calls but a quarter

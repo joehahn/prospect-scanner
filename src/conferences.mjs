@@ -31,6 +31,7 @@
 // Usage:
 //   npm run conferences -- --find [--searches 6]    find events, write nothing to the book
 //   npm run conferences -- --find --query "a || b"  only these searches, as written
+//   npm run conferences -- --find --compare exa    the same searches on Tavily and Exa, nothing written
 //   npm run conferences -- --read [--limit 3]       read waiting agendas into the book
 //   npm run conferences -- --read --dry             read and list speakers, write nothing
 //   npm run conferences -- --read --ids 4,12        just those
@@ -41,6 +42,7 @@ import { loadConfig } from './config.mjs';
 import { loadBusiness } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
+import { searchExa, exaUsage } from './sources/exa.mjs';
 import { fetchPage, extractText, extractTitle } from './sources/web.mjs';
 import { exemplarText } from './exemplars.mjs';
 import { loadSpeakers, eventDateFrom, jsonLdEventDate, markAgendaDays, calendarSessions, sessionDayFrom } from './events.mjs';
@@ -122,6 +124,7 @@ function ensureTable(db) {
     url         TEXT NOT NULL,               -- the agenda or speaker page, or the event page
     found_on    TEXT,                        -- the page it was found on
     found_via   TEXT,                        -- 'example' or 'search', and which
+    found_by    TEXT,                        -- the search provider: tavily | exa
     status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused | stale
     reason      TEXT,
     speakers    INTEGER,                     -- speakers read off the page and verified
@@ -129,6 +132,7 @@ function ensureTable(db) {
     found_at    TEXT NOT NULL,
     read_at     TEXT)`);
   if (!cols().includes('country')) db.exec('ALTER TABLE conferences ADD COLUMN country TEXT');
+  if (!cols().includes('found_by')) db.exec('ALTER TABLE conferences ADD COLUMN found_by TEXT');
 }
 
 const hostsOf = (cfg) => (cfg.forbidden_hosts ?? []).map((h) => (typeof h === 'string' ? h : h.host)).filter(Boolean);
@@ -185,23 +189,33 @@ async function find(db, cfg, b, args) {
         + `${examples}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
   for (const query of (q.data?.queries ?? []).slice(0, n)) searches.push({ query, via: 'search' });
 
+  if (args.compare) return compare(db, cfg, b, runId, searches, hosts, c0);
+
   const known = new Set(db.prepare('SELECT key FROM conferences').all().map((r) => r.key));
   const knownUrl = new Set(db.prepare('SELECT url FROM conferences').all().map((r) => r.url));
   const ins = db.prepare(`INSERT OR IGNORE INTO conferences (key, name, organizer, when_text, url, found_on,
-    found_via, found_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-  const add = (name, organizer, when, url, foundOn, via) => {
+    found_via, found_by, found_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const add = (name, organizer, when, url, foundOn, via, by) => {
     const key = slugify(name);
     if (!name?.trim() || !url || forbidden(url, hosts) || known.has(key) || knownUrl.has(url)) return false;
     known.add(key); knownUrl.add(url);
-    return ins.run(key, name.trim(), organizer || null, when || null, url, foundOn, via, new Date().toISOString()).changes > 0;
+    return ins.run(key, name.trim(), organizer || null, when || null, url, foundOn, via, by, new Date().toISOString()).changes > 0;
   };
 
   const seen = new Set();
   const allowed = allowedCountries(b);
   let added = 0; let abroad = 0;
   for (const s of searches) {
-    const { results = [] } = await searchNews(s.query, { topic: 'general', requireDate: false,
-      maxResults: 6, excludeDomains: hosts });
+    // BOTH PROVIDERS, from 2026-11-02. On 27 searches Tavily found 56 conferences
+    // and Exa 60, and they shared 18 (--compare exa). Tavily's come first, so a
+    // page both return is credited to Tavily; found_by says which.
+    const [t, e] = await Promise.all([
+      searchNews(s.query, { topic: 'general', requireDate: false, maxResults: 6, excludeDomains: hosts }),
+      process.env.EXA_API_KEY ? searchExa(s.query, { maxResults: 6, excludeDomains: hosts }) : { results: [] },
+    ]);
+    if (e.error) console.log(dim(`  exa: ${e.error}`));
+    const results = [...(t.results ?? []).map((r) => ({ ...r, by: 'tavily' })),
+      ...(e.results ?? []).map((r) => ({ ...r, by: 'exa' }))];
     let fromThis = 0;
     for (const r of results) {
       if (seen.has(r.url) || forbidden(r.url, hosts)) continue;
@@ -223,18 +237,92 @@ async function find(db, cfg, b, args) {
         abroad++;
       } else if (d.is_conference) {
         const url = onPage(d.agenda_url) ? d.agenda_url : page.url;
-        if (add(d.name, d.organizer, d.when, url, page.url, s.via)) { added++; fromThis++; }
+        if (add(d.name, d.organizer, d.when, url, page.url, s.via, r.by)) { added++; fromThis++; }
       }
-      for (const e of d.other_events ?? []) {
-        if (onPage(e.url) && add(e.name, '', '', e.url, page.url, s.via)) { added++; fromThis++; }
+      for (const ev of d.other_events ?? []) {
+        if (onPage(ev.url) && add(ev.name, '', '', ev.url, page.url, s.via, r.by)) { added++; fromThis++; }
       }
     }
     console.log(dim(`  ${String(fromThis).padStart(2)} new  ${truncate(s.query, 90)}`));
   }
-  finishRun(db, runId, { tavily_credits: creditsUsed() - c0 });
+  const u = exaUsage();
+  finishRun(db, runId, { tavily_credits: creditsUsed() - c0, notes: u.requests ? `exa ${u.requests} searches, $${u.dollars.toFixed(3)}` : null });
   console.log(`\n${searches.length} searches · ${bold(String(added))} new conferences found, none read yet` +
     (abroad ? `; ${abroad} outside the operator's countries left out ` : ' ') +
     '(npm run conferences -- --read)');
+}
+
+// ---- compare ----------------------------------------------------------------
+
+// THE SEARCH PROVIDER BAKE-OFF (F3, 2026-11-02). The same searches go to Tavily
+// and to Exa; every page either returns is read once, by the same prompt and
+// model as --find, and nothing is written to the book. Scored on conferences in
+// the operator's countries: how many each found, how many only it found, and how
+// many were already on file. Already on file is not the score, since every
+// conference on file was found through Tavily.
+async function compare(db, cfg, b, runId, searches, hosts, c0) {
+  if (!process.env.EXA_API_KEY) { console.log('no EXA_API_KEY in .env'); return; }
+  const allowed = allowedCountries(b);
+  const knownKey = new Set(db.prepare('SELECT key FROM conferences').all().map((r) => r.key));
+  const knownUrl = new Set(db.prepare('SELECT url FROM conferences').all().map((r) => r.url));
+  const by = { tavily: new Map(), exa: new Map() };   // url -> rank, per provider
+  const errors = { tavily: 0, exa: 0 };
+  for (const s of searches) {
+    const [t, e] = await Promise.all([
+      searchNews(s.query, { topic: 'general', requireDate: false, maxResults: 6, excludeDomains: hosts }),
+      searchExa(s.query, { maxResults: 6, excludeDomains: hosts }),
+    ]);
+    if (t.error) errors.tavily++;
+    if (e.error) { errors.exa++; console.log(dim(`  exa: ${e.error}`)); }
+    for (const [name, r] of [['tavily', t], ['exa', e]]) {
+      for (const x of r.results ?? []) if (!forbidden(x.url, hosts) && !by[name].has(x.url)) by[name].set(x.url, s.via);
+    }
+  }
+  const urls = [...new Set([...by.tavily.keys(), ...by.exa.keys()])];
+  console.log(dim(`  ${searches.length} searches · tavily ${by.tavily.size} pages · exa ${by.exa.size} · ${urls.length} distinct, reading each once`));
+  const conf = new Map();   // url -> { key, name, known }
+  let cur = 0;
+  const work = async () => {
+    for (let i = cur++; i < urls.length; i = cur++) {
+      const url = urls[i];
+      const page = await fetchPage(url, { allowBrowser: false });
+      if (!page.ok || !page.text) continue;
+      const links = agendaLinks(page.html, page.url).slice(0, 25);
+      let res;
+      try {
+        res = await complete(db, runId, { model: cfg.models?.cheap, system: promptBody(PAGE_FILE),
+          schema: PAGE_SCHEMA, effort: 'low', thinking: false, maxTokens: 2000, messages: [{ role: 'user',
+            content: `## Page: ${page.url}\n${page.title ?? ''}\n\n${page.text.slice(0, 15000)}`
+              + (links.length ? `\n\n## Links on the page that look like an agenda or speaker list\n`
+                + links.map((l) => `- ${l.text}: ${l.url}`).join('\n') : '') }] });
+      } catch { continue; }
+      const d = res.data;
+      if (!d?.is_conference || !d.name?.trim() || !inOperatorCountries(d.country, allowed)) continue;
+      // One event under two names ("... 2026 (GovTech)") counts once.
+      const key = slugify(d.name.replace(/\([^)]*\)/g, ' '));
+      conf.set(url, { key, name: d.name.trim(), known: knownKey.has(key) || knownUrl.has(url) || knownUrl.has(page.url) });
+    }
+  };
+  await Promise.all(Array.from({ length: 6 }, work));
+  const keysOf = (name) => new Map([...by[name].keys()].filter((u) => conf.has(u)).map((u) => [conf.get(u).key, conf.get(u)]));
+  const T = keysOf('tavily'); const E = keysOf('exa');
+  const row = (name, mine, other) => {
+    const only = [...mine.keys()].filter((k) => !other.has(k));
+    const fresh = [...mine.values()].filter((c) => !c.known).length;
+    console.log(`  ${bold(name.padEnd(7))} ${String(mine.size).padStart(3)} conferences · ${String(only.length).padStart(3)} only it found · `
+      + `${String(fresh).padStart(3)} not on file · ${by[name].size} pages returned`);
+    return only;
+  };
+  console.log(`\n${bold('Conferences in the operator\'s countries, by search provider')}`);
+  const tOnly = row('tavily', T, E); const eOnly = row('exa', E, T);
+  console.log(dim(`  both found ${[...T.keys()].filter((k) => E.has(k)).length}`));
+  for (const [label, only, m] of [['only exa', eOnly, E], ['only tavily', tOnly, T]]) {
+    for (const k of only.slice(0, 15)) console.log(dim(`    ${label}: ${m.get(k).name}${m.get(k).known ? ' (on file)' : ''}`));
+  }
+  const u = exaUsage();
+  finishRun(db, runId, { tavily_credits: creditsUsed() - c0, notes: `compare: exa ${u.requests} searches, $${u.dollars.toFixed(3)}` });
+  console.log(dim(`\nnothing written to the book · tavily ${creditsUsed() - c0} credits · exa ${u.requests} searches, $${u.dollars.toFixed(3)}`
+    + (errors.tavily || errors.exa ? ` · failed searches: tavily ${errors.tavily}, exa ${errors.exa}` : '')));
 }
 
 // ---- read -----------------------------------------------------------------
