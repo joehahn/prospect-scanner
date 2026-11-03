@@ -1304,12 +1304,20 @@ function sent(db, cfg, args) {
     // previous send to this person are candidates.
     const prevSent = db.prepare(
       'SELECT MAX(sent_at) AS d FROM outreach WHERE person_id = ? AND id != ?').get(personId, row.id)?.d ?? null;
+    // Sends carry a date, not a time, so the test above lets through a draft
+    // written the same day as the previous send. A draft older than one already
+    // paired with a send was superseded by it: a same-day thank-you was paired
+    // with the first version of that morning's connection note.
+    const prevPaired = db.prepare(
+      `SELECT MAX(created_at) AS t FROM drafts WHERE person_id = ? AND outreach_id IS NOT NULL
+         AND outreach_id != ?`).get(personId, row.id)?.t ?? null;
     const q = (extra, ...params) => {
       const rows = db.prepare(
         `SELECT id, version, body, channel, package_id FROM drafts
           WHERE person_id = ? AND sent_text IS NULL
-            AND (? IS NULL OR substr(created_at, 1, 10) >= ?) ${extra}
-          ORDER BY version DESC, id DESC`).all(personId, prevSent, prevSent, ...params);
+            AND (? IS NULL OR substr(created_at, 1, 10) >= ?)
+            AND (? IS NULL OR created_at > ?) ${extra}
+          ORDER BY version DESC, id DESC`).all(personId, prevSent, prevSent, prevPaired, prevPaired, ...params);
       return rows.find(hasDraft) ?? null;
     };
     linked = q('AND channel = ?', channel);
