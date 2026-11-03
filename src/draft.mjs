@@ -116,7 +116,7 @@ function parseArgs(argv) {
 }
 
 /** Everything the model is allowed to know. Nothing is asserted that is not in here. */
-function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '', cutoff = null, saidBefore = null) {
+function buildDossier(db, cfg, targeting, person, org, service, line, offerNote = '', cutoff = null, saidBefore = null, forced = false) {
   const bizOffers = loadBusiness(cfg, targeting).offers;
   // One offer as the drafter reads it: price, who it is for, the operator's
   // pitch and its page, from config/business.yml where the offer is there.
@@ -150,7 +150,9 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
   // EVERY LIVE OFFER, so the storyline can choose (draft-cold-note v28). The
   // offer chosen upstream came from the read or the router before anyone had
   // put the facts together; it is the default, not the answer.
-  const live = (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live' && x.id !== service?.id);
+  // With the offer fixed by --service there is nothing to choose between, so no
+  // alternatives are listed (2026-11-03: the storyline swapped one in anyway).
+  const live = forced ? [] : (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live' && x.id !== service?.id);
   const evidence = db.prepare(`
     SELECT kind, claim, source_url, retrieved_at, provenance, body
     FROM evidence WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL))
@@ -346,12 +348,16 @@ ${prior.length
       (o.message_text ? `\n  WHAT WAS SENT:\n${o.message_text.split('\n').map((l) => `    ${l}`).join('\n')}` : '')).join('\n')
   : '(no prior contact)'}
 
-## THE OFFER CHOSEN BEFORE YOU (the default: keep it unless your storyline points to another)
+${forced
+  ? `## THE OFFER, FIXED BY THE OPERATOR (pitch this one; there is no other to choose)
+${fmtOffer(service)}
+`
+  : `## THE OFFER CHOSEN BEFORE YOU (the default: keep it unless your storyline points to another)
 ${service ? fmtOffer(service) : '(none specified)'}
 
 ## THE OTHER OFFERS YOU MAY CHOOSE INSTEAD
 ${live.length ? live.map(fmtOffer).join('\n\n') : '(none)'}
-
+`}
 ## THE ARGUMENT FOR THE DEFAULT OFFER (one pitch per note: this one, unless your storyline chose another offer)
 ${line ? `${line.id} — ${line.name} [${line.status}]
 Sells: ${line.sells}
@@ -761,7 +767,8 @@ async function main() {
       console.log(dim(`removed: ${r.source_url} no longer names ${person.name} — ${r.claim.slice(0, 90)}`));
     }
   }
-  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff, saidBefore);
+  const dossier = buildDossier(db, cfg, targeting, person, org, service, line, offerNote, cutoff, saidBefore,
+    Boolean(args.service && args.service !== true));
 
   const runId = startRun(db, 'draft', { model, notes: `${personId} ${channel} ${serviceId ?? ''}` });
   console.log(dim(`${revise ? `revising ${crossChannel ? `the ${prior.channel} ` : ''}v${prior.version} for` : 'drafting for'} ${person.name} ` +
@@ -824,9 +831,14 @@ async function main() {
   if (offerMatch) {
     const pick = offerMatch[1].trim();
     const ok = (cfg.packages ?? []).some((x) => x.id === pick && (x.status ?? 'live') === 'live');
-    if (ok && pick !== serviceId) console.log(dim(`  offer chosen by the storyline: ${pick} (the default was ${serviceId ?? 'none'})`));
+    // AN EXPLICIT --service IS THE OPERATOR'S CALL AND THE STORYLINE MAY NOT
+    // UNDO IT (2026-11-03). Asked for hourly help for a state data director, the
+    // storyline switched to the fixed-price build and the note pitched it.
+    const forced = Boolean(args.service && args.service !== true);
+    if (ok && forced && pick !== serviceId) console.log(dim(`  the storyline named ${pick}; keeping ${serviceId}, which you passed with --service`));
+    else if (ok && pick !== serviceId) console.log(dim(`  offer chosen by the storyline: ${pick} (the default was ${serviceId ?? 'none'})`));
     if (!ok) console.log(dim(`  the storyline named "${pick}", which is not a live offer; keeping ${serviceId ?? 'none'}`));
-    if (ok) offerId = pick;
+    if (ok && !forced) offerId = pick;
     res.text = res.text.replace(/^OFFER\s*\n-+\s*\n.*\n+/m, '');
   }
 
