@@ -1944,7 +1944,8 @@ ${balanceForm}</section>`;
     <span class="title">${esc(p.title ?? '')}</span></h3></header>
   <p class="meta"><span class="firm">${esc(p.org_name ?? '')}</span> · ${esc(ranker)} ${match}${(() => {
     const away = outsideCountries(biz(), { country: p.country, location: p.location, kind: p.org_kind });
-    return away ? ` · <span class="flag">outside your countries (${esc(away)})</span>` : ''; })()}</p>
+    return away ? ` · <span class="flag">outside your countries (${esc(away)})</span>` : ''; })()}
+    · ${searchLink(p.name, p.org_name, p.profile_url)}</p>
   ${whatTheyDo(p)}
   ${d.threadLine?.(p.person_id) ?? ''}
   ${d.rolesLine?.(p.person_id) ?? ''}

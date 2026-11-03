@@ -61,14 +61,17 @@ export function strongWritable(db) {
  * to people the judge held back only for thin evidence, in a seat that owns the
  * work, at a firm neither too small nor too big to buy.
  *
- * `from` is the judge's middle rating now (2 or 3); `goal` the average a paste
+ * `from` is the judge's middle rating now (2); `goal` the average a paste
  * has to reach to count as a lift. Each pick is recorded in paste_picks the first
  * time it is offered, so `pickResults` can say whether the list keeps earning
  * its place. Not a ranking change: no rating moves.
  */
 const THIN = /no (visible|named|dated|specific|concrete|fresh)|nothing (on file|named|dated|specific)|thin|unconfirmed|not yet named|generic|plausible but/i;
 const STRUCTURAL = /too (big|large|small)|caps the|sells|vendor of|competitor|consultanc|already staffed|outside the operator/i;
-export const PICK_BANDS = [{ from: 2, goal: 3.5 }, { from: 3, goal: 4.5 }];
+// RATED 3 -> 4.5 DROPPED 2026-11-03, the operator's call: in its first three
+// days 9 of its picks were pasted and none reached 4.5, against 9 of 27 lifted
+// from rated 2. Its past picks stay in paste_picks.
+export const PICK_BANDS = [{ from: 2, goal: 3.5 }];
 
 export function worthPasting(db, { from, n = 10 } = {}) {
   const rows = db.prepare(`SELECT j.person_id, j.compelling, j.verdict, j.need, j.owner, j.value, j.timing_days,
