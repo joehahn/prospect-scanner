@@ -1296,11 +1296,20 @@ function sent(db, cfg, args) {
     // Asked by the note's text, not its DRAFT heading, which the drafter sometimes
     // bolds or leaves out (note-text.mjs).
     const hasDraft = (d) => d && !isDeclined(d.body);
+    // A DRAFT OLDER THAN THE LAST SEND IS NOT THIS SEND'S DRAFT. An unused
+    // connection-note draft from a month earlier was paired with a hand-written
+    // reply to the same person: two sends had gone out since it was written, so
+    // it was either already superseded or abandoned, and the "edit" between them
+    // was a different message entirely. Only drafts written on or after the
+    // previous send to this person are candidates.
+    const prevSent = db.prepare(
+      'SELECT MAX(sent_at) AS d FROM outreach WHERE person_id = ? AND id != ?').get(personId, row.id)?.d ?? null;
     const q = (extra, ...params) => {
       const rows = db.prepare(
         `SELECT id, version, body, channel, package_id FROM drafts
-          WHERE person_id = ? AND sent_text IS NULL ${extra}
-          ORDER BY version DESC, id DESC`).all(personId, ...params);
+          WHERE person_id = ? AND sent_text IS NULL
+            AND (? IS NULL OR substr(created_at, 1, 10) >= ?) ${extra}
+          ORDER BY version DESC, id DESC`).all(personId, prevSent, prevSent, ...params);
       return rows.find(hasDraft) ?? null;
     };
     linked = q('AND channel = ?', channel);
