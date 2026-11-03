@@ -152,7 +152,10 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
   // put the facts together; it is the default, not the answer.
   // With the offer fixed by --service there is nothing to choose between, so no
   // alternatives are listed (2026-11-03: the storyline swapped one in anyway).
-  const live = forced ? [] : (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live' && x.id !== service?.id);
+  // And the storyline's alternatives are the same buyer's offers, for the same
+  // reason a read's are.
+  const live = forced ? [] : (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live'
+    && x.id !== service?.id && (!line?.id || underBuyer(x, line.id)));
   const evidence = db.prepare(`
     SELECT kind, claim, source_url, retrieved_at, provenance, body
     FROM evidence WHERE (person_id = ? OR (org_id = ? AND person_id IS NULL))
@@ -407,6 +410,11 @@ const CHANNEL_ALIAS = {
   mail: 'email', e: 'email',
 };
 
+// Is this offer sold to that buyer? Its own buyer, or one it declares also_under.
+function underBuyer(pkg, buyerId) {
+  return Boolean(pkg && buyerId && (pkg.buyer === buyerId || (pkg.also_under ?? []).includes(buyerId)));
+}
+
 function resolveChannel(raw) {
   const v = String(raw).trim().toLowerCase().replace(/[\s-]+/g, '_');
   return CHANNEL_ALIAS[v] ?? v;
@@ -479,7 +487,7 @@ async function main() {
     console.log(dim(`the read chose ${readSaid}, but it fires only on ${need.join(' or ')} and ${org.name} has none live; the router decides`));
     return null;
   })();
-  const serviceId = args.service && args.service !== true ? String(args.service)
+  let serviceId = args.service && args.service !== true ? String(args.service)
     : (readPick ?? null);
   if (!args.service && readPick) {
     console.log(dim(`service from the read: ${readPick} — the thesis chose it, not the router`));
@@ -522,7 +530,7 @@ async function main() {
       console.log(dim(`  also clears: ${affordable.map((x) => x.id).join(', ')}${src}`));
     }
   }
-  const service = serviceId ? cfg.packages.find((s) => s.id === serviceId) : null;
+  let service = serviceId ? cfg.packages.find((s) => s.id === serviceId) : null;
   if (serviceId && !service) {
     throw new Error(`--service "${serviceId}" is not in config/offers.yml. ` +
       `Declared: ${cfg.packages.map((s) => s.id).join(', ')}`);
@@ -593,6 +601,18 @@ async function main() {
           staffed, headcount: org.headcount_est ?? null });
         // An explicit --service overrides which package is quoted, but never
         // which buyer is argued from: that is what rank decided.
+        // A READ PICKS AMONG THE ROUTED BUYER'S OFFERS, NOT FROM THE WHOLE
+        // CATALOGUE (2026-11-03, the operator's call). Reads twice put a
+        // small-business offer in front of a public-sector data leader the
+        // router had sent to hands-on help, against POSITIONING. The read still
+        // chooses, and still wins where no pitch fits by firm kind (above);
+        // it no longer changes who the buyer is. --service is untouched.
+        if (service && !(args.service && args.service !== true) && !underBuyer(service, c.id)) {
+          const alt = svcPick?.service ?? null;
+          console.log(dim(`the read chose ${service.id}, which is not offered to ${c.id}; ` +
+            (alt ? `quoting ${alt.id}, the router's pick` : 'nothing under it fits')));
+          service = alt; serviceId = alt?.id ?? null; offerNote = '';
+        }
         if (service) return resolveBuyer(cfg, c.id);
         // THE NOTE AFTER AN ACCEPT SELLS NOTHING (2026-10-30). It carries no
         // offer, so an accepted engagement partner was refused for lacking one.
