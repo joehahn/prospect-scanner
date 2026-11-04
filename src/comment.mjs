@@ -123,7 +123,10 @@ function voiceExamples(db) {
   // What he actually posted outranks what he once liked, so the latest go first.
   const posted = db.prepare(`SELECT posted_text FROM comments WHERE posted_text IS NOT NULL
       ORDER BY posted_at DESC LIMIT 8`).all().map((r) => `- "${r.posted_text.replace(/\s+/g, ' ').trim()}"`);
-  return [posted.length ? `Comments the operator posted, latest first:\n${posted.join('\n')}` : '',
+  // They teach the voice AND mark what is spent: a prospect skimming his activity
+  // sees these beside the new one, so a result in them must not appear again.
+  return [posted.length ? `Comments the operator posted, latest first. Match their voice, but every result ` +
+      `they cite is already used: do not cite it again.\n${posted.join('\n')}` : '',
     file ? `Comments the operator likes:\n${file}` : ''].filter(Boolean).join('\n\n');
 }
 

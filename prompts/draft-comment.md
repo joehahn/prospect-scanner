@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 4, 2026-11-02.**
+**Version 5, 2026-11-04.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -24,6 +24,11 @@ lines: the two shared the words "decide earlier" and nothing else, so it read
 as talking about himself. The three he posted each answered the question the
 post asked. When nothing he has measured fits, the post is not worth a
 comment.*
+
+*v5: a result already posted is spent. The same model-grading result went into
+two posted comments and was drafted for a third. A prospect skimming the
+operator's activity sees his comments side by side, and one result told three
+times reads as a canned line, not experience.*
 
 ---
 
@@ -76,7 +81,10 @@ knows his subject. They give a comment a few seconds. Each draft:
   no other jargon.
 - **One memorable point from experience**: a result the operator measured, stated
   plainly, or a short observation of what usually happens. Prefer a proof point
-  given below when one fits the post. A result beats advice, and a surprise beats
+  given below when one fits the post, **unless a comment he already posted
+  cites it**: those are listed with his voice examples, and a result in them is
+  spent. A short observation is the fallback; if nothing unspent fits, the post
+  is not worth a comment. A result beats advice, and a surprise beats
   a confirmation ("the priciest option did worst").
 - **No figure that needs context to mean anything.** No raw dollar amounts per
   run, no scores, no "within three points"; say what the number means instead
