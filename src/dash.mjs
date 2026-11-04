@@ -1419,7 +1419,10 @@ function acceptedPanel(db, d) {
                AND substr(w.created_at, 1, 10) >= r.responded_at))
        AND NOT EXISTS (SELECT 1 FROM outreach y WHERE y.person_id = p.id AND y.sent_at > x.sent_at)
        AND NOT EXISTS (SELECT 1 FROM do_not_contact n WHERE n.person_id = p.id)
-     GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since);
+       -- HELD UNTIL A DATE THEY NAMED (2026-11-04). One accepted, asked to be
+       -- written to at quarter's end, and still showed here as a message due.
+       AND NOT EXISTS (SELECT 1 FROM hold h WHERE h.person_id = p.id AND h.release_after > ?)
+     GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since, new Date().toISOString().slice(0, 10));
   if (!rows.length) return '';
   // NOT A CONNECTION NOTE. Someone who accepted never gets another, and an
   // unused earlier version of the note they accepted showed here as the message
