@@ -1688,7 +1688,10 @@ function searchFirm(org) {
 // The name as a search box wants it: no "Dr."/"Mr."/"Ms.", no trailing degrees,
 // no middle initial, which a speaker list prints and a profile often omits.
 function searchName(name) {
-  return String(name ?? '').replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '')
+  // 'John "Gus" Doe' searches as 'Gus Doe': the name he goes by, and no quotes,
+  // which LinkedIn's search box reads as an exact phrase.
+  return String(name ?? '').replace(/^\S+\s+["\u201c(]([^"\u201d)]+)["\u201d)]\s+/, '$1 ')
+    .replace(/^(dr|mr|mrs|ms|prof)\.?\s+/i, '')
     .replace(/,?\s+(ph\.?\s?d|md|mba|cpa|jr|sr|iii|ii)\.?$/i, '')
     .replace(/\s+[A-Z]\.(?=\s)/g, '').trim();
 }
@@ -2249,12 +2252,13 @@ function askedToPaste(db) {
 
 function pastePanel(db) {
   const askedIds = askedToPaste(db);
-  const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id
+  const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id, p.profile_url
       FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...askedIds.keys()].map(() => '?').join(',')})`)
     .all(...askedIds.keys()).sort((a, b) => askedIds.get(a.person_id) - askedIds.get(b.person_id)) : [];
   const askedHtml = askedList.length ? `<p class="lead"><b>You asked for these:</b></p>
 <ol>${askedList.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> ·
-  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}</li>`).join('')}</ol>` : '';
+  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}
+  <br>${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>` : '';
   const q = pasteQueue(db).filter((p) => !askedIds.has(p.person_id));
   if (askedHtml && !q.length) {
     return `<section class="panel"><h2>Profiles to paste today: ${askedList.length}</h2>${askedHtml}</section>`;
