@@ -1260,33 +1260,25 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
           : { id: null, why: 'investor already employs the capability, and no live pitch ' +
                              'sells to a buyer who has it' };
       }
-      // Oversees companies that are buying, and has nobody of its own.
-      //
-      // THIS LINE SOLD NOTHING FOR THREE DAYS. It returned `buyers_side` alone,
-      // and `buyers_side` was retired on 2026-09-19, so from that date every
-      // investor without an AI team of its own routed to null — 11 of the 14
-      // investors in the book, each printing NONE FITS while passing every gate. The identical
-      // dead fallthrough sat in the end_client branch below; both were written
-      // when the read existed and neither was revisited when it went.
-      //
-      // Same rule as an end client: a firm that has just bought a platform
-      // needs hands to land it, whatever kind of firm it is.
-      if (hasVendorTrigger && has('senior_capacity')) {
+      // NO TEAM OF ITS OWN: STILL HANDS, FOR THE PORTFOLIO (2026-11-05, the
+      // operator's call, matching his positioning file: an operating partner
+      // buys "an outside AI hand across the portfolio", by the hour). This
+      // branch used to sell the work itself at one portfolio company, which let
+      // a read put the small-business opener in front of an operating partner;
+      // he rejected it. The record agrees: of the notes to investors, the
+      // hourly offer drew 2 positive replies in 26, the small-shop build 1 in
+      // 37, and the paid first hour 0 in 5. An operating partner routes work to
+      // many companies; what he can hand them is a senior person, not a build.
+      if (has('senior_capacity')) {
         return { id: 'senior_capacity',
-          why: 'investor that has just selected or piloted a platform — sell hands to land ' +
-               'it, not a second opinion on a purchase already made' };
+          why: hasVendorTrigger
+            ? 'investor that has just selected or piloted a platform — sell hands to land it'
+            : 'investor overseeing portfolio companies — an outside senior AI hand they can bring in' };
       }
-      // And with no team, no platform and a portfolio that is buying, what is
-      // left to sell is the work itself at one of those companies. Not hands
-      // beside a team — there is no team to stand beside, and saying so to a
-      // firm that has none is the wrong sentence.
-      return has('buyers_side')
-        ? { id: 'buyers_side', why: 'investor overseeing portfolio companies that buy AI' }
-        : has('build_direct')
-          ? { id: 'build_direct',
-              why: 'investor with no AI staff, overseeing portfolio companies that buy — ' +
-                   'the sale is the work itself at a portfolio company' }
-          : null;
+      return has('build_direct')
+        ? { id: 'build_direct',
+            why: 'investor with no AI staff, and no hourly offer live — the work itself at a portfolio company' }
+        : null;
     case 'public_body': {
       // A PUBLIC BODY, filed apart from companies 2026-10-02 at the operator's
       // word. Large ones have analytics or AI staff and a backlog -- "cities
