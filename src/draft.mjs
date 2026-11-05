@@ -154,7 +154,9 @@ ${[svc.price_usd && `Price: $${svc.price_usd.toLocaleString('en-US')} fixed`,
   // alternatives are listed (2026-11-03: the storyline swapped one in anyway).
   // And the storyline's alternatives are the same buyer's offers, for the same
   // reason a read's are.
+  // Nor one sold only in conversation (see the read's pick, below).
   const live = forced ? [] : (cfg.packages ?? []).filter((x) => (x.status ?? 'live') === 'live'
+    && !x.fires_when?.never
     && x.id !== service?.id && (!line?.id || underBuyer(x, line.id)));
   const evidence = db.prepare(`
     SELECT kind, claim, source_url, retrieved_at, provenance, body
@@ -478,6 +480,16 @@ async function main() {
   // choice gives way to the router.
   const readPick = (() => {
     const pkg = readSaid ? cfg.packages.find((x) => x.id === readSaid) : null;
+    // AN OFFER SOLD IN CONVERSATION NEVER OPENS A COLD NOTE (2026-11-05). Its
+    // `fires_when.never` keeps the router from choosing it, but the read could
+    // still name it, and did: it was the read's most frequent pick, and put a
+    // paid first hour in front of a PE operating partner and a manufacturing
+    // SVP at a firm of 1,400. The operator caught both. It is the answer when
+    // someone asks what the work would cost, not the opener.
+    if (pkg?.fires_when?.never) {
+      console.log(dim(`the read chose ${readSaid}, which is offered in conversation, not in a first note; the router decides`));
+      return null;
+    }
     const need = pkg?.fires_when?.triggers_any ?? [];
     if (!need.length || !org?.id) return readSaid;
     const live = db.prepare(`SELECT 1 FROM signals WHERE org_id = ? AND retracted_at IS NULL
