@@ -1799,7 +1799,7 @@ ${balanceForm}</section>`;
     const rs = runs.map((r) => r.compelling ?? (r.verdict === 'write' ? 4 : 1)).sort((a, b) => a - b);
     const rating = rs[Math.floor(rs.length / 2)];
     const spread = rs[rs.length - 1] - rs[0];
-    const pick = runs.find((r) => (r.compelling ?? (r.verdict === 'write' ? 4 : 1)) === rating) ?? runs[0];
+    const pick = agedTiming(runs.find((r) => (r.compelling ?? (r.verdict === 'write' ? 4 : 1)) === rating) ?? runs[0]);
     const verdict = rating >= 3 ? 'write' : 'skip';
     cards.push({ p, pick, verdict, rating, spread, agree: runs.length - (spread >= 2 ? 1 : 0), of: runs.length });
   }
@@ -2690,6 +2690,23 @@ function reachLine(p, d = null) {
     o[1] ? ` <span class="dim">&middot; else</span> ${label(o[1])}${addr(o[1])}${why(o[1])}` : ''}${note}</p>`;
 }
 
+// A JUDGMENT'S TIMING IS AS OF THE DAY IT WAS MADE (2026-11-06). Read as-is,
+// "3 days since" stayed 3 days for weeks, and the InMail rule's two-week window
+// passed people whose event was a month old. Aged to today: an upcoming talk
+// counts down, then turns into days since it; anything else counts up.
+function agedTiming(pick) {
+  if (pick?.timing_days == null || !pick.created_at) return pick;
+  const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(pick.created_at)) / 86_400_000));
+  if (!elapsed) return pick;
+  const what = String(pick.timing_what ?? '');
+  if (/^speaks at /.test(what)) {
+    const left = pick.timing_days - elapsed;
+    return left >= 0 ? { ...pick, timing_days: left }
+      : { ...pick, timing_days: -left, timing_what: what.replace(/^speaks at /, 'spoke at ') };
+  }
+  return { ...pick, timing_days: pick.timing_days + elapsed };
+}
+
 /** The operator's latest call on a person, as a filter value: first, write, skip or none. */
 function callOf(d, personId) {
   const v = (d.backstory ?? d).verdictsByPerson?.get(personId);
@@ -2730,7 +2747,7 @@ function judgeBlock(j) {
   return `<p><b>${esc(k.reason ?? '')}</b></p>
       <p class="meta">Need <b>${esc(k.need ?? '')}</b> · Owner <b>${esc(k.owner ?? '')}</b>${
         k.better_recipient ? ` (→ ${esc(k.better_recipient)})` : ''} · Value <b>${esc(k.value ?? '')}</b> · ${
-        k.timing_days == null ? 'no dated event' : `${k.timing_days} days since ${esc(k.timing_what ?? '')}`} · ${
+        k.timing_days == null ? 'no dated event' : esc(timingText(k.timing_days, k.timing_what))} · ${
         esc(k.reach ?? '')}</p>`;
 }
 
@@ -3009,7 +3026,7 @@ function buildAll(db, cfg, targeting) {
       const rs = runs.map((r) => r.compelling ?? (r.verdict === 'write' ? 4 : 1)).sort((a, b) => a - b);
       const rating = rs[Math.floor(rs.length / 2)];
       judged.set(pid, { rating, spread: rs[rs.length - 1] - rs[0],
-        pick: runs.find((r) => (r.compelling ?? (r.verdict === 'write' ? 4 : 1)) === rating) ?? runs[0] });
+        pick: agedTiming(runs.find((r) => (r.compelling ?? (r.verdict === 'write' ? 4 : 1)) === rating) ?? runs[0]) });
     }
   }
   d.judgeOf = (pid) => judged.get(pid) ?? null;
