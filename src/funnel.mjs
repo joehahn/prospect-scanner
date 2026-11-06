@@ -71,7 +71,10 @@ const STRUCTURAL = /too (big|large|small)|caps the|sells|vendor of|competitor|co
 // RATED 3 -> 4.5 DROPPED 2026-11-03, the operator's call: in its first three
 // days 9 of its picks were pasted and none reached 4.5, against 9 of 27 lifted
 // from rated 2. Its past picks stay in paste_picks.
-export const PICK_BANDS = [{ from: 2, goal: 3.5 }];
+// RATED 2 -> 3.5 DROPPED 2026-11-06, the operator's call: 9 of its first 27
+// pasted reached 3.5, then none of the next 19. With no band, nothing is
+// offered or recorded; past picks stay in paste_picks.
+export const PICK_BANDS = [];
 
 export function worthPasting(db, { from, n = 10 } = {}) {
   const rows = db.prepare(`SELECT j.person_id, j.compelling, j.verdict, j.need, j.owner, j.value, j.timing_days,
