@@ -370,6 +370,22 @@ CREATE TABLE IF NOT EXISTS paste_picks (
   PRIMARY KEY (person_id, band)
 );
 
+-- Public bodies whose own published plan was looked for (plans.mjs), found or
+-- not, so a body is not searched again for 90 days. ai_lines is how many
+-- AI-investment lines were verified against the document itself.
+CREATE TABLE IF NOT EXISTS plan_reads (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  org_id      TEXT NOT NULL REFERENCES orgs(id),
+  checked_at  TEXT NOT NULL,
+  plan_url    TEXT,
+  plan_title  TEXT,
+  plan_date   TEXT,
+  ai_lines    INTEGER NOT NULL DEFAULT 0,
+  outcome     TEXT NOT NULL,       -- signal | undated | stale | no_ai_lines | unverified | no_plan | unreadable
+  run_id      INTEGER REFERENCES runs(id)
+);
+CREATE INDEX IF NOT EXISTS idx_plan_reads_org ON plan_reads(org_id);
+
 CREATE TABLE IF NOT EXISTS marketplace_registrations (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
   org_id            TEXT NOT NULL REFERENCES orgs(id),

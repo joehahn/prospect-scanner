@@ -118,7 +118,9 @@ export async function getJson(url, { delayMs = DEFAULT_DELAY_MS, retries = 2,
           'user-agent': UA,
           accept: expect === 'text'
             ? 'text/html,application/xhtml+xml'
-            : 'application/json',
+            : expect === 'document'
+              ? 'application/pdf,text/html,application/xhtml+xml'
+              : 'application/json',
         },
         signal: AbortSignal.timeout(20_000),
       });
@@ -141,6 +143,19 @@ export async function getJson(url, { delayMs = DEFAULT_DELAY_MS, retries = 2,
     }
 
     if (!res.ok) return { ok: false, status: res.status };
+
+    // A DOCUMENT: a published plan is a PDF as often as a page. Same robots
+    // check and crawl delay as everything else; the bytes come back whole and
+    // the caller turns them into text (plans.mjs).
+    if (expect === 'document') {
+      const ct = res.headers.get('content-type') ?? '';
+      const pdf = /pdf/i.test(ct) || /\.pdf$/i.test(new URL(res.url || url).pathname);
+      if (!pdf && ct && !/text\/|xml/i.test(ct)) {
+        return { ok: false, status: res.status, error: `not a document (${ct})` };
+      }
+      return { ok: true, status: res.status, pdf, finalUrl: res.url,
+               bytes: Buffer.from(await res.arrayBuffer()) };
+    }
 
     if (expect === 'text') {
       // A site that answers HTML for a URL we asked for as a page is normal; a

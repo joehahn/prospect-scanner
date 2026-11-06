@@ -345,7 +345,7 @@ work:
     what_it_is: >-
       something built to move one number the business already watches
     fires_when:
-      triggers_any: [ai_coe_announcement]
+      triggers_any: [ai_coe_announcement, ai_plan_published]
     delivered_by: [project_work]
 
   - id: independent_judgment

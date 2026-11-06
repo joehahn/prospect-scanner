@@ -158,6 +158,14 @@ triggers:
     not:
       - "A vendor on the panel describing their product."
       - "A success story. A result is not a need."
+  - id: ai_plan_published
+    weight: 3
+    kind: work
+    decay_days: 730
+    description: "A public body's own published plan commits it to fund, build, procure, pilot or evaluate AI for a named use in its own operations"
+    not:
+      - "Training, compliance or governance about AI, with no AI work planned."
+      - "AI as a threat or a trend, or someone else's AI."
   - id: contract_award_won
     weight: 3
     kind: urgency

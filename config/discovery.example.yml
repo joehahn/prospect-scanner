@@ -64,6 +64,14 @@ mechanisms:
     cost: "free, plus one model call to read what came back"
     note: "robots-respecting, one page at a time, rate-limited"
 
+  - id: public_plans
+    label: "Read a public body's own published plan"
+    command: "npm run plans -- --limit 5"
+    automation: allowed
+    status: untested
+    evidence_classes: [announcement]
+    cost: "one bounded search per body"
+
   - id: operator_paste
     label: "The operator reads a profile and pastes the text in"
     automation: manual_only
