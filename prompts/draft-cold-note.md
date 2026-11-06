@@ -1,4 +1,6 @@
-# draft-cold-note — v35, 2026-10-31
+# draft-cold-note — v36, 2026-11-06
+
+*v36: a public exchange is named, not alluded to. The operator commented on a CAIO's conference-recap post, and four drafts to him the next day "followed the thread without restating it": each opened cold on the conference itself, and the operator liked none of them. The draft that opened "I commented yesterday on your ... recap post" was the first that read as one person continuing a conversation. Within 60 days, the exchange is the lede.*
 
 *v35: "recently" has a date. Two drafts led with a March talk and a seven-month-old post as if current ("I see you're on the Tech & GenAI stream", "saw your post"). A lede is from the last 60 days, counted from today; an age stamp on a pasted page ("7mo", "2w") counts back from that item's RETRIEVED date. Older is background, not a lede. The words match the date: a talk that is over is "spoke on", never "you're on".*
 
@@ -128,6 +130,14 @@ the firm does, and work out:
    and never opens the note. The verb matches the date: a talk that is over
    is "spoke on" or "your talk on", never "you're on"; a post months old is not
    "saw your post".
+   **A public exchange within 60 days is the lede, and it is named.** If
+   WHAT THE OPERATOR SAID ABOUT THIS PERSON shows he commented on their post (and they may
+   have answered), the note opens on that exchange in plain words: "I
+   commented on your post about ..." with its date in the right tense. It is
+   the one thing in the dossier the reader may recognise him by, and
+   following it "without restating it" makes the note read cold. Name the
+   post's subject, not the comment's content; never quote his comment back.
+   *(v36.)*
 3. **The bridge.** Why an AI consultant and builder is the natural next step
    from that lede toward that goal. One plain clause; the reader should not
    have to work it out.
