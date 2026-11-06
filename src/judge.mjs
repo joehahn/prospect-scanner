@@ -100,9 +100,14 @@ function pastDecisions(db) {
   const out = new Map();
   for (const o of db.prepare(`SELECT o.person_id, o.sent_at at, o.status, o.message_text, o.pitch_summary
       FROM outreach o WHERE o.person_id IS NOT NULL ORDER BY o.sent_at`).all()) {
-    const replied = /^responded|open_thread/.test(o.status ?? '');
-    out.set(o.person_id, { person_id: o.person_id, decision: 'write', at: o.at,
-      strength: replied ? 'wrote, and got a reply' : 'wrote',
+    // A REPLY STAYS A REPLY: a later note to the same person (a follow-up after
+    // they answered) is sent_no_reply, and must not erase that they replied, nor
+    // replace the note that drew the reply.
+    const prev = out.get(o.person_id);
+    const repliedHere = /^responded|open_thread/.test(o.status ?? '');
+    if (prev?.replied && !repliedHere) { prev.at = o.at; continue; }
+    out.set(o.person_id, { person_id: o.person_id, decision: 'write', at: o.at, replied: repliedHere,
+      strength: repliedHere ? 'wrote, and got a reply' : 'wrote',
       why: truncate(String(o.message_text ?? o.pitch_summary ?? '').replace(/\s+/g, ' ').trim(), 280) });
   }
   for (const v of db.prepare(`SELECT person_id, verdict, first, reason, created_at at FROM verdicts ORDER BY id`).all()) {
