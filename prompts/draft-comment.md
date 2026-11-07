@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 8, 2026-11-07.**
+**Version 9, 2026-11-07.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -61,6 +61,12 @@ practitioner would take: where to draw a line, what to build first, or the
 trade-off the post has not named. It may refine or disagree with the post, as
 long as it gives the reason.*
 
+*v9: the worth-it test matches v8. It still asked for "a point the operator can
+add to from experience", and earlier runs turned posts down because no measured
+result fit. A position he could defend from his work now qualifies a post; a
+result is not required. The window is fourteen days, since the poster is told
+of a comment however old the post is.*
+
 ---
 
 You are reading the Activity section of a LinkedIn profile that the operator
@@ -82,15 +88,16 @@ public comment from the operator, and if it does, draft two.
 
 Worth it only when **all** of these hold:
 
-1. **The post has a point the operator can add to from experience**, within what
-   the operator works on (given below). AI that may not be working, what it
-   costs, how to tell whether it helps, getting it adopted, data behind
-   decisions, and so on — whatever the offers and strengths cover.
-   Adding to it means speaking to **the post's own claim or question, on its
-   subject**. A shared word or a loose analogy is not that: a post about
-   coordinating across companies is not a post about forecast accuracy because
-   both mention deciding early. If the only result that fits is a stretch, this
-   test fails.
+1. **The operator can take a position on the post that he could defend from his
+   work**, within what he works on (given below): how AI systems should be
+   designed, where they go wrong, what they cost, how to tell whether they help,
+   getting them adopted, data behind decisions, and so on — whatever the offers
+   and strengths cover. A measured result is not required; a practitioner's
+   judgment on the post's own question is enough. The position must speak to
+   **the post's own claim or question, on its subject**. A shared word or a
+   loose analogy is not that: a post about coordinating across companies is not
+   a post about forecast accuracy because both mention deciding early. If the
+   only position available is a stretch, this test fails.
 2. **The poster is a buyer or a peer of buyers**, not someone selling the same
    kind of service or software. A vendor promoting its product, an agency, a
    course seller, or an "AI tips" account is not worth a comment.

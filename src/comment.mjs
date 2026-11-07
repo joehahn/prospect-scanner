@@ -35,9 +35,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-comment.md';
 const VOICE_FILE = 'prompts/comment-voice.md';
 const REVISE_FILE = 'prompts/revise-comment.md';
-// A comment pays off in the first few days. Seven, counted from today, so a post
-// already a week old when pasted never costs a call.
-export const WINDOW_DAYS = 7;
+// FOURTEEN DAYS, counted from today (was seven until 2026-11-07). Seven suited a
+// comment written for people scrolling a feed, where a post fades in days. The
+// reader is now the poster (prompt v8), and LinkedIn tells them of a comment
+// however old the post is; past two weeks they have moved on.
+export const WINDOW_DAYS = 14;
 
 const SCHEMA = {
   type: 'object',

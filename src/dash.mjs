@@ -17,6 +17,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { openDb } from './db.mjs';
+import { WINDOW_DAYS as COMMENT_WINDOW } from './comment.mjs';
 import { boardSeats } from './boards.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
   evidenceClassesFor } from './config.mjs';
@@ -1473,21 +1474,26 @@ ${items}
 
 // WORTH A COMMENT. Added 2026-10-17. A pasted profile sometimes carries a post
 // the person wrote in the last few days; `comment` drafts two short comments on
-// it. A comment pays off while the post is still in feeds, so a row leaves the
-// list once the post is a week old, posted or not. Below it, the comments he
-// posted, with the two outcomes that say whether this channel works.
-const COMMENT_WINDOW_DAYS = 7;
+// it. A row leaves the list once the post is older than the drafting window
+// (two weeks since 2026-11-07, when the reader became the poster), posted or
+// not. Below it, the comments he posted, with the two outcomes that say whether
+// this channel works.
+const COMMENT_WINDOW_DAYS = COMMENT_WINDOW;
 
 function commentsPanel(db) {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'comments'").get()) return '';
   const since = new Date(Date.now() - COMMENT_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
   const open = db.prepare(`
-    SELECT c.*, p.name, p.title, p.profile_url, g.name AS org_name
+    SELECT c.*, p.name, p.title, p.profile_url, g.name AS org_name,
+           (SELECT j.compelling FROM judgments j WHERE j.person_id = c.person_id
+             ORDER BY j.id DESC LIMIT 1) AS rating
       FROM comments c JOIN people p ON p.id = c.person_id JOIN orgs g ON g.id = p.org_id
      WHERE c.worthy = 1 AND c.posted_at IS NULL AND c.skipped_at IS NULL
        AND COALESCE(c.post_date, substr(c.created_at, 1, 10)) >= ?
        AND c.id = (SELECT MAX(id) FROM comments x WHERE x.person_id = c.person_id)
-     ORDER BY c.post_date DESC`).all(since);
+     -- PROSPECTS FIRST (2026-11-07): a comment on a 4/5's post is worth more
+     -- than one on a peer's, so the judge's rating leads and the date breaks ties.
+     ORDER BY COALESCE(rating, 0) DESC, c.post_date DESC`).all(since);
   const posted = db.prepare(`
     SELECT c.*, p.name, g.name AS org_name
       FROM comments c JOIN people p ON p.id = c.person_id JOIN orgs g ON g.id = p.org_id
@@ -1515,7 +1521,8 @@ function commentsPanel(db) {
           </div>
         </form>`;
   };
-  const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b></td>
+  const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b>${
+        c.rating != null ? `<br><span class="dim">prospect ${esc(String(c.rating))}/5</span>` : ''}</td>
       <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
         searchLink(c.name, c.org_name, c.profile_url)}</td>
       <td><p><b>The post</b>, starting &ldquo;${esc(String(c.post_excerpt ?? '').trim().replace(/[.…\s]+$/, ''))}&hellip;&rdquo;<br>${esc(c.summary)}</p>
@@ -1548,9 +1555,9 @@ function commentsPanel(db) {
         ${c.led_to_email ? '<b>led to an email</b>' : '<button type="submit" name="do" value="email">Led to an email</button>'}
       </form></td></tr>`).join('\n');
   return `<section class="panel"><h2>Worth a comment</h2>
-<p class="lead">A post the person wrote in the last ${COMMENT_WINDOW_DAYS} days, found in a profile you pasted: what it says,
+<p class="lead">A post the person wrote in the last ${COMMENT_WINDOW_DAYS} days, found in a profile you pasted, prospects first: what it says,
 a short comment drafted from your experience, and why that comment. Find it from the search link, comment, then record what you posted. No pitch and
-no link: your headline beside the comment does that. A row leaves once the post is a week old.</p>
+no link: your headline beside the comment does that. A row leaves once the post is ${COMMENT_WINDOW_DAYS} days old.</p>
 ${open.length ? `<table><thead><tr><th>Posted</th><th>Person</th><th>Post and drafts</th></tr></thead><tbody>
 ${items}
 </tbody></table>` : '<p class="dim">Nothing fresh in this week\'s pastes.</p>'}
