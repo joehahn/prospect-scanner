@@ -15,6 +15,7 @@
 // Usage:
 //   npm run comment -- --person <id> [--redo]      the latest paste for one person
 //   npm run comment -- --recent [days] [--dry]     every paste of the last N days (default 7)
+//   npm run comment -- --revise <id> --file <f>    rewrite draft A on his note
 //   npm run comment -- --posted <id> --file <f>    record what he posted
 //   npm run comment -- --skip <id>
 //   npm run comment -- --replied <id> [--file <f>] [--date YYYY-MM-DD]   what they said back
@@ -33,6 +34,7 @@ import { heading, bold, dim } from './report.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-comment.md';
 const VOICE_FILE = 'prompts/comment-voice.md';
+const REVISE_FILE = 'prompts/revise-comment.md';
 // A comment pays off in the first few days. Seven, counted from today, so a post
 // already a week old when pasted never costs a call.
 export const WINDOW_DAYS = 7;
@@ -50,6 +52,16 @@ const SCHEMA = {
     draft_a: { type: 'string' },
     draft_b: { type: 'string' },
     draft_why: { type: 'string', description: 'Why draft A is the comment to post.' },
+  },
+};
+
+const REVISE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['draft', 'why'],
+  properties: {
+    draft: { type: 'string', description: 'The revised comment.' },
+    why: { type: 'string', description: 'What changed, and why the poster would want to answer it.' },
   },
 };
 
@@ -125,8 +137,15 @@ function voiceExamples(db) {
       ORDER BY posted_at DESC LIMIT 8`).all().map((r) => `- "${r.posted_text.replace(/\s+/g, ' ').trim()}"`);
   // They teach the voice AND mark what is spent: a prospect skimming his activity
   // sees these beside the new one, so a result in them must not appear again.
+  // HIS NOTES ON EARLIER DRAFTS, so a correction made once is not made again.
+  // The note and the draft it was about, not a rule distilled from them.
+  const notes = db.prepare(`SELECT note, before_text FROM comment_revisions
+      ORDER BY id DESC LIMIT 8`).all()
+    .map((r) => `- On "${String(r.before_text ?? '').replace(/\s+/g, ' ').trim()}" he asked: ${r.note.replace(/\s+/g, ' ').trim()}`);
   return [posted.length ? `Comments the operator posted, latest first. Match their voice, but every result ` +
       `they cite is already used: do not cite it again.\n${posted.join('\n')}` : '',
+    notes.length ? `Changes the operator asked for on earlier drafts, latest first. Draft so he would not ` +
+      `have to ask again.\n${notes.join('\n')}` : '',
     file ? `Comments the operator likes:\n${file}` : ''].filter(Boolean).join('\n\n');
 }
 
@@ -185,6 +204,49 @@ async function commentOne(db, runId, ctx, person, paste) {
   return { worthy, why: d.why ?? '', summary: d.summary ?? '', cost: res.cost_usd ?? 0 };
 }
 
+/** Rewrite draft A on the operator's note; keep the note, and the text before and after. */
+async function revise(db, args) {
+  const id = Number(args.revise);
+  const row = db.prepare(`SELECT c.*, p.name, p.title, p.org_id FROM comments c
+      JOIN people p ON p.id = c.person_id WHERE c.id = ?`).get(id);
+  if (!row) throw new Error(`no comment ${id}`);
+  const note = args.file && args.file !== true ? readFileSync(String(args.file), 'utf8').trim() : '';
+  if (!note) throw new Error('--revise needs --file with what to change');
+  const cfg = await loadConfig();
+  const business = loadBusiness(cfg);
+  const model = cfg.models.draft ?? cfg.models.default;
+  const neverClaim = cfg.operator?.never_claim ?? business.you?.never_claim;
+  const org = db.prepare('SELECT name FROM orgs WHERE id = ?').get(row.org_id) ?? {};
+  const user = [
+    `## The poster`, `${row.name} — ${row.title ?? '(no title)'}, ${org.name ?? row.org_id}`, ``,
+    `## The post`, `Starts: "${row.post_excerpt ?? ''}"`, `In short: ${row.summary ?? ''}`, ``,
+    `## The comment drafted for it`, row.draft_a ?? '', ``,
+    `## The operator's note`, note, ``,
+    operatorBrief(cfg, business), ``,
+    voiceExamples(db),
+  ].join('\n');
+  const runId = startRun(db, 'comment-revise', { model });
+  const res = await complete(db, runId, {
+    model, maxTokens: 3000, schema: REVISE_SCHEMA, system: promptBody(REVISE_FILE),
+    messages: [{ role: 'user', content: user }],
+  });
+  const draft = String(res.data?.draft ?? '').trim();
+  const cost = res.cost_usd ?? 0;
+  finishRun(db, runId, { cost_usd: cost, n_in: 1, n_out: draft ? 1 : 0 });
+  if (!draft) throw new Error('the revision came back empty; the draft is unchanged');
+  // THE SAME SCREEN AS A FIRST DRAFT. His note does not license a never-claim.
+  const hits = neverClaimHits(draft, neverClaim);
+  if (hits.length) throw new Error(`the revision named something on the never-claim list (${hits.map((h) => h.term).join(', ')}); the draft is unchanged`);
+  const why = String(res.data?.why ?? '').trim();
+  db.transaction(() => {
+    db.prepare(`INSERT INTO comment_revisions (comment_id, note, before_text, after_text, model, prompt_file,
+        cost_usd, run_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, note, row.draft_a, draft, res.model ?? model, REVISE_FILE, cost, runId, new Date().toISOString());
+    db.prepare('UPDATE comments SET draft_a = ?, draft_why = ? WHERE id = ?').run(draft, why || row.draft_why, id);
+  })();
+  console.log(`comment ${id} revised · $${cost.toFixed(4)}\n  ${draft}`);
+}
+
 function record(db, args) {
   const id = Number(args.posted ?? args.skip ?? args.replied ?? args.email);
   const row = db.prepare('SELECT * FROM comments WHERE id = ?').get(id);
@@ -214,6 +276,7 @@ function record(db, args) {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = openDb();
+  if (args.revise) { await revise(db, args); db.close(); return; }
   if (args.posted || args.skip || args.replied || args.email) { record(db, args); db.close(); return; }
 
   const latestPaste = db.prepare(`SELECT id, person_id, retrieved_at, body FROM evidence

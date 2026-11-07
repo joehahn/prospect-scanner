@@ -535,7 +535,14 @@ async function commentAction(f) {
   const act = String(f.do ?? '').trim();
   if (!/^\d+$/.test(id)) throw new Error('no comment id');
   const args = ['run', 'comment', '--silent', '--'];
-  if (act === 'posted') {
+  if (act === 'revise') {
+    // HIS NOTE ON THE DRAFT (2026-11-07): rewritten in place, the note kept.
+    const note = (f.note ?? '').trim();
+    if (!note) throw new Error('Nothing in the tweak box: say what to change.');
+    const file = join(tmp, `revise-${id}.txt`);
+    writeFileSync(file, `${note}\n`);
+    args.push('--revise', id, '--file', file);
+  } else if (act === 'posted') {
     const body = (f.body ?? '').trim();
     if (!body) throw new Error('Nothing in the comment box to record as posted.');
     const file = join(tmp, `comment-${id}.txt`);

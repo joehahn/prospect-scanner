@@ -531,6 +531,24 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_person ON comments(person_id);
 
+-- A COMMENT REWRITTEN ON THE OPERATOR'S NOTE (2026-11-07). He types what to
+-- change on the card; the draft is rewritten in place and the note is kept with
+-- the text before and after, so the drafter can be shown his recent corrections
+-- and the same note is not typed twice.
+CREATE TABLE IF NOT EXISTS comment_revisions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  comment_id  INTEGER NOT NULL REFERENCES comments(id),
+  note        TEXT    NOT NULL,   -- what he asked for, in his words
+  before_text TEXT,
+  after_text  TEXT,
+  model       TEXT,
+  prompt_file TEXT,
+  cost_usd    REAL,
+  run_id      INTEGER REFERENCES runs(id),
+  created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_comment_revisions_comment ON comment_revisions(comment_id);
+
 -- RULES PROPOSED FROM THE OPERATOR'S OWN CORRECTIONS, and never written into
 -- the voice file until he accepts one. A bad rule silently degrades every note
 -- that follows, and the voice file is the one input no stage can sanity-check.

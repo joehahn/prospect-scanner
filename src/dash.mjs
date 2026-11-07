@@ -1498,12 +1498,30 @@ function commentsPanel(db) {
   // comment, and why that comment. The rest is for finding the post or wanting
   // another angle, so it waits behind a click.
   const copyBtn = (text) => `<button class="copy" type="button" data-copy="${esc(text)}">copy</button>`;
+  // HIS NOTES SO FAR ON EACH DRAFT (2026-11-07), oldest first, so the card shows
+  // what he already asked for before he asks again.
+  const hasRevisions = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'comment_revisions'").get();
+  const notesFor = (id) => hasRevisions
+    ? db.prepare('SELECT note FROM comment_revisions WHERE comment_id = ? ORDER BY id').all(id).map((r) => r.note) : [];
+  const reviseForm = (c) => {
+    const notes = notesFor(c.id);
+    return `<form method="post" action="${SERVER}/comment" class="nb notebox">${back}
+          <input type="hidden" name="id" value="${c.id}">
+          ${notes.length ? `<p class="dim">Your notes so far: ${notes.map((n) => `&ldquo;${esc(n)}&rdquo;`).join(' · ')}</p>` : ''}
+          <textarea name="note" rows="2" placeholder="What to change, e.g. build on his point about checking agents, shorter."></textarea>
+          <div class="nbrow">
+            <button type="submit" name="do" value="revise">Revise</button>
+            <span class="nbnote">Rewrites the comment above on your note, in a few seconds. Your note is kept, so later drafts learn from it.</span>
+          </div>
+        </form>`;
+  };
   const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b></td>
       <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
         searchLink(c.name, c.org_name, c.profile_url)}</td>
       <td><p><b>The post</b>, starting &ldquo;${esc(String(c.post_excerpt ?? '').trim().replace(/[.…\s]+$/, ''))}&hellip;&rdquo;<br>${esc(c.summary)}</p>
         <p><b>Your comment</b> ${copyBtn(c.draft_a)}</p><div class="wrapped">${esc(c.draft_a)}</div>
         <p><b>Why this comment</b><br>${esc(c.draft_why || c.why)}</p>
+        ${reviseForm(c)}
         <details class="raw"><summary>Why this post${c.draft_b ? ', and another angle' : ''}</summary>
           ${c.draft_why ? `<p class="dim">${esc(c.why)}</p>` : ''}
           ${c.draft_b ? `<p><b>Another angle</b> ${copyBtn(c.draft_b)}</p><div class="wrapped">${esc(c.draft_b)}</div>` : ''}
