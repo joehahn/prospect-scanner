@@ -17,6 +17,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { openDb } from './db.mjs';
+import { unconfirmedEmployer } from './employer.mjs';
 import { WINDOW_DAYS as COMMENT_WINDOW } from './comment.mjs';
 import { boardSeats } from './boards.mjs';
 import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBucketOf,
@@ -485,6 +486,7 @@ function collect(db, cfg, targeting) {
               SELECT 1 FROM outreach o WHERE o.person_id = p.id))`).all().map((r) => r.id));
   const held = new Set(db.prepare(
     'SELECT person_id FROM hold WHERE release_after > ?').all(today).map((r) => r.person_id));
+  const unconfirmed = unconfirmedEmployer(db);
 
   // ---- the shortlist ------------------------------------------------------
   const live = firms.filter((f) => !killedOrgs.has(f.org_id));
@@ -497,7 +499,7 @@ function collect(db, cfg, targeting) {
   const killedFor = (p) => killedOrgs.has(p.org_id) && verdictsByPerson.get(p.person_id)?.verdict !== 'write';
   const eligible = people.filter((p) => !killedFor(p)
     && !suppressed.has(p.person_id) && !held.has(p.person_id)
-    && !contactedPeople.has(p.person_id));
+    && !contactedPeople.has(p.person_id) && !unconfirmed.has(p.person_id));
   // SEAT, not discounted authority. See the note in rank.mjs beside
   // seat_authority: gating on the discounted number meant an unexamined person
   // could never appear, and the "who to read next" worklist derived from this
@@ -688,7 +690,7 @@ function collect(db, cfg, targeting) {
     .sort((a, b) => String(b.lastSent?.sent_at ?? '').localeCompare(String(a.lastSent?.sent_at ?? '')));
 
   return { today, firms, people, live, shortlist, writable, blocked, byValue, inFlight,
-           noAuthority, eligible, killedOrgs, releasing,
+           noAuthority, eligible, killedOrgs, releasing, unconfirmedCount: unconfirmed.size,
            // Needed by the geography pages to say why a bucket is empty rather
            // than just showing an empty bucket.
            contactedPeople, suppressed, held,
@@ -1796,6 +1798,8 @@ everyone the judge rates 3 or more, in the order of whichever of the judge and t
 formula the Scoreboard currently favours. Your <b>Write first</b> picks are the check:
 <code>npm run judge -- --scoreboard</code>, or the Scoreboard page.</p>
 <p class="lead">${meter || 'No outreach_budget_per_month in config.'}</p>
+${d.unconfirmedCount ? `<p class="lead dim">${d.unconfirmedCount} people picked up from a profile's sidebar are left off
+until something confirms they work where they were filed: paste their own profile, and they are placed.</p>` : ''}
 ${balanceForm}</section>`;
   if (!has) {
     return intro + '<section class="panel"><p class="callout">Nobody judged yet. Run '

@@ -1093,12 +1093,19 @@ async function extractProfile(db, cfg, person, body, url, args) {
   const partial = [];
   const offTeam = [];
   const onFile = [];
+  const untitled = [];
   for (const o of d.other_people ?? []) {
     if (!o.name) continue;
     if (initialOnly(o.name)) { partial.push(`${o.name} — ${o.title ?? ''}`); continue; }
     const other = namesAnotherFirm(o.title) ?? namesAnotherCompany(o.title);
     if (other) { elsewhere.push(`${o.name} — ${o.title}`); continue; }
     if (team.length && !onTeam(o.name)) { offTeam.push(`${o.name} — ${o.title ?? ''}`); continue; }
+    // NO TITLE, NO TEAM PAGE, NOT FILED (2026-11-08). A sidebar name with no
+    // title carries nothing that ties it to this firm: five names off one state
+    // IT officer's page were filed as that agency's staff and rated 3 on the
+    // agency alone, and the one the operator looked up was a graduate student at
+    // a university. Said aloud below, like the other names not filed.
+    if (!team.length && !String(o.title ?? '').trim()) { untitled.push(o.name); continue; }
     // ALREADY ON FILE under another spelling ("Ron" for "Ronald"), or at the
     // firm they really work for. people-match.mjs.
     const known = samePersonOnFile(db, { name: o.name, title: o.title, orgId: person.org_id });
@@ -1121,6 +1128,10 @@ async function extractProfile(db, cfg, person, body, url, args) {
   if (offTeam.length) {
     console.log(dim(`  ${offTeam.length} name(s) NOT filed — not on the firm's own team page:` +
       `\n    ${offTeam.slice(0, 5).join('\n    ')}`));
+  }
+  if (untitled.length) {
+    console.log(dim(`  ${untitled.length} name(s) NOT filed — no title, and no team page to place them:` +
+      `\n    ${untitled.slice(0, 5).join('\n    ')}`));
   }
 
   const flag = { confirmed: 'confirmed', unclear: 'UNCLEAR', contradicted: 'CONTRADICTED' }[d.role_confirmed];
