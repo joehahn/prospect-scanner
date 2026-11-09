@@ -1,4 +1,6 @@
-# draft-cold-note — v37, 2026-11-08
+# draft-cold-note — v38, 2026-11-09
+
+*v38: the offer moves from the connection note to the message after the accept. A follow-up drafted to a supply-chain VP restated the use case his connection note had already pitched, and the operator asked whether the follow-up should re-pitch or say something else. His call: the connection note should "say something compelling that persuades prospect to accept", and the pitch goes in the follow-up. So a connection note now takes a view on the person's topic and says in one clause what he builds; the follow-up is where the offer appears for the first time. Accept rate before the change: about 20% (October).*
 
 *v37: a title is not an opening, and an undated talk is still a subject. The operator called two notes uncompelling in one evening, both opening "I see you lead/are [title] at [agency]". One had a panel on file whose date was missing; the draft dropped the panel entirely rather than risk the tense, and opened on the title instead. The sent version opened on the panel's question and his guess at the answer. Naming a talk's subject needs no tense; and with no lede at all, the opening is the goal as a guess, never the seat recited back.*
 
@@ -330,10 +332,12 @@ paragraphs. If the honest note is shorter, write the shorter one.
 
 A **connection note** (`linkedin_connect_note`) has a hard character limit, given
 with the request; LinkedIn refuses anything longer. Write one or two sentences
-within it: no greeting line, no signature, no subject. The reason to connect and
-the offer, nothing else. *(v24.)* **If the voice rules give a connection-note shape,
-follow it instead of the five beats.** Its offer is the one your storyline chose
-(v28; until then the shape's own offer overrode everything). Put only the note under DRAFT: its length, if worth saying, goes in
+within it: no greeting line, no signature, no subject. **It carries no offer**
+*(v38)*: a view on their topic, one clause on what he builds, a line to connect.
+Its job is the accept. Work out the storyline and the offer as usual and put
+them in NOTES: the offer is used in the message after the accept, not here.
+**If the voice rules give a connection-note shape, follow it instead of the five
+beats.** Put only the note under DRAFT: its length, if worth saying, goes in
 NOTES. *(v26.)*
 
 ## The message after an accepted connection
@@ -347,10 +351,14 @@ When PRIOR CONTACT shows a connection note to this person with status
   idea, not a formula: an opener every one of these notes shares is itself the
   mail-merge tell). Not "Thanks for connecting": that is the line automation
   tools send the moment a request is accepted.
-- **Who he is and what he does for someone in their seat**, in one sentence: the
-  kind of work, at the level they work at, and the offer's first step in a
-  phrase (how it is bought, not its price). Sized to their seat as anywhere
-  else: a COO hears about operations, not a field-level task.
+- **The offer, for the first time.** *(v38.)* The connection note gave a view
+  and said what he builds; this is where the offer the storyline chooses
+  appears: what they would get, sized to their seat (a COO hears about
+  operations, not a field-level task), and how it is bought in a phrase (not
+  its price). One or two sentences, with the credential if it fits.
+  **If the accepted connection note already pitched an offer** (notes sent
+  before 2026-11-09 did), do not restate it or its use case: say the kind of
+  work he does at their level instead, broader than that note's example.
 - **An open door, and nothing to do.** One sentence leaving it to them: if that
   kind of help is ever useful at their firm, he would be pleased to hear from
   them. The idea, not a formula; word it fresh each time, as with the opener.
@@ -364,7 +372,7 @@ When PRIOR CONTACT shows a connection note to this person with status
   it scores.
 - A fact on file may set the sentence's subject ("manufacturing and supply-chain
   teams", "portfolio companies") but is never recited back to them.
-- **Short**: 40 to 70 words in the body. Greeting, the note, his first name.
+- **Short**: 40 to 80 words in the body. Greeting, the note, his first name.
 
 NOTES carries the storyline as usual, and says which of their facts set the
 subject sentence.

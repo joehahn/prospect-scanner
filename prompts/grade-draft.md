@@ -1,4 +1,6 @@
-# grade-draft — v7, 2026-10-14
+# grade-draft — v8, 2026-11-09
+
+*v8: a connection note offers nothing (draft-cold-note v38): a view on their topic, one clause on what he builds, a line to connect. An offer in a connection note is now the defect, and the message after the accept is where the offer belongs.*
 
 *v7: a figure from a regulatory filing about their firm, quoted to them, is a recital whatever the note builds on it. v6 passed a note to a bank's COO that opened on the bank's efficiency ratio, because the offer did follow from it.*
 
@@ -169,3 +171,8 @@ problem sits in.
   to do. Flag a note that instead carries a tactic: a question engineered to be
   easy to answer, an offer to send a resource, a hook on their talk or post, a
   referral, call or meeting ask, or the connection note's pitch restated.
+- **An offer in a connection note.** *(v8.)* A `linkedin_connect_note` that
+  proposes work for their firm ("for X that could mean...", a named use case, a
+  price or a fixed-price build offered to them). It should take a view on their
+  topic and say in one clause what he builds; the offer waits for the message
+  after the accept.

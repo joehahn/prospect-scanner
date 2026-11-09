@@ -298,7 +298,7 @@ async function compare(db, cfg, b, runId, searches, hosts, c0) {
       } catch { continue; }
       const d = res.data;
       if (!d?.is_conference || !d.name?.trim() || !inOperatorCountries(d.country, allowed)) continue;
-      // One event under two names ("... 2026 (GovTech)") counts once.
+      // One event under two names ("... 2026 (East)") counts once.
       const key = slugify(d.name.replace(/\([^)]*\)/g, ' '));
       conf.set(url, { key, name: d.name.trim(), known: knownKey.has(key) || knownUrl.has(url) || knownUrl.has(page.url) });
     }
