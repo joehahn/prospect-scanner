@@ -1,4 +1,6 @@
-# draft-cold-note — v40, 2026-11-09
+# draft-cold-note — v41, 2026-11-09
+
+*v41: tie the offer to what the reader is measured on. An email to a private-equity operating partner whose profile says he drives "value creation through digitization" offered to list the renewal dates in a newly bought company's IT contracts: housekeeping that moves neither earnings nor the exit. The operator asked whether the draft made clear the work leads to greater value creation; it did not. The version he sent opened on the levers a value-creation plan already names (pricing, procurement, working capital, sales productivity), said AI built on the company's own records moves one of them, and offered a single build measured against how the job is done today, small enough to try at one company before repeating it across others.*
 
 *v40: the connection note says what the operator is, in his own words from the voice rules, not only what he builds. A note to a new bank analytics head ended "I build that kind of AI", and the operator asked to say plainly that he is a consultant instead, as more transparent: the reader should know who is asking, so the offer after the accept is no surprise. A self-description as expert or seasoned is not that; the view is what shows experience.*
 
@@ -277,6 +279,21 @@ national director in turning strategy into what project teams use, a VP in his
 whole remit. A spec for one tool one rung below them (a single report, a
 single checker) makes the offer smaller than their job, and is likelier to be
 wrong about how their shop works. The detail comes out in the reply.
+
+**Tie the work to what the reader is measured on.** *(v41.)* Before choosing
+the example, name the outcome this reader answers for, from their own words
+where they give it: an operating partner or value-creation lead, earnings
+growth across portfolio companies and the exit; a CFO, margin and cash; a
+sales head, revenue and win rate; a public body, service to residents within
+budget. The example must move that outcome, and the note says how in a plain
+clause. Administrative cleanup (inventories, renewal lists, tidying records)
+moves none of them and is not the example for a senior reader, even when it
+sits in their lane. For a reader whose remit spans many companies, name the
+lever the work moves as a category (pricing, procurement, working capital,
+sales productivity), never as a claim about one of their companies, and make
+the offer one build that can be tried at one company and repeated at others.
+Say the work will be measured against how the job is done today only where
+the offer's terms include it.
 
 **Propose custom AI where packaged software does not reach.** Never offer to
 build what a mainstream product already does for that seat (demand
