@@ -392,6 +392,23 @@ async function speakersOn(db, cfg, runId, page) {
     country: res.data?.event_country ?? '' };
 }
 
+// NEAREST EVENTS FIRST (2026-11-09). The waiting agendas were read in the
+// order found, so the near ones went first by luck and what remained were
+// spring summits: two of 130 in the next 45 days. A speaker whose talk is weeks
+// away, or just happened, is a dated reason to write; one months out is not.
+// Order: the next 60 days soonest first, then the last 30 days most recent
+// first, then 60-120 days, then undated, then later, then older.
+export function readOrder(whenText, today = new Date().toISOString().slice(0, 10)) {
+  const d = eventDateFrom(whenText ?? '');
+  if (!d) return 4e6;
+  const days = Math.round((Date.parse(d.starts_on) - Date.parse(today)) / 86_400_000);
+  if (days >= 0 && days <= 60) return days;
+  if (days < 0 && days >= -30) return 1e6 - days;
+  if (days > 60 && days <= 120) return 2e6 + days;
+  if (days > 120) return 5e6 + days;
+  return 6e6 - days;
+}
+
 async function read(db, cfg, b, args) {
   const allowed = allowedCountries(b);
   const hosts = hostsOf(cfg);
@@ -399,7 +416,9 @@ async function read(db, cfg, b, args) {
   const ids = args.ids && args.ids !== true ? String(args.ids).split(',').map(Number) : null;
   const rows = db.prepare(`SELECT * FROM conferences WHERE status = 'pending'
       OR (status = 'stale' AND read_at < datetime('now', '-30 days')) ORDER BY id`).all()
-    .filter((r) => !ids || ids.includes(r.id)).slice(0, ids ? undefined : limit);
+    .filter((r) => !ids || ids.includes(r.id))
+    .sort((a, b) => readOrder(a.when_text) - readOrder(b.when_text) || a.id - b.id)
+    .slice(0, ids ? undefined : limit);
   if (!rows.length) { console.log('no conferences waiting. Run with --find first.'); return; }
   const runId = startRun(db, 'conferences-read', { model: cfg.models?.cheap });
   const done = db.prepare(`UPDATE conferences SET status = ?, reason = ?, speakers = ?, read_at = ? WHERE id = ?`);

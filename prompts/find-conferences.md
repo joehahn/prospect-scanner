@@ -1,4 +1,6 @@
-# find-conferences — v1, 2026-09-30
+# find-conferences — v2, 2026-11-09
+
+*v2: the next sixty days. v1 asked for "upcoming or recent" and named a year, and by early November the agendas it found were spring summits: of 130 waiting to be read, two were in the next 45 days and 43 were four months or more away. A speaker months out makes a weak note ("event 121 days out"), and new people rated 4-5 fell from about five a day in mid-October to about one. Searches now name the coming months.*
 
 System prompt for `npm run conferences -- --find`. Versioned so results stay
 attributable. Conference agendas give a person and a dated reason in one fetch,
@@ -21,8 +23,12 @@ operator wants more of, with what he said about them.
   public sector, a named trade association's annual meeting) put the practitioner
   who owns the work on stage. Executive summits skew to chief officers; include
   some, but favor events where directors and VPs present what they are doing.
-- **Upcoming or recent.** Name the current or next year, so the page is a live
-  agenda rather than an archive.
+- **The next sixty days.** Most searches name the months ahead (today's date
+  is given): "December 2026", "January 2027", "this month", "next week",
+  rather than only a year, so the page is an agenda for an event coming soon.
+  An event months away gives no reason to write now. One or two searches may
+  look for events held in the last month, whose recaps and speaker lists are
+  still fresh.
 - **Not vendor marketing.** A vendor's webinar series or a vendor's customer
   showcase is the vendor selling. A vendor's large user conference is acceptable
   only when its speakers are customers describing their own work.
