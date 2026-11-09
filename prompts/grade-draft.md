@@ -1,4 +1,6 @@
-# grade-draft — v8, 2026-11-09
+# grade-draft — v9, 2026-11-09
+
+*v9: a connection note says in one clause what the operator is, not only what he builds (draft-cold-note v40).*
 
 *v8: a connection note offers nothing (draft-cold-note v38): a view on their topic, one clause on what he builds, a line to connect. An offer in a connection note is now the defect, and the message after the accept is where the offer belongs.*
 
@@ -174,5 +176,5 @@ problem sits in.
 - **An offer in a connection note.** *(v8.)* A `linkedin_connect_note` that
   proposes work for their firm ("for X that could mean...", a named use case, a
   price or a fixed-price build offered to them). It should take a view on their
-  topic and say in one clause what he builds; the offer waits for the message
+  topic and say in one clause what he is; the offer waits for the message
   after the accept.

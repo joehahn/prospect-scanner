@@ -1,4 +1,6 @@
-# draft-cold-note — v39, 2026-11-09
+# draft-cold-note — v40, 2026-11-09
+
+*v40: the connection note says what the operator is, in his own words from the voice rules, not only what he builds. A note to a new bank analytics head ended "I build that kind of AI", and the operator asked to say plainly that he is a consultant instead, as more transparent: the reader should know who is asking, so the offer after the accept is no surprise. A self-description as expert or seasoned is not that; the view is what shows experience.*
 
 *v39: what a firm's business necessarily produces may be named. A connection note to a data VP at a rail-ticketing app said the edge comes from "data only [the firm] has", abstract because the rule above forbids inventing specifics. The operator's version named it, "how travellers search, book and rebook when fares or trains change", which is not an invention: a ticketing app has searches and bookings by being one. That is now allowed, as a guess; a system, project or problem the evidence does not show is still not.*
 
@@ -344,7 +346,7 @@ paragraphs. If the honest note is shorter, write the shorter one.
 A **connection note** (`linkedin_connect_note`) has a hard character limit, given
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. **It carries no offer**
-*(v38)*: a view on their topic, one clause on what he builds, a line to connect.
+*(v38)*: a view on their topic, one clause saying what he is *(v40)*, a line to connect.
 Its job is the accept. Work out the storyline and the offer as usual and put
 them in NOTES: the offer is used in the message after the accept, not here.
 **If the voice rules give a connection-note shape, follow it instead of the five
