@@ -1,4 +1,6 @@
-# draft-cold-note — v38, 2026-11-09
+# draft-cold-note — v39, 2026-11-09
+
+*v39: what a firm's business necessarily produces may be named. A connection note to a data VP at a rail-ticketing app said the edge comes from "data only [the firm] has", abstract because the rule above forbids inventing specifics. The operator's version named it, "how travellers search, book and rebook when fares or trains change", which is not an invention: a ticketing app has searches and bookings by being one. That is now allowed, as a guess; a system, project or problem the evidence does not show is still not.*
 
 *v38: the offer moves from the connection note to the message after the accept. A follow-up drafted to a supply-chain VP restated the use case his connection note had already pitched, and the operator asked whether the follow-up should re-pitch or say something else. His call: the connection note should "say something compelling that persuades prospect to accept", and the pitch goes in the follow-up. So a connection note now takes a view on the person's topic and says in one clause what he builds; the follow-up is where the offer appears for the first time. Accept rate before the change: about 20% (October).*
 
@@ -252,6 +254,15 @@ usually hands and time before it is ever a particular model.
 
 **Ask of any specific sentence: what in the dossier makes this likely?** If the
 answer is "people in this role often…", write the circumstance instead.
+
+**What the business necessarily produces is not an invention.** *(v39.)* A
+ticketing app holds searches and bookings; a health plan, claims; a
+manufacturer, orders and production records; a law firm, matters and
+documents. Where the note turns on "their own data", name that material
+concretely, in a few plain words and as a guess where it matters ("I'd guess
+the edge is how travellers search and rebook..."), rather than "data only you
+have". This licenses the kind of material, never a system, a project, a
+problem or a number the evidence does not show.
 
 Where you do take a view, take it about **the subject, not their situation**.
 "Sequencing usually comes down to which pressure is loudest that quarter" claims
