@@ -196,7 +196,24 @@ function matchPerson(db, text) {
   // team" sat under a recruiter's longer name). The subject's name
   // comes first, after the nav chrome; a paste that ingests itself on arrival
   // has no one looking at the match before it is written.
-  return kept.sort((a, b) => a.at - b.at);
+  if (kept.length) return kept.sort((a, b) => a.at - b.at);
+  // A NICKNAME WITHOUT THE HEADER (2026-11-09). A paste with no degree line
+  // reached only the exact-substring scan above, so a full first name on the
+  // page found no nickname of it in the book. The first name-shaped line near
+  // the top is tried with the same nickname rule the header uses; two
+  // matches are narrowed by the firm on the page, and a tie is no match.
+  const lines = ownPart(text).split(/\r?\n/).map((l) => l.trim()).slice(0, 40);
+  for (const [i, line] of lines.entries()) {
+    if (!/^[A-Z][\p{L}.'’-]+(?: [\p{L}.'’-]+){1,3}$/u.test(line)) continue;
+    const k = nameKey(line);
+    if (!k?.last || k.last.length < 2) continue;
+    const same = rows.filter((r) => sameName(k, r.name));
+    if (!same.length) continue;
+    const atFirm = same.filter((r) => firmOnPage(text, r.org));
+    const pick = atFirm.length ? atFirm : same;
+    return pick.length === 1 ? [{ ...pick[0], at: i }] : [];
+  }
+  return [];
 }
 
 function page(db, { note = '', text = '', err = '' } = {}) {
