@@ -13,7 +13,7 @@
 // or the operator's own write call. Nothing is deleted; pasting them places them.
 const GENERIC_ORG_WORDS = new Set(['department', 'state', 'city', 'county', 'services', 'service',
   'information', 'technology', 'technologies', 'office', 'group', 'company', 'companies', 'holdings',
-  'partners', 'capital', 'management', 'national', 'international', 'global', 'corporation', 'bank',
+  'partners', 'capital', 'management', 'national', 'union', 'savings', 'international', 'global', 'corporation', 'bank',
   'financial', 'health', 'university', 'college', 'commission', 'authority', 'agency', 'division',
   'public', 'american', 'united', 'association', 'insurance', 'solutions', 'systems', 'the', 'and', 'of', 'for']);
 export function unconfirmedEmployer(db) {
@@ -29,6 +29,11 @@ export function unconfirmedEmployer(db) {
     const words = String(r.org_name ?? '').toLowerCase().split(/[^a-z0-9]+/)
       .filter((w) => w.length >= 3 && !GENERIC_ORG_WORDS.has(w));
     const title = String(r.title ?? '').toLowerCase();
+    // THE WHOLE NAME COUNTS EVEN WHEN EVERY WORD IS GENERIC (2026-11-09): a
+    // headline "SVP ... at Union Savings Bank" names its firm, though "union",
+    // "savings" and "bank" each name nothing alone.
+    const full = String(r.org_name ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join(' ');
+    if (full.includes(' ') && title.split(/[^a-z0-9]+/).filter(Boolean).join(' ').includes(full)) continue;
     if (!words.some((w) => new RegExp(`\\b${w}\\b`).test(title))) out.add(r.id);
   }
   return out;

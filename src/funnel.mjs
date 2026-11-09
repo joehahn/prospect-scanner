@@ -7,6 +7,8 @@
 // one stage could not be seen to move the goal. Every count here is computed
 // from the book as it is, with no model and no cost.
 
+import { unconfirmedEmployer } from './employer.mjs';
+
 /**
  * Someone a note could go to today, apart from their rating: not written to,
  * firm not written to in 14 days, firm not killed, not suppressed, not marked
@@ -165,8 +167,10 @@ export const seatUnclear = (p) => titleOnly(p) || (p.owner != null && p.owner !=
 export function pasteQueue(db, n = 5, { unclearOnly = true } = {}) {
   const firms = new Set();
   const out = [];
+  // A name held off the ready list has no card to paste into (employer.mjs).
+  const held = unconfirmedEmployer(db);
   for (const p of strongWritable(db)) {
-    if (p.has_profile || firms.has(p.org_id) || (unclearOnly && !seatUnclear(p))) continue;
+    if (p.has_profile || held.has(p.person_id) || firms.has(p.org_id) || (unclearOnly && !seatUnclear(p))) continue;
     firms.add(p.org_id);
     out.push(p);
     if (out.length >= n) break;
