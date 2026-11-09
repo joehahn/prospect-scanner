@@ -99,6 +99,11 @@ for (const [text, start, end] of [
   ['September 29–October 1, 2026', '2026-09-29', '2026-10-01'],
   ['<b>March 30 - April 2, 2027</b>', '2027-03-30', '2027-04-02'],
   ['November 9-11, 2026', '2026-11-09', '2026-11-11'],
+  // ABBREVIATED MONTHS: an agenda that dates sessions "Dec. 10, 2026, 8 a.m."
+  // and spells the month out only in a meta tag.
+  ['<meta content="Join us December 10, 2026!" /><p>Dec. 10, 2026, 8 a.m.</p>', '2026-12-10', '2026-12-10'],
+  ['Sept. 29-30, 2026', '2026-09-29', '2026-09-30'],
+  ['10 Dec 2026', '2026-12-10', '2026-12-10'],
 ]) {
   const got = eventDateFrom(text);
   if (got?.starts_on !== start || got?.ends_on !== end) {

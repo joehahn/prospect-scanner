@@ -90,6 +90,8 @@ const MONTHS = 'January|February|March|April|May|June|July|August|September|Octo
 const MONTH_N = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7,
   august: 8, september: 9, october: 10, november: 11, december: 12 };
 
+const ABBR = 'Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec';
+const MONTH_OF_ABBR = Object.fromEntries(Object.keys(MONTH_N).map((k) => [k.slice(0, 3), k[0].toUpperCase() + k.slice(1)]));
 const iso3 = (yr, mo, d) => `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 const MONTH_NAME = Object.fromEntries(Object.entries(MONTH_N).map(([k, v]) => [v, k[0].toUpperCase() + k.slice(1)]));
 /** The US-style text every reader of a stored date parses back ("November 19-20, 2026"). */
@@ -138,7 +140,14 @@ export function eventDateFrom(html) {
   // A dash written as an entity ("3&ndash;4 November") is still a range; blanking
   // it turned a two-day event into its second day.
   const plain = String(html).replace(/<[^>]+>/g, ' ').replace(/&(?:ndash|mdash|#8211|#8212);/gi, '\u2013')
-    .replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ');
+    .replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ')
+    // ABBREVIATED MONTHS. Added 2026-11-08: a federal IT summit's agenda dates
+    // every session "Dec. 10, 2026, 8 a.m." and writes the full month only in
+    // a meta tag, which the tag strip above removes. Its speaker records said
+    // the date was not published, and a note to a panelist a month out fell
+    // back to reciting his title. Spelled out here, every pattern below reads it.
+    .replace(new RegExp(`\\b(${ABBR})\\.?(?=\\s+\\d{1,2}\\b)|(?<=\\b\\d{1,2}\\s)(${ABBR})\\.?(?=\\s+20\\d\\d\\b)`, 'g'),
+      (m, a, b) => MONTH_OF_ABBR[(a ?? b).slice(0, 3).toLowerCase()]);
   const iso = (yr, mo, d) => `${yr}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   const mon = (x) => MONTH_N[String(x).toLowerCase()];
   // A RANGE ACROSS A MONTH FIRST ("September 29-October 1, 2026"). Added

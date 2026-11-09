@@ -1,4 +1,6 @@
-# draft-cold-note — v36, 2026-11-06
+# draft-cold-note — v37, 2026-11-08
+
+*v37: a title is not an opening, and an undated talk is still a subject. The operator called two notes uncompelling in one evening, both opening "I see you lead/are [title] at [agency]". One had a panel on file whose date was missing; the draft dropped the panel entirely rather than risk the tense, and opened on the title instead. The sent version opened on the panel's question and his guess at the answer. Naming a talk's subject needs no tense; and with no lede at all, the opening is the goal as a guess, never the seat recited back.*
 
 *v36: a public exchange is named, not alluded to. The operator commented on a CAIO's conference-recap post, and four drafts to him the next day "followed the thread without restating it": each opened cold on the conference itself, and the operator liked none of them. The draft that opened "I commented yesterday on your ... recap post" was the first that read as one person continuing a conversation. Within 60 days, the exchange is the lede.*
 
@@ -124,6 +126,16 @@ the firm does, and work out:
    their words, a talk and its abstract, a post, the AI subjects they follow.
    A recent fact that has nothing to do with the goal is not a lede, however
    fresh. If none bears on it, open on the circumstance itself.
+   **A talk with no date on file is still a subject.** "Your ATARC session on
+   what is slowing public-sector IT" claims no tense and is true either way;
+   build on the question the session asks. Only the verb needs the date.
+   **The title is never the opening.** "I see you lead X at Y" tells the
+   reader his own job and gives him nothing to answer. When nothing dated or
+   said is on file, open on the goal the seat implies, written as a guess
+   ("I'd guess the hard part of AI at an agency is ..."), or on a view about
+   the subject; the title may appear inside that sentence, never as it.
+   Earlier notes that opened on a remit are not precedent for doing so.
+   *(v37.)*
    **Recently means within 60 days of today.** Date each candidate first: an
    agenda gives the talk's date; an age stamp on a pasted page ("7mo", "2w")
    counts back from that item's RETRIEVED date. Anything older is background
