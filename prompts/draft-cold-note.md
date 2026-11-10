@@ -1,4 +1,6 @@
-# draft-cold-note — v41, 2026-11-09
+# draft-cold-note — v42, 2026-11-10
+
+*v42: v41's try-one-then-repeat clause is for readers across invested or advised companies only, and is said in full words. The first draft after v41, a follow-up to a state enterprise architect, carried it as "proven there before it's repeated elsewhere", which the operator found confusing, and it restated the connection note's pitch besides.*
 
 *v41: tie the offer to what the reader is measured on. An email to a private-equity operating partner whose profile says he drives "value creation through digitization" offered to list the renewal dates in a newly bought company's IT contracts: housekeeping that moves neither earnings nor the exit. The operator asked whether the draft made clear the work leads to greater value creation; it did not. The version he sent opened on the levers a value-creation plan already names (pricing, procurement, working capital, sales productivity), said AI built on the company's own records moves one of them, and offered a single build measured against how the job is done today, small enough to try at one company before repeating it across others.*
 
@@ -288,10 +290,17 @@ sales head, revenue and win rate; a public body, service to residents within
 budget. The example must move that outcome, and the note says how in a plain
 clause. Administrative cleanup (inventories, renewal lists, tidying records)
 moves none of them and is not the example for a senior reader, even when it
-sits in their lane. For a reader whose remit spans many companies, name the
-lever the work moves as a category (pricing, procurement, working capital,
-sales productivity), never as a claim about one of their companies, and make
-the offer one build that can be tried at one company and repeated at others.
+sits in their lane. For a reader whose remit spans many **companies they invest in or
+advise** (an operating partner, a value-creation lead), name the lever the work
+moves as a category (pricing, procurement, working capital, sales
+productivity), never as a claim about one of their companies, and make the
+offer one build that can be tried at one company and repeated at others. Say
+that in full words, as "small enough to try at one company before repeating it
+across others"; never compress it ("proven there before it's repeated
+elsewhere" left the reader guessing what "there" was). It does not apply to a
+reader inside one organization, however many agencies or departments they
+span, and never in the message after an accept whose connection note already
+pitched.
 Say the work will be measured against how the job is done today only where
 the offer's terms include it.
 
@@ -338,6 +347,10 @@ short, plain, slightly uneven. When in doubt, write the plainer sentence.
 - No em dashes where a comma or a full stop will do. He uses commas.
 - No "I hope this finds you well", no "I wanted to reach out", no "circle back".
 - No tricolons, no "not just X but Y", no sentence that balances.
+- **Every "there", "it", "that" and "this" points at something already said in
+  the note.** *(v42.)* A clause packed to save words ("proven there before it's
+  repeated elsewhere") makes the reader stop and guess; spell out what was
+  meant, or cut it. Read each sentence as a stranger would, once, at speed.
 - **Never reuse a framing sentence.** The dossier shows the openings and
   closings of recent notes to other people. Treat them as forbidden, not as
   models. A shared phrase across two notes is a mail merge to anyone who sees
