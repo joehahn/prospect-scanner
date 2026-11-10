@@ -1,4 +1,6 @@
-# find-conferences — v3, 2026-11-10
+# find-conferences — v4, 2026-11-10
+
+*v4: named series. The input may list event series worth finding by name; two or three searches look up this year's or next year's agenda for some of them, a different few each day.*
 
 *v3: more of the events that answered, less of the rest. Every positive reply since October came from a few kinds of event, and public bodies had answered none of 81 notes; meanwhile the searches were landing on a 2017 science meeting, agendas from 2020 to 2024 and a dozen food-safety events. The searches now lean on the events whose speakers answered, which are listed with the input, give at most one search to the kinds listed as sparing, and never look for a past year's agenda or an academic meeting.*
 
@@ -36,6 +38,9 @@ operator wants more of, with what he said about them.
   the same audience and seniority, the same series in other cities, other
   organizers of the same kind of summit. Kinds listed as sparing get one search
   at most.
+- **Named series, a few a day.** When the input lists event series worth
+  finding, two or three searches ask for the current agenda or speaker list of
+  some of them by name. Pick different ones on different days.
 - **This year's and next year's events only.** Never a past year's agenda, an
   archive or a recap more than a month old. Never an academic or scientific
   society meeting: its speakers are researchers, not buyers.

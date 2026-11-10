@@ -192,16 +192,21 @@ async function find(db, cfg, b, args) {
   const answeredText = answered.length
     ? `\n\n## Events whose speakers answered the operator, best first\n`
       + answered.map((r) => `- ${r.name} (${r.pos} replied, ${r.acc} accepted)`).join('\n') : '';
-  const lastWords = (cfg.mechanisms ?? []).find((m) => m.id === 'conference_discovery')?.read_last ?? [];
+  const discMech = (cfg.mechanisms ?? []).find((m) => m.id === 'conference_discovery') ?? {};
+  const lastWords = discMech.read_last ?? [];
   const lastText = lastWords.length
     ? `\n\n## Kinds of event to search for sparingly (at most one search)\nNames containing: ${lastWords.join(', ')}` : '';
+  // Event series named in config: the finder looks up this year's agenda for some of them.
+  const lookFor = discMech.look_for ?? [];
+  const lookText = lookFor.length
+    ? `\n\n## Event series worth finding this year's or next year's agenda for\n${lookFor.map((x) => `- ${x}`).join('\n')}` : '';
   // Searches written from the targets and their examples.
   const examples = (b.targets ?? []).filter((t) => t.exemplars?.length)
     .map((t) => `\n## Examples for "${t.name}"\n${exemplarText(db, t, { full: false })}`).join('\n');
   const q = own.length ? { data: { queries: [] } } : await complete(db, runId, { model: cfg.models?.default, system: promptBody(FIND_FILE),
     schema: QUERIES_SCHEMA, effort: 'low', thinking: false, maxTokens: 1500, messages: [{ role: 'user',
       content: `## The operator's targets\n${(b.targets ?? []).map((t) => `- ${t.name}: ${t.description}`).join('\n')}\n`
-        + `${examples}${answeredText}${lastText}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
+        + `${examples}${answeredText}${lookText}${lastText}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
   for (const query of (q.data?.queries ?? []).slice(0, n)) searches.push({ query, via: 'search' });
 
   if (args.compare) return compare(db, cfg, b, runId, searches, hosts, c0);
