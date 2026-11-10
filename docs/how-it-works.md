@@ -230,7 +230,7 @@ the routine ones.
 | Replay | `npm run replay` | redraft recent sent notes with each example set, judged blind against what was sent; stores no draft | most capable + grader |
 | Describe | `npm run describe` | each firm in one plain sentence | cheap |
 | Dashboard | `npm run dash` | static HTML from SQLite | none |
-| Daily | `npm run daily` | the routine run, once a weekday: searches and agendas weekly, vet, gate, rank, screen, judge, research, addresses, dashboard; no drafts | as above |
+| Daily | `npm run daily` | the routine run, once a weekday: searches and agendas on Mondays, vet, gate, rank, screen, judge, research, addresses, dashboard; no drafts | as above |
 
 
 Tiers map to models in `config/runtime.yml` ([Setup](setup.md)), all of them Claude:

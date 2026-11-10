@@ -3,7 +3,7 @@
 // Each step is an existing stage, run in order, so this adds no logic of its
 // own beyond deciding what each step should cover:
 //
-//   1. searches   the measured search list, --save, but only once a week (it
+//   1. searches   the measured search list, --save, but only on Monday (it
 //                 costs a search credit per search, and the news does not turn
 //                 over daily); --searches forces it
 //   1b. agendas   speakers from conference agendas (`npm run events`), also
@@ -180,18 +180,25 @@ function draftPicks(n) {
 const localStart = new Date().toLocaleString('sv-SE', { hour12: false }).slice(0, 16);
 console.log(heading(`daily · ${localStart}${dry ? ' · dry run' : ''}`));
 
+// THE WEEKLY STEPS RUN ON MONDAY (2026-11-10). They used to run on the first
+// weekday six days after the last run, which drifted them onto Tuesday. Monday
+// starts the week on a full week's news. A Monday the laptop slept through is
+// made up on the next weekday, and the Monday after still runs, since two days
+// apart is enough for a catch-up and the regular slot to both be worth it.
+const weeklyDue = (age) => (new Date().getDay() === 1 && age >= 2) || age >= 7.5;
+
 // 1. searches, weekly
 // Only a run of the whole list sets the clock; a hand run of chosen searches does not.
 const last = q(`SELECT MAX(run_at) t FROM search_runs WHERE COALESCE(partial, 0) = 0`)[0]?.t;
 const ageDays = last ? (Date.now() - Date.parse(last)) / 86_400_000 : Infinity;
 let searched = false;
-if (args.includes('--searches') || ageDays >= 6) {
+if (args.includes('--searches') || weeklyDue(ageDays)) {
   const out = run('1. searches', ['queries', '--', '--run', '--save']);
   searched = true;
   const m = out.match(/Ran (\d+) searches · (\d+) credits · (\d+) new finds/);
   if (m) console.log(`  ${m[1]} searches, ${m[3]} new finds`);
 } else {
-  console.log(`\n${bold('1. searches')} ${dim(`skipped: last run ${ageDays.toFixed(1)} days ago, weekly (--searches to force)`)}`);
+  console.log(`\n${bold('1. searches')} ${dim(`skipped: last run ${ageDays.toFixed(1)} days ago, weekly on Monday (--searches to force)`)}`);
 }
 
 // 1b. conference agendas, weekly. The stage loads speakers with their firm's
@@ -199,13 +206,17 @@ if (args.includes('--searches') || ageDays >= 6) {
 const lastEv = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'events'`)[0]?.t;
 const evAge = lastEv ? (Date.now() - Date.parse(lastEv)) / 86_400_000 : Infinity;
 let agendas = false;
-if (args.includes('--events') || evAge >= 6) {
-  const out = run('1b. conference agendas', ['events']);
+if (args.includes('--events') || weeklyDue(evAge)) {
+  // 45 minutes, not the usual 10 (2026-11-10): this step sends one half-price
+  // batch of a few hundred calls, which models.mjs waits up to 40 minutes for.
+  // At 10 the step was killed while the batch was still processing and logged
+  // as FAILED, and once the results were lost with it.
+  const out = run('1b. conference agendas', ['events'], { limitMs: 45 * 60_000 });
   agendas = true;
   const w = out.match(/wrote (\d+) people/); const f = out.match(/(\d+) of (\d+) sessions named a difficulty/);
   if (w || f) console.log(`  ${w ? `${w[1]} people` : ''}${f ? ` · ${f[1]} of ${f[2]} sessions named a difficulty` : ''}`);
 } else {
-  console.log(`\n${bold('1b. conference agendas')} ${dim(`skipped: last run ${evAge.toFixed(1)} days ago, weekly (--events to force)`)}`);
+  console.log(`\n${bold('1b. conference agendas')} ${dim(`skipped: last run ${evAge.toFixed(1)} days ago, weekly on Monday (--events to force)`)}`);
 }
 
 // 1c. conferences nobody configured (added 2026-09-30): find new ones weekly,
