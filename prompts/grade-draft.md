@@ -1,4 +1,6 @@
-# grade-draft — v9, 2026-11-09
+# grade-draft — v10, 2026-11-10
+
+*v10: a connection note whose view implies work the operator does not do is flagged (draft-cold-note v43).*
 
 *v9: a connection note says in one clause what the operator is, not only what he builds (draft-cold-note v40).*
 
@@ -176,5 +178,7 @@ problem sits in.
 - **An offer in a connection note.** *(v8.)* A `linkedin_connect_note` that
   proposes work for their firm ("for X that could mean...", a named use case, a
   price or a fixed-price build offered to them). It should take a view on their
-  topic and say in one clause what he is; the offer waits for the message
+  topic that lands on work he does (a view on staff training implies he
+  trains staff; flag it when he does not), and say in one clause what he is;
+  the offer waits for the message
   after the accept.

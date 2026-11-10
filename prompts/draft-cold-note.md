@@ -1,4 +1,6 @@
-# draft-cold-note — v42, 2026-11-10
+# draft-cold-note — v43, 2026-11-10
+
+*v43: a connection note's view lands on the operator's own work. A note to a public-sector speaker on the AI-ready workforce guessed how staff training sticks and closed "I'm an independent AI consultant and work that way", which says he trains staff. The operator: "it is talking about training people, i dont do that". The rewrite kept the talk and moved the guess to what gets built for staff.*
 
 *v42: v41's try-one-then-repeat clause is for readers across invested or advised companies only, and is said in full words. The first draft after v41, a follow-up to a state enterprise architect, carried it as "proven there before it's repeated elsewhere", which the operator found confusing, and it restated the connection note's pitch besides.*
 
@@ -377,6 +379,10 @@ A **connection note** (`linkedin_connect_note`) has a hard character limit, give
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. **It carries no offer**
 *(v38)*: a view on their topic, one clause saying what he is *(v40)*, a line to connect.
+**The view lands on work the operator does** *(v43)*: when their topic lies
+outside his offers and strengths (training, hiring, policy, procurement), take
+it where the topic meets what he builds. A view only someone delivering their
+topic would hold, followed by "and work that way", tells them he delivers it.
 Its job is the accept. Work out the storyline and the offer as usual and put
 them in NOTES: the offer is used in the message after the accept, not here.
 **If the voice rules give a connection-note shape, follow it instead of the five

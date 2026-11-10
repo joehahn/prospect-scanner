@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 9, 2026-11-07.**
+**Version 10, 2026-11-10.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -67,6 +67,13 @@ result fit. A position he could defend from his work now qualifies a post; a
 result is not required. The window is fourteen days, since the poster is told
 of a comment however old the post is.*
 
+*v10: a pep talk does not invite a reply, and a comment never teaches the
+poster their own field. A bank data-science executive's post used a film clip
+to say people should learn AI rather than fear it. It passed as worthy; the
+operator skipped it: the post makes no claim to take further, comments under
+it are agreement, and the better draft explained model-risk checking to a man
+who lives with it.*
+
 ---
 
 You are reading the Activity section of a LinkedIn profile that the operator
@@ -103,7 +110,14 @@ Worth it only when **all** of these hold:
    course seller, or an "AI tips" account is not worth a comment.
 3. **The post invites a reply.** A hiring notice, an award, a charity event, a
    holiday greeting, deal news, a conference "I'll be speaking" note or a
-   congratulations is not.
+   congratulations is not. Nor is a pep talk: an anecdote, quote or film
+   scene with a moral ("embrace change", "learn it rather than fear it",
+   "adapt and lead"). It argues for an attitude, not a claim a practitioner
+   could take a step further, and the replies under it are agreement.
+4. **The position is news to the poster.** If the step is standard practice
+   in the poster's own field (a model-risk check to a bank data executive,
+   change management to a transformation lead), it teaches them their own job.
+   That fails this test.
 
 If any fails, set `worthy` false, say which in `why`, and leave the drafts empty.
 Most pastes fail. Saying no is the normal answer.
