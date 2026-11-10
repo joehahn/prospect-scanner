@@ -125,7 +125,7 @@ function ensureTable(db) {
     found_on    TEXT,                        -- the page it was found on
     found_via   TEXT,                        -- 'example' or 'search', and which
     found_by    TEXT,                        -- the search provider: tavily | exa
-    status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused | stale
+    status      TEXT NOT NULL DEFAULT 'pending',  -- pending | read | empty | refused | stale | past
     reason      TEXT,
     speakers    INTEGER,                     -- speakers read off the page and verified
     country     TEXT,                        -- where the event is, as the page said
@@ -180,13 +180,28 @@ async function find(db, cfg, b, args) {
       if (p) searches.push({ query: `"${p.name}" ${p.org} speaker OR panel OR keynote conference`, via: `example:${id}` });
     }
   }
+  // EVENTS WHOSE SPEAKERS ANSWERED (2026-11-10). Every positive reply since
+  // October came from a speaker list, and from a few kinds of event. The finder
+  // is shown those events, best first, so it looks for more like them.
+  const answered = db.prepare(`
+    SELECT c.name, SUM(o.status LIKE 'responded_pos%') pos, SUM(o.status = 'accepted') acc
+      FROM conferences c
+      JOIN evidence e ON e.source_url = c.url AND e.kind = 'announcement'
+      JOIN outreach o ON o.person_id = e.person_id
+     GROUP BY c.id HAVING pos + acc > 0 ORDER BY pos DESC, acc DESC LIMIT 8`).all();
+  const answeredText = answered.length
+    ? `\n\n## Events whose speakers answered the operator, best first\n`
+      + answered.map((r) => `- ${r.name} (${r.pos} replied, ${r.acc} accepted)`).join('\n') : '';
+  const lastWords = (cfg.mechanisms ?? []).find((m) => m.id === 'conference_discovery')?.read_last ?? [];
+  const lastText = lastWords.length
+    ? `\n\n## Kinds of event to search for sparingly (at most one search)\nNames containing: ${lastWords.join(', ')}` : '';
   // Searches written from the targets and their examples.
   const examples = (b.targets ?? []).filter((t) => t.exemplars?.length)
     .map((t) => `\n## Examples for "${t.name}"\n${exemplarText(db, t, { full: false })}`).join('\n');
   const q = own.length ? { data: { queries: [] } } : await complete(db, runId, { model: cfg.models?.default, system: promptBody(FIND_FILE),
     schema: QUERIES_SCHEMA, effort: 'low', thinking: false, maxTokens: 1500, messages: [{ role: 'user',
       content: `## The operator's targets\n${(b.targets ?? []).map((t) => `- ${t.name}: ${t.description}`).join('\n')}\n`
-        + `${examples}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
+        + `${examples}${answeredText}${lastText}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
   for (const query of (q.data?.queries ?? []).slice(0, n)) searches.push({ query, via: 'search' });
 
   if (args.compare) return compare(db, cfg, b, runId, searches, hosts, c0);
@@ -409,16 +424,66 @@ export function readOrder(whenText, today = new Date().toISOString().slice(0, 10
   return 6e6 - days;
 }
 
+// THE KIND OF EVENT BEFORE ITS DATE (2026-11-10). Ordered by date alone, the
+// nearest agendas one week were all public-sector, and public bodies had
+// answered none of 81 notes since October while two kinds of event had
+// produced every positive reply. The mechanism in discovery.yml names both:
+// `read_first` and `read_last` are word prefixes matched at a word's start in
+// the event's name or organizer, and `read_last_share` caps how much of a
+// day's reading the second kind may take. Reduced, not stopped: when nothing
+// else waits, they are read.
+const wordsMatch = (text, prefixes) => (prefixes ?? []).some((w) =>
+  new RegExp(`(^|[^\\p{L}])${String(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'iu').test(text ?? ''));
+export function readTier(c, mech = {}) {
+  const text = `${c.name ?? ''} ${c.organizer ?? ''}`;
+  if (wordsMatch(text, mech.read_first)) return 0;
+  if (wordsMatch(text, mech.read_last)) return 2;
+  return 1;
+}
+export function pickToRead(rows, mech = {}, limit = 3, today) {
+  const sorted = [...rows].sort((a, b) => readTier(a, mech) - readTier(b, mech)
+    || readOrder(a.when_text, today) - readOrder(b.when_text, today) || a.id - b.id);
+  const share = Number(mech.read_last_share ?? 1);
+  const capLast = Math.max(1, Math.round(limit * share));
+  const out = []; const held = [];
+  let last = 0;
+  for (const r of sorted) {
+    if (out.length >= limit) break;
+    if (readTier(r, mech) === 2 && last >= capLast) { held.push(r); continue; }
+    if (readTier(r, mech) === 2) last++;
+    out.push(r);
+  }
+  return out;
+}
+
+// AN AGENDA FROM A PAST YEAR IS NOT A REASON TO WRITE (2026-11-10). The finder
+// handed in a 2017 meteorology meeting and agendas from 2020 to 2024, and each
+// was fetched and read. An event that ended more than a year ago, or whose name
+// carries a year before last, is set aside without a fetch.
+export function longPast(c, today = new Date().toISOString().slice(0, 10)) {
+  const d = eventDateFrom(c.when_text ?? '');
+  if (d) return (Date.parse(today) - Date.parse(d.starts_on)) / 86_400_000 > 365;
+  const years = [...`${c.name ?? ''} ${c.when_text ?? ''}`.matchAll(/\b(20\d\d)\b/g)].map((m) => Number(m[1]));
+  return years.length > 0 && Math.max(...years) < Number(today.slice(0, 4)) - 1;
+}
+
 async function read(db, cfg, b, args) {
   const allowed = allowedCountries(b);
   const hosts = hostsOf(cfg);
   const limit = Number(args.limit ?? 3);
   const ids = args.ids && args.ids !== true ? String(args.ids).split(',').map(Number) : null;
-  const rows = db.prepare(`SELECT * FROM conferences WHERE status = 'pending'
+  const mech = (cfg.mechanisms ?? []).find((m) => m.id === 'conference_discovery') ?? {};
+  const waiting = db.prepare(`SELECT * FROM conferences WHERE status = 'pending'
       OR (status = 'stale' AND read_at < datetime('now', '-30 days')) ORDER BY id`).all()
-    .filter((r) => !ids || ids.includes(r.id))
-    .sort((a, b) => readOrder(a.when_text) - readOrder(b.when_text) || a.id - b.id)
-    .slice(0, ids ? undefined : limit);
+    .filter((r) => !ids || ids.includes(r.id));
+  const past = db.prepare(`UPDATE conferences SET status = 'past', reason = ?, read_at = ? WHERE id = ?`);
+  const current = [];
+  for (const r of waiting) {
+    if (!ids && longPast(r)) past.run('held more than a year ago; not read', new Date().toISOString(), r.id);
+    else current.push(r);
+  }
+  if (current.length < waiting.length) console.log(dim(`  ${waiting.length - current.length} set aside as more than a year past`));
+  const rows = ids ? current : pickToRead(current, mech, limit);
   if (!rows.length) { console.log('no conferences waiting. Run with --find first.'); return; }
   const runId = startRun(db, 'conferences-read', { model: cfg.models?.cheap });
   const done = db.prepare(`UPDATE conferences SET status = ?, reason = ?, speakers = ?, read_at = ? WHERE id = ?`);

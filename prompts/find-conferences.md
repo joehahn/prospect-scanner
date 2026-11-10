@@ -1,4 +1,6 @@
-# find-conferences — v2, 2026-11-09
+# find-conferences — v3, 2026-11-10
+
+*v3: more of the events that answered, less of the rest. Every positive reply since October came from a few kinds of event, and public bodies had answered none of 81 notes; meanwhile the searches were landing on a 2017 science meeting, agendas from 2020 to 2024 and a dozen food-safety events. The searches now lean on the events whose speakers answered, which are listed with the input, give at most one search to the kinds listed as sparing, and never look for a past year's agenda or an academic meeting.*
 
 *v2: the next sixty days. v1 asked for "upcoming or recent" and named a year, and by early November the agendas it found were spring summits: of 130 waiting to be read, two were in the next 45 days and 43 were four months or more away. A speaker months out makes a weak note ("event 121 days out"), and new people rated 4-5 fell from about five a day in mid-October to about one. Searches now name the coming months.*
 
@@ -29,6 +31,14 @@ operator wants more of, with what he said about them.
   An event months away gives no reason to write now. One or two searches may
   look for events held in the last month, whose recaps and speaker lists are
   still fresh.
+- **More like the events that answered.** When the input lists events whose
+  speakers answered the operator, most searches look for that kind of event:
+  the same audience and seniority, the same series in other cities, other
+  organizers of the same kind of summit. Kinds listed as sparing get one search
+  at most.
+- **This year's and next year's events only.** Never a past year's agenda, an
+  archive or a recap more than a month old. Never an academic or scientific
+  society meeting: its speakers are researchers, not buyers.
 - **Not vendor marketing.** A vendor's webinar series or a vendor's customer
   showcase is the vendor selling. A vendor's large user conference is acceptable
   only when its speakers are customers describing their own work.
