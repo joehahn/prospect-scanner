@@ -1,4 +1,6 @@
-# draft-cold-note — v43, 2026-11-10
+# draft-cold-note — v44, 2026-11-10
+
+*v44: three connection notes drafted on one day for speakers at one summit read as a template: each restated a session title, each leaned on testing against past cases, each closed "and build that way". The operator found them weak. A session title is now the opening only when nothing the person wrote fits; one proof idea serves one note a day; and a speaker whose session is building AI in-house is written to as a peer.*
 
 *v43: a connection note's view lands on the operator's own work. A note to a public-sector speaker on the AI-ready workforce guessed how staff training sticks and closed "I'm an independent AI consultant and work that way", which says he trains staff. The operator: "it is talking about training people, i dont do that". The rewrite kept the talk and moved the guess to what gets built for staff.*
 
@@ -383,6 +385,20 @@ within it: no greeting line, no signature, no subject. **It carries no offer**
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their
 topic would hold, followed by "and work that way", tells them he delivers it.
+**A session title is thin; their own words are not** *(v44)*. When the only
+dated event is a talk known by its title, look first in the pasted profile for
+something the person wrote or said that meets his work (a post, their About
+text, a stated plan), and open on that, even if it is older. Use the title as
+the opening only when nothing of theirs fits, and never restate it as "your
+talk is on X".
+**One proof idea per note per day** *(v44)*. Testing on past cases, checking
+against known answers, a pilot first: each is his, and each reads as a
+formula when it turns up in note after note. If the recent notes shown in the
+dossier already use the idea, find the view in the person's own subject.
+**Someone who builds in-house is a peer** *(v44)*. A speaker whose session or
+role is building AI with their own team is not looking for a builder. Write as
+one builder to another, an exchange of notes on what they are building, with
+no view that implies a pitch.
 Its job is the accept. Work out the storyline and the offer as usual and put
 them in NOTES: the offer is used in the message after the accept, not here.
 **If the voice rules give a connection-note shape, follow it instead of the five
