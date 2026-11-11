@@ -809,6 +809,11 @@ const COLUMN_MIGRATIONS = [
   ['people', 'builds_in_house', 'TEXT'],
   ['people', 'buyer_remit', 'TEXT'],
   ['people', 'prior_relationship', 'TEXT'],
+  // The employer a pasted profile shows when it is NOT the firm on file
+  // (2026-11-11). Set by `lead -- paste`, cleared by `lead -- move` or a later
+  // paste that agrees with the file. `draft` refuses while it is set: a note
+  // written to the old firm misses the new seat, which is the best reason to write.
+  ['people', 'moved_to', 'TEXT'],
   // 1 when the call went through the Batches API, which bills at half price.
   // Without it a halved cost would read as a cheaper model.
   ['llm_calls', 'batch', 'INTEGER'],

@@ -457,6 +457,18 @@ async function main() {
     return;
   }
 
+  // A PASTED PROFILE SAYS THEY WORK SOMEWHERE ELSE (2026-11-11). Not bypassed
+  // by --force, which the card always passes: a COO filed at the firm he left
+  // got a note built on the old firm, and the new seat -- COO as a $1.8bn
+  // acquisition closed -- was the whole reason to write. Refile, then draft.
+  if (person.moved_to && !args['moved-ok']) {
+    db.close();
+    throw new Error(`${person.name} works at ${person.moved_to} now, per the pasted profile, not ${org?.name}. `
+      + `Refile before drafting:\n  npm run lead -- vet --name "${person.moved_to}" --domain <domain>   (or add-org)\n`
+      + `  npm run lead -- move --person ${person.id} --to <org_id> --url <profile url>\n`
+      + `or pass --moved-ok if the old firm is still the right one to write about.`);
+  }
+
   const channel = resolveChannel(args.channel && args.channel !== true ? args.channel : 'email');
 
   // THE READ PICKS THE OFFER, WHEN THERE IS ONE AND NOTHING OVERRIDES IT. The

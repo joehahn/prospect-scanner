@@ -418,6 +418,10 @@ function scorePerson(db, person, org, v, weights, history, today, pitch = null, 
 
   const hasProfile = hasProfileEarly(db, person.id);
 
+  if (person.moved_to) {
+    cons.push(`MOVED: the pasted profile shows ${person.moved_to} as the current employer. ` +
+      'Refile with `lead -- move` before drafting; Draft refuses until then.');
+  }
   if (person.role_confirmed === 'contradicted') {
     cons.push('Profile CONTRADICTS the title — the page does not support this being a ' +
       'buying seat. Authority scored down accordingly.');

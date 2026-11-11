@@ -376,6 +376,7 @@ function move(db, args) {
   }
 
   db.transaction(() => {
+    db.prepare('UPDATE people SET moved_to = NULL WHERE id = ?').run(personId);
     db.prepare('UPDATE people SET org_id = ?, title = COALESCE(?, title) WHERE id = ?')
       .run(toOrg, title, personId);
 
@@ -988,6 +989,7 @@ async function extractProfile(db, cfg, person, body, url, args) {
       builds_in_house=@builds_in_house, buyer_remit=@buyer_remit,
       hiring_for_capability=@hiring_for_capability
     WHERE id=@id`).run({ ...set, id: person.id });
+  db.prepare('UPDATE people SET moved_to = ? WHERE id = ?').run(moved ? String(d.current_employer).trim() : null, person.id);
 
   const insEv = db.prepare(`
     INSERT INTO evidence (org_id, person_id, kind, claim, source_url, retrieved_at, provenance)
