@@ -1,4 +1,6 @@
-# draft-cold-note — v45, 2026-11-11
+# draft-cold-note — v46, 2026-11-11
+
+*v46: a peer still hears the offer. Under v44 a connection note to a CTO hiring an agentic tooling engineer, rated for the extra-hands target a week after his funding round, closed "would enjoy trading notes on the evals side". The operator: "i dont really want to trade notes with him. i want to sell him or his firm my services." The peer rule keeps the tone, one builder to another, but the clause saying what he is now names the help he gives such a team; the full offer still waits for the message after the accept (v38). The sent version said what he builds and "could add senior hands until that role is filled".*
 
 *v45: the material a business produces is named at the reader's altitude. A connection note to a director of operations planning and network strategy at a food cooperative guessed that the low-cost win was turning grower crop estimates and supplier emails into the plan. That is material the business does produce, so v39 let it through, but it is the work of a team two rungs below him, which is the v31 mistake by another route. The operator: "the guess seems very granular and might have high chance of not being top of mind for this prospect". The sent version kept his talk and guessed that the wins sit in the work people still do by hand between the systems.*
 
@@ -401,10 +403,15 @@ talk is on X".
 against known answers, a pilot first: each is his, and each reads as a
 formula when it turns up in note after note. If the recent notes shown in the
 dossier already use the idea, find the view in the person's own subject.
-**Someone who builds in-house is a peer** *(v44)*. A speaker whose session or
-role is building AI with their own team is not looking for a builder. Write as
-one builder to another, an exchange of notes on what they are building, with
-no view that implies a pitch.
+**Someone who builds in-house is a peer** *(v44, v46)*. A speaker whose session or
+role is building AI with their own team is written to as one builder to another:
+no lecturing, no view that tells them how to do their own work. The clause
+saying what he is (v40) names the help he gives a team like theirs, alongside
+it (more senior hands, cover while a role they posted stays open), never a
+replacement for their team or their hire. Never propose "trading notes" or an
+exchange of ideas: the operator is selling, and a note that reads as a peer
+chat makes the offer after the accept a surprise. The full offer still waits
+for that message (v38).
 Its job is the accept. Work out the storyline and the offer as usual and put
 them in NOTES: the offer is used in the message after the accept, not here.
 **If the voice rules give a connection-note shape, follow it instead of the five
