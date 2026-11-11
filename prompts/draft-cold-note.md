@@ -1,4 +1,6 @@
-# draft-cold-note — v44, 2026-11-10
+# draft-cold-note — v45, 2026-11-11
+
+*v45: the material a business produces is named at the reader's altitude. A connection note to a director of operations planning and network strategy at a food cooperative guessed that the low-cost win was turning grower crop estimates and supplier emails into the plan. That is material the business does produce, so v39 let it through, but it is the work of a team two rungs below him, which is the v31 mistake by another route. The operator: "the guess seems very granular and might have high chance of not being top of mind for this prospect". The sent version kept his talk and guessed that the wins sit in the work people still do by hand between the systems.*
 
 *v44: three connection notes drafted on one day for speakers at one summit read as a template: each restated a session title, each leaned on testing against past cases, each closed "and build that way". The operator found them weak. A session title is now the opening only when nothing the person wrote fits; one proof idea serves one note a day; and a speaker whose session is building AI in-house is written to as a peer.*
 
@@ -272,7 +274,11 @@ documents. Where the note turns on "their own data", name that material
 concretely, in a few plain words and as a guess where it matters ("I'd guess
 the edge is how travellers search and rebook..."), rather than "data only you
 have". This licenses the kind of material, never a system, a project, a
-problem or a number the evidence does not show.
+problem or a number the evidence does not show. *(v45.)* The material must be what the reader's own
+remit works with, at their altitude: a planning or network-strategy director
+works with the plan and the network, not the documents feeding it two rungs
+down. Where that is unclear, name the kind of work ("the work people still do
+by hand between the systems"), not a document.
 
 Where you do take a view, take it about **the subject, not their situation**.
 "Sequencing usually comes down to which pressure is loudest that quarter" claims

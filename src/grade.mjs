@@ -270,8 +270,10 @@ async function main() {
     const literal = neverClaimHits(text, neverClaim);
     const fits = d.channel === 'linkedin_connect_note' ? (text.length <= CONNECT_NOTE_MAX ? 1 : 0) : 1;
 
+    // 12000 since 2026-11-11: 4 of 621 grades hit 8000 (thinking counts against
+    // it) and were thrown away and rerun; billing is on tokens used, not the cap.
     const passes = await Promise.all(Array.from({ length: repeat }, () => complete(db, runId, {
-      model, system, schema: SCHEMA, effort: 'high', maxTokens: 8000,
+      model, system, schema: SCHEMA, effort: 'high', maxTokens: 12000,
       messages: [{ role: 'user', content }] })));
 
     const lines = [];
