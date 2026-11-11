@@ -1224,13 +1224,19 @@ export function firmIsStaffed(db, orgId, capabilityTitles = [], today = null) {
 }
 
 export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue = null,
-                                   staffed = false, org = {} }) {
+                                   staffed = false, org = {}, capabilityAuthority = null }) {
   const live = (cfg.buyers ?? []).filter((p) => !OFF_MENU.has(p.status ?? 'live'));
   const has = (id) => live.some((p) => p.id === id);
 
   // A strong referral node outranks the firm-kind rule: someone who cannot buy
   // but can route is worth asking for a name, whatever kind of firm they sit in.
-  if (referralValue !== null && referralValue >= 0.6 && has('referral_ask')) {
+  // NOT WHEN THEY OWN THE BUDGET (2026-11-11). A CTO who is also an investor
+  // and board member scored 0.6 as a referral node, and this rule sent him a
+  // referral ask while his own record said he owns the technology budget; the
+  // drafter then refused, because the read had chosen a capacity offer. 16
+  // budget owners on file scored 0.6+. Someone who can buy is a buyer first.
+  if (referralValue !== null && referralValue >= 0.6 && capabilityAuthority !== 'owns'
+      && has('referral_ask')) {
     return { id: 'referral_ask', why: `referral node (${Math.round(referralValue * 100)}%) — asks for a name, sells nothing` };
   }
 

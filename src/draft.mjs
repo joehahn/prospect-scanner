@@ -588,7 +588,7 @@ async function main() {
              AND trigger_id IN (${SELLING.map(() => '?').join(',')})`)
           .get(org.id, ...SELLING).c > 0;
         const c = buyerForOrg(cfg, { kind: org.kind, referralValue: person.referral_value,
-          staffed, hasVendorTrigger, org });
+          staffed, hasVendorTrigger, org, capabilityAuthority: person.capability_authority });
         // THE READ'S CHOICE STANDS OVER THE FIRM-KIND ROUTER (2026-09-27). The
         // read, which hears the operator's own call, chose an offer; the router
         // then refused "no pitch fits" on the firm's kind alone, for a first
