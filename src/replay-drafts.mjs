@@ -21,6 +21,7 @@
 //                     [--reuse data/replays/<file>.json]   keep arms drafted earlier
 //                     [--channel linkedin_connect_note]   only notes sent on this channel
 //                     [--prompts v35=path/to/old.md]      also each listed arm under these instructions
+//                     [--arms recent+sonnet --models sonnet=<model id>]  an arm drafted on another model
 //
 // PROMPT VERSIONS (2026-11-12). --prompts adds, for each examples arm, an arm
 // "<arm>@<name>" drafted under an earlier copy of prompts/draft-cold-note.md
@@ -51,13 +52,15 @@ function arg(name, dflt) {
 }
 
 async function draftOnce(x, armId) {
-  const [arm, version] = armId.split('@');
+  const [armModel, version] = armId.split('@');
+  const [arm, modelName] = armModel.split('+');
   const env = { ...process.env };
   if (version) env.DRAFT_PROMPT_FILE = PROMPTS.get(version);
   const argv = ['--env-file-if-exists=.env', 'src/draft.mjs', '--person', x.person_id, '--channel', x.channel, '--examples', arm,
     '--no-store', '--no-dash', '--force', '--pool-before', String(x.id)];
   // --force: this person was written to, which is the point; nothing is stored.
   if (x.package_id) argv.push('--service', x.package_id);
+  if (modelName) argv.push('--model', MODELS.get(modelName));
   const { stdout } = await run('node', argv, { cwd: ROOT, env, maxBuffer: 1 << 24, timeout: 15 * 60_000 });
   const line = stdout.split('\n').find((l) => l.startsWith('REPLAY '));
   if (!line) throw new Error('no REPLAY line');
@@ -65,6 +68,7 @@ async function draftOnce(x, armId) {
 }
 
 const PROMPTS = new Map();
+const MODELS = new Map();
 const JUDGE_PROMPT = 'prompts/judge-replay.md';
 const JUDGE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['closer', 'why'],
@@ -102,6 +106,11 @@ async function main() {
     const [name, file] = kv.split('=');
     PROMPTS.set(name, resolve(process.cwd(), file));
   }
+  const mi = process.argv.indexOf('--models');
+  for (const kv of mi > 0 ? process.argv[mi + 1].split(',') : []) {
+    const [name, id] = kv.split('=');
+    MODELS.set(name, id);
+  }
   const ARMS = [...BASE, ...BASE.flatMap((a) => [...PROMPTS.keys()].map((v) => `${a}@${v}`))];
   const ci = process.argv.indexOf('--channel');
   const channel = ci > 0 ? process.argv[ci + 1] : null;
@@ -138,7 +147,7 @@ async function main() {
         const r = await draftOnce(x, arm);
         cost += r.cost_usd ?? 0;
         // An arm that fell back to the fixed set is not that arm; leave it out.
-        if (r.examples?.arm !== arm.split('@')[0]) {
+        if (r.examples?.arm !== arm.split('@')[0].split('+')[0]) {
           console.log(dim(`  draft ${x.id} ${arm}: fell back (${r.examples?.fell_back ?? '?'}), not counted`));
           continue;
         }

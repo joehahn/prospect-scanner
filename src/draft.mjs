@@ -35,7 +35,7 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, buyerForOrg, packa
   firmIsStaffed, capabilityTitles } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { historyFor, classify } from './suppression.mjs';
-import { complete } from './models.mjs';
+import { complete, promptBody } from './models.mjs';
 import { canonicalSections } from './note-text.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { noteBody, unbold, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
@@ -49,6 +49,18 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 // --no-store: a stored draft always names the instructions that are current.
 const PROMPT_FILE = (process.argv.includes('--no-store') && process.env.DRAFT_PROMPT_FILE)
   || 'prompts/draft-cold-note.md';
+
+const GLANCE_FILE = 'prompts/glance-notes.md';
+const GLANCE_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['why_them', 'hook', 'offer', 'check', 'verdict', 'verdict_why'],
+  properties: {
+    why_them: { type: 'string' }, hook: { type: 'string' }, offer: { type: 'string' },
+    check: { type: 'array', items: { type: 'string' } },
+    verdict: { type: 'string', enum: ['send', 'send after fixing', 'weak, your call', "don't send"] },
+    verdict_why: { type: 'string' },
+  },
+};
 
 // Every property required, no null unions — the strict-schema rule this project
 // keeps because an optional property doubles the branch count for no gain.
@@ -978,7 +990,7 @@ async function main() {
         + ' text showing an earlier degree predates this.' : '']
       .filter(Boolean).join('\n');
     const chk = await complete(db, runId, {
-      model: cfg.models.draft ?? cfg.models.default, maxTokens: 6000,
+      model, maxTokens: 6000,  // the claim check runs on the drafting model, --model included
       schema: CLAIM_SCHEMA, system: checkPrompt,
       messages: [{ role: 'user', content:
         `Today is ${today}.\n\n## The note\n\n${body}\n\n## The evidence on file\n\n${ev || '(none)'}`
@@ -999,6 +1011,24 @@ async function main() {
          res.usage.input_tokens, res.usage.output_tokens, res.cost_usd,
          new Date().toISOString(), runId, prior?.id ?? null, revise, subject,
          JSON.stringify(voice.record));
+
+  // AT A GLANCE (2026-11-12). The NOTES section runs to forty or sixty lines and
+  // the operator read all of it for every note: "me parsing that content for
+  // every note is my biggest time sink". A cheap model reduces it to a few fixed
+  // lines for the card (prompts/glance-notes.md); the full notes stay one click
+  // away. The drafter's own instructions are untouched. A failure leaves the
+  // card showing the full notes, as before.
+  const notesText = String(body).split(/^NOTES\s*$/m)[1];
+  if (notesText?.trim()) {
+    try {
+      const g = await complete(db, runId, {
+        model: cfg.models.cheap ?? cfg.models.default, maxTokens: 1200, thinking: false, effort: 'low',
+        schema: GLANCE_SCHEMA, system: promptBody(GLANCE_FILE),
+        messages: [{ role: 'user', content: `## The note\n\n${noteBody(body)}\n\n## The drafter's notes\n\n${notesText.trim()}` }],
+      });
+      if (g.data) db.prepare('UPDATE drafts SET glance = ? WHERE id = ?').run(JSON.stringify(g.data), Number(stored.lastInsertRowid));
+    } catch (e) { console.log(dim(`  (no glance: ${String(e.message).slice(0, 120)})`)); }
+  }
 
   // REBUILD THE CARDS. Drafting from the command line left the dashboards on
   // whatever they said before, so the operator opened a card and saw an older

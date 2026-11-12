@@ -416,7 +416,7 @@ function collect(db, cfg, targeting) {
   // draft after Draft was pressed.
   for (const d of db.prepare(
     `SELECT id, person_id, version, channel, body, sent_text, revise_note, created_at,
-            package_id, model, cost_usd, subject
+            package_id, model, cost_usd, subject, glance
        FROM drafts WHERE person_id IS NOT NULL ORDER BY id DESC`).all()) {
     if (!draftsByPerson.has(d.person_id)) draftsByPerson.set(d.person_id, []);
     draftsByPerson.get(d.person_id).push(d);
@@ -876,6 +876,11 @@ function layout({ title, h1, sub, body, pages, currentId, personas = [], counts 
   .nbnote{opacity:.6;align-self:center}
   .working{display:block;margin-top:.4rem;font-weight:600;opacity:.8}
   .nbdecl{background:#fdeaea;border-left:3px solid #c33;padding:.5rem .7rem;margin:.4rem 0}
+  .glance{font-size:13px;line-height:1.45;margin:.4rem 0;padding:.45rem .6rem;border-left:3px solid #8884;background:#8881}
+  .glance b{margin-right:.3rem}
+  .glance .gv{margin-bottom:.2rem}
+  .glance .gv.ok b{color:#2a7a3a} .glance .gv.fix b{color:#b06a00} .glance .gv.weak b{color:#8a7a00} .glance .gv.no b{color:#b02a2a}
+  .glance .gc ul{margin:.1rem 0 .3rem 1.1rem;padding:0}
   .nbwhy pre{white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,monospace;opacity:.75;margin:.3rem 0}
   .pastebox{margin:.6rem 0 0;font-size:13px}
   .pastebox summary{cursor:pointer;opacity:.85}
@@ -2556,6 +2561,25 @@ function gradeLine(draft) {
       esc(String(g.graded_at).slice(0, 10))})</span><ul>${items.join('')}</ul></div>${strat}` };
 }
 
+/**
+ * The drafter's notes at a glance (2026-11-12): a few fixed lines read off its
+ * NOTES section by a cheap model when the draft was written (draft.mjs,
+ * prompts/glance-notes.md). Drafts written before then have none and show the
+ * full notes only.
+ */
+function glanceBox(draft) {
+  let g; try { g = JSON.parse(draft?.glance ?? 'null'); } catch { g = null; }
+  if (!g) return '';
+  const tone = { send: 'ok', 'send after fixing': 'fix', 'weak, your call': 'weak', "don't send": 'no' }[g.verdict] ?? 'weak';
+  const row = (k, v) => (v ? `<div><b>${k}</b> ${esc(v)}</div>` : '');
+  // The card counts characters itself, and the cheap model lists a length check
+  // anyway, though its instructions say not to.
+  const checks = (g.check ?? []).filter((c) => c && !/\b(\d+ of 300|characters|LinkedIn('s)? (box|limit))\b/i.test(c));
+  return `<div class="glance"><div class="gv ${tone}"><b>${esc(g.verdict ?? '')}</b> ${esc(g.verdict_why ?? '')}</div>${
+    checks.length ? `<div class="gc"><b>Before sending</b><ul>${checks.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : ''}${
+    row('Why them', g.why_them)}${row('Opens on', g.hook)}${row('Offer', g.offer)}</div>`;
+}
+
 function noteBox(p, latest, { channel: preferred = null, email = null, guess = null } = {}) {
   const id = esc(p.person_id);
   // A DRAFT ALREADY SENT IS NOT THE NEXT NOTE. The box kept the drafter's text
@@ -2617,9 +2641,10 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
         ${ch === 'linkedin_inmail' ? '<label class="nbnote"><input type="checkbox" name="free" value="1"> free (Open Profile, no credit spent)</label>' : ''}
         <span class="nbnote">Sent records the box above exactly as it stands — edit it first.</span>
       </div>
+      ${declined ? '' : glanceBox(draft)}
       ${draft?.body && (declined || noteOnly(draft.body) !== String(draft.body).trim())
         ? `<details class="nbwhy"${declined ? ' open' : ''}><summary class="dim">${
-            declined ? 'why it declined' : 'why it wrote that'}</summary><pre>${
+            declined ? 'why it declined' : draft?.glance ? 'full reasoning' : 'why it wrote that'}</summary><pre>${
             esc(String(draft.body).split(/^NOTES\s*$/m)[1] ?? String(draft.body))}</pre></details>` : ''}
       <div class="nbrow">
         <input name="revise" placeholder="or say what to change — e.g. change &quot;senior AI capacity&quot; to &quot;an extra pair of hands&quot;">

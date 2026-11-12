@@ -814,6 +814,9 @@ const COLUMN_MIGRATIONS = [
   // paste that agrees with the file. `draft` refuses while it is set: a note
   // written to the old firm misses the new seat, which is the best reason to write.
   ['people', 'moved_to', 'TEXT'],
+  // The drafter's NOTES reduced to a few fixed lines for the card (2026-11-12,
+  // prompts/glance-notes.md). JSON; the full notes stay in `body`.
+  ['drafts', 'glance', 'TEXT'],
   // 1 when the call went through the Batches API, which bills at half price.
   // Without it a halved cost would read as a cheaper model.
   ['llm_calls', 'batch', 'INTEGER'],
