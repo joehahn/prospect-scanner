@@ -68,6 +68,10 @@
 //                              whatever their rating, until their profile is pasted
 //   npm run lead -- reply      --outreach <id> --sentiment positive|negative|neutral|bounced
 //                              [--date YYYY-MM-DD] [--outcome "..."] [--file reply.txt]
+//   npm run lead -- edgar      [--days 4] [--dry]
+//                              public companies whose 8-K says they just completed an
+//                              acquisition (Item 2.01), in the revenue band: filed as
+//                              firms with a dated capital_event, then vetted like any other
 //   npm run lead -- banks      --thesis <id> --state "Texas" [--min 2] [--max 25] [--dry]
 //                              Every FDIC-insured bank in an asset band, from the
 //                              quarterly regulatory filing. Enumerates by SIZE; the
@@ -105,7 +109,7 @@ import { nameParts } from './address-name.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { loadTargeting as loadTargetingFn } from './targeting.mjs';
 import { loadTargeting } from './targeting.mjs';
-import { complete, batchMode } from './models.mjs';
+import { complete, batchMode, promptBody } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
 import { notThisPerson, withoutMessaging } from './profile-identity.mjs';
@@ -2319,6 +2323,91 @@ const DOMAIN_SCHEMA = {
  * `vet` and `enrich` reading each bank's own pages — which is where the only
  * small-bank signal anyone found all day actually lived.
  */
+/**
+ * PUBLIC COMPANIES THAT JUST BOUGHT AN OPERATING COMPANY (2026-11-12), from the
+ * 8-K a public company must file under Item 2.01 within four business days of
+ * closing (src/sources/edgar.mjs). Both outside reviewers named EDGAR as a free
+ * source never built. Filters, in order of cost:
+ *   1. the search's own fields: 8-K (not /A), Item 2.01, a US state, not a
+ *      bank, insurer, REIT, fund or blank-check company (SIC 6000-6799);
+ *   2. revenue the company reported in its last 10-K, inside icp's band;
+ *   3. a cheap reader on the Item 2.01 passage (prompts/read-acquisition.md):
+ *      the filer must be the BUYER, of an OPERATING company.
+ * Survivors are filed like FDIC banks: no `kind` until vetted, a source naming
+ * the filing, and a capital_event signal dated to the closing with the filing
+ * as its evidence. A firm already in the book gets the signal only.
+ */
+async function edgar(db, cfg, args) {
+  const { acquisitionFilings, annualRevenue, itemText } = await import('./sources/edgar.mjs');
+  const ua = cfg.sources?.sec_edgar?.user_agent;
+  if (!cfg.sources?.sec_edgar?.enabled) throw new Error('sources.sec_edgar.enabled is false in config/runtime.yml');
+  const days = num(args.days) ?? 4;
+  const end = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  const floor = cfg.icp?.revenue_floor_usd ?? 5e7;
+  const ceiling = cfg.icp?.revenue_ceiling_usd ?? 3e9;
+  const targeting = loadTargetingSafe(cfg);
+
+  const filings = await acquisitionFilings(ua, start, end);
+  console.log(heading(`SEC 8-K Item 2.01 · ${start} to ${end}`));
+  console.log(dim(`${filings.length} companies filed a completed acquisition or disposal.`));
+
+  const usState = (s) => /^[A-Z]{2}$/.test(String(s ?? ''));
+  const financial = (sic) => sic >= 6000 && sic <= 6799;
+  const pass1 = filings.filter((f) => usState(f.state) && !financial(f.sic));
+  const sized = [];
+  for (const f of pass1) {
+    const r = await annualRevenue(ua, f.cik);
+    if (r && r.usd >= floor && r.usd <= ceiling) sized.push({ ...f, revenue: r });
+    else console.log(dim(`  out of band: ${f.name} (${r ? `$${(r.usd / 1e6).toFixed(0)}M` : 'no revenue reported'})`));
+  }
+  console.log(dim(`${pass1.length} US and not financial; ${sized.length} inside $${floor / 1e6}M to $${ceiling / 1e9}bn revenue.`));
+  if (!sized.length) return;
+
+  const SCHEMA = { type: 'object', additionalProperties: false,
+    required: ['role', 'operating_company', 'what', 'closed_on', 'claim'],
+    properties: { role: { type: 'string', enum: ['acquirer', 'acquired', 'seller', 'other'] },
+      operating_company: { type: 'boolean' }, what: { type: 'string' },
+      closed_on: { type: 'string' }, claim: { type: 'string' } } };
+  const runId = args.dry ? null : startRun(db, 'edgar', { model: cfg.models.cheap, notes: `${start}..${end}` });
+  const key = (n) => String(n).toLowerCase()
+    .replace(/\b(inc|corp|corporation|co|ltd|llc|plc|holdings?|group)\b/g, '').replace(/[^a-z0-9]/g, '');
+  const seen = new Map(db.prepare('SELECT id, name FROM orgs').all().map((o) => [key(o.name), o.id]));
+  const insEv = db.prepare(`INSERT INTO evidence (org_id, kind, claim, source_url, retrieved_at, provenance)
+    VALUES (?, 'regulatory_filing', ?, ?, ?, 'retrieved')
+    ON CONFLICT(org_id, kind, source_url, claim) DO UPDATE SET retrieved_at = excluded.retrieved_at
+    RETURNING id`);
+  const insSig = db.prepare(`INSERT INTO signals (org_id, trigger_id, detected_at, decays_at, weight, evidence_id)
+    VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(org_id, trigger_id, evidence_id) DO NOTHING`);
+  const trig = cfg.triggers.find((t) => t.id === 'capital_event');
+  const plus = (d, n) => new Date(Date.parse(d) + n * 864e5).toISOString().slice(0, 10);
+  let filed = 0, cost = 0;
+  for (const f of sized) {
+    const text = await itemText(ua, f.url);
+    if (!text) continue;
+    const r = await complete(db, runId, { model: cfg.models.cheap, maxTokens: 800, thinking: false, effort: 'low',
+      schema: SCHEMA, system: promptBody('prompts/read-acquisition.md'),
+      messages: [{ role: 'user', content: `Filer: ${f.name}\nFiled: ${f.filed}\n\n${text}` }] });
+    cost += r.cost_usd ?? 0;
+    const d = r.data;
+    const keep = d?.role === 'acquirer' && d.operating_company;
+    console.log(`  ${keep ? bold('FILE') : dim('skip')} ${f.name} · $${(f.revenue.usd / 1e6).toFixed(0)}M · ${d?.role ?? '?'}`
+      + `${d?.operating_company ? '' : ', not an operating company'} · ${d?.what ?? ''}`);
+    if (!keep || args.dry) continue;
+    const id = seen.get(key(f.name)) ?? addOrg(db, cfg, targeting, {
+      name: f.name, id: slugify(f.name), revenue: String(f.revenue.usd), hq: f.location ?? f.state,
+      source: `SEC 8-K Item 2.01, filed ${f.filed}`, quiet: true });
+    seen.set(key(f.name), id);
+    const at = /^\d{4}-\d{2}-\d{2}$/.test(d.closed_on) ? d.closed_on : f.filed;
+    const ev = insEv.get(id, d.claim, f.url, new Date().toISOString());
+    insSig.run(id, 'capital_event', at, plus(at, trig?.decay_days ?? 365), trig?.weight ?? 1, ev.id);
+    filed += 1;
+  }
+  if (runId) finishRun(db, runId, { cost_usd: cost });
+  console.log(dim(`\n${filed} filed${args.dry ? ' (DRY RUN, nothing written)' : ''} · reader $${cost.toFixed(3)}. `
+    + 'New firms carry no `kind` until vetted: npm run lead -- vet --candidates'));
+}
+
 async function banks(db, cfg, args) {
   const { banksInBand } = await import('./sources/fdic.mjs');
   const state = args.state && args.state !== true ? String(args.state) : null;
@@ -2652,6 +2741,7 @@ async function main() {
       case 'emails':     await emails(db, args); break;
       case 'addresses': await addresses(db, cfg, args); break;
       case 'banks':     await banks(db, cfg, args); break;
+      case 'edgar':     await edgar(db, cfg, args); break;
       case 'bank-efficiency': await bankEfficiency(db, cfg, args); break;
       case 'domains':   await domains(db, cfg, args); break;
       case 'sent':       sent(db, cfg, args); break;

@@ -242,11 +242,17 @@ if (args.includes('--conferences') || findAge >= 0.5) {
   if (w) { agendas = true; console.log(`  ${w[1]} people from new agendas`); }
 }
 
-// 2. vet what the searches added
-const unvetted = () => q(`SELECT id, name, domain FROM orgs WHERE source LIKE 'intake search:%' AND kind IS NULL`);
+// 1d. SEC 8-K Item 2.01 (added 2026-11-12): public companies in the revenue band
+// that just closed the purchase of an operating company. Four days back, so a
+// Monday covers the weekend; a filing seen twice is deduplicated by the book.
+// Free data, one cheap read per filing in the band (about two a week).
+run('1d. SEC acquisitions', ['lead', '--', 'edgar', '--days', '4']);
+
+// 2. vet what the searches and the SEC feed added
+const unvetted = () => q(`SELECT id, name, domain FROM orgs WHERE (source LIKE 'intake search:%' OR source LIKE 'SEC 8-K%') AND kind IS NULL`);
 // A website that could not be confirmed is retried for three days, not forever.
 const recent = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
-const noSite = q(`SELECT id, name FROM orgs WHERE source LIKE 'intake search:%' AND kind IS NULL
+const noSite = q(`SELECT id, name FROM orgs WHERE (source LIKE 'intake search:%' OR source LIKE 'SEC 8-K%') AND kind IS NULL
     AND (domain IS NULL OR TRIM(domain) = '') AND first_seen >= ?`, recent);
 for (const o of noSite) run(`2. domain · ${o.name}`, ['lead', '--', 'domains', '--org', o.id]);
 const vetted = [];

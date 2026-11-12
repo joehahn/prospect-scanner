@@ -100,8 +100,11 @@ sources:
   # NOT BUILT. There is no src/sources/edgar.mjs, so nothing reads this block.
   # It is kept as the shape the source should take, and left `false` so the
   # config does not declare a channel the code cannot run.
+  # `npm run lead -- edgar`: 8-K Item 2.01 filings. SEC requires a User-Agent
+  # naming you and a contact address, or it refuses every request.
   sec_edgar:
     enabled: false
+    user_agent: "Your Company Name you@yourcompany.com"
     full_text_queries:
       - "artificial intelligence center of excellence"
       - "inference cost"
