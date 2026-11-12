@@ -128,3 +128,6 @@ models:
   # Grades every draft; must differ from `draft`, so no model grades its own work.
   grader: "claude-sonnet-5"
   bakeoff: ["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"]
+  # Outside reviewers (npm run review): models from other makers, through
+  # OpenRouter's zero-retention endpoints. Empty turns the review off.
+  reviewers: []
