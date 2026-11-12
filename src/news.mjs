@@ -37,6 +37,9 @@
 //                                     the operator has never heard of. Every firm in
 //                                     the book today came from him; this is the only
 //                                     mode that can change that.
+//   npm run news -- --discover --wires [--vertical <id>] [--max-queries 20] [--triggers a,b] [--days 14]
+//                                     the same searches on the press wires only, last 14
+//                                     days: a test of whether the excluded wires find more
 //   npm run news -- --discover --local
 //                                     ...and near enough to drive to. Adds icp.discovery_region
 //                                     to every query and holds candidates to it. Discovery has
@@ -372,6 +375,12 @@ async function sectors(db, cfg, targeting, news, runId, args) {
     + `thesis in sectors.yml by hand.\n${hits.length} results · $${cost.toFixed(4)} judging`));
 }
 
+const WIRES = ['prnewswire.com', 'businesswire.com', 'globenewswire.com', 'accesswire.com'];
+const WIRE_SINCE = () => new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+// --days N: a window for a test run, both arms the same.
+const daysSince = (args, fallback) => (args.days && args.days !== true
+  ? new Date(Date.now() - Number(args.days) * 864e5).toISOString().slice(0, 10) : fallback);
+
 async function discover(db, cfg, targeting, news, since, runId, args) {
   // `discovery: paused` retires a vertical FROM DISCOVERY ONLY. It is checked
   // here and nowhere else on purpose: `targeting.live` gates ranking as well, so
@@ -455,7 +464,9 @@ async function discover(db, cfg, targeting, news, since, runId, args) {
         const g = cfg.triggers.find((x) => x.id === t.id);
         return g && t.discovery_terms ? { ...g, discovery_terms: t.discovery_terms } : g;
       })
-      .filter((t) => t?.discovery_terms);
+      .filter((t) => t?.discovery_terms)
+      // --triggers a,b: only these events, for a test that compares like with like.
+      .filter((t) => !(args.triggers && args.triggers !== true) || String(args.triggers).split(',').includes(t.id));
     for (const trig of trigs) {
       // A POSTING IS A ROLE, A COMPANY AND A PLACE. It is not an article about
       // the work, so it is not composed like one. Leading with the firm shape
@@ -478,7 +489,7 @@ async function discover(db, cfg, targeting, news, since, runId, args) {
     }
     // A wide sector can compose more queries than a credit budget wants; cap and
     // say so rather than silently truncating.
-    const CAP = Number(news.max_discovery_queries ?? 12);
+    const CAP = Number(args['max-queries'] ?? news.max_discovery_queries ?? 12);
     if (queries.length > CAP) {
       const shapesReached = new Set(queries.slice(0, CAP).map((x) => x.q.split(' ')[0])).size;
       console.log(dim(`    ${queries.length} composed, capping at ${CAP} ` +
@@ -503,10 +514,17 @@ async function discover(db, cfg, targeting, news, since, runId, args) {
     const hits = [];
     for (const { q, trigger } of queries) {
       const hiring = classOf.get(trigger) === 'hiring_req';
+      // --wires (2026-11-12): THE SAME QUERIES, ON THE PRESS WIRES ONLY, over the
+      // last 14 days. The wires are excluded by default because they flood the
+      // ranker; an outside review argued they are where mid-market acquisitions,
+      // appointments and vendor selections are announced first. A test, not a
+      // setting: run it beside a normal run and compare what qualifies.
+      const wiresOnly = args.wires && !hiring;
       const { results, undated, error } = await searchNews(q, {
-        sinceDate: hiring ? null : since, maxResults: news.max_results ?? 6,
+        sinceDate: hiring ? null : wiresOnly ? daysSince(args, WIRE_SINCE()) : daysSince(args, since), maxResults: news.max_results ?? 6,
         topic: hiring ? 'general' : 'news', requireDate: !hiring,
-        excludeDomains: news.exclude_domains ?? [],
+        excludeDomains: wiresOnly ? (news.exclude_domains ?? []).filter((d) => !WIRES.includes(d))
+          : (news.exclude_domains ?? []),
         // A sector may name the press that covers it. Without this, "sportsbook
         // AI" retrieves betting-tipster SEO, white-label vendor pages and
         // literal match reports — 72 dated results, none of them an operator
@@ -515,7 +533,7 @@ async function discover(db, cfg, targeting, news, since, runId, args) {
         // A trade title reports on a sector; it does not advertise the
         // sector's vacancies. The hiring class gets the hosts postings live on
         // instead, which is what separates a named employer from a salary page.
-        includeDomains: hiring ? (news.hiring_domains ?? []) : (v.trade_press ?? []),
+        includeDomains: hiring ? (news.hiring_domains ?? []) : wiresOnly ? WIRES : (v.trade_press ?? []),
       });
       if (error) { console.log(dim(`    "${truncate(q, 56)}": ${error}`)); continue; }
       console.log(dim(`    "${truncate(q, 56)}" -> ${results.length} dated` +
