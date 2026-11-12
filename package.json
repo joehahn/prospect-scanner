@@ -28,6 +28,7 @@
     "leaks": "node src/leaks.mjs",
     "replay": "node --env-file-if-exists=.env src/replay-drafts.mjs",
     "review": "node --env-file-if-exists=.env src/outside-review.mjs",
+    "alignment": "node --env-file-if-exists=.env src/alignment-review.mjs",
     "writeups": "node scripts/build-writeups.mjs",
     "judge": "node --env-file-if-exists=.env src/judge.mjs",
     "queries": "node --env-file-if-exists=.env src/queries.mjs",
