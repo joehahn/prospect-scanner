@@ -151,7 +151,7 @@ async function main() {
   let total = 0;
   await Promise.all(models.map(async (model) => {
     try {
-      const r = await complete(db, runId, { model, system: promptBody(PROMPT), maxTokens: 16000, effort: 'high',
+      const r = await complete(db, runId, { model, system: promptBody(PROMPT), maxTokens: 32000, effort: 'high',  // 16000 cut one report off mid-list (2026-11-12)
         messages: [{ role: 'user', content: text }] });
       total += r.cost_usd ?? 0;
       const file = join(dir, `${stamp}-${model.replace(/[^\w.-]+/g, '_')}.md`);
