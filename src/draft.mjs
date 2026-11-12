@@ -21,6 +21,7 @@
 //                    the sequence stays readable as a record of what was asked
 //                    for and what that produced.
 
+import { resolveMx } from 'node:dns/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
@@ -487,6 +488,43 @@ async function main() {
 
   const channel = resolveChannel(args.channel && args.channel !== true ? args.channel : 'email');
 
+  // A COLLEAGUE WAS WRITTEN TO DAYS AGO (2026-11-12). `rank` has called this a
+  // blocker since September, but the card's Draft button passes --force, which
+  // skips every blocker, so the outside review found two cold emails to one PE
+  // firm on the same day and a bank's second person three days after the first.
+  // Not skipped by --force; --firm-ok (a box on the card) says he means it.
+  // A revise of an existing draft is not a new approach and is not stopped.
+  if (!args['firm-ok'] && !args.revise) {
+    const coolDays = Number(targeting?.ranking?.thresholds?.firm_cooling_days ?? 14);
+    const last = db.prepare(`SELECT o.sent_at, p.name FROM outreach o JOIN people p ON p.id = o.person_id
+        WHERE o.org_id = ? AND o.person_id <> ? AND o.sent_at >= date('now', ?)
+        ORDER BY o.sent_at DESC LIMIT 1`).get(person.org_id, person.id, `-${coolDays} days`);
+    if (last) {
+      db.close();
+      throw new Error(`${last.name} at ${org?.name ?? 'this firm'} was written to on ${String(last.sent_at).slice(0, 10)}. `
+        + `A second person there within ${coolDays} days reads as spray. Nothing drafted. `
+        + 'Wait, or tick "colleague written to recently, write anyway" on the card (--firm-ok).');
+    }
+  }
+
+  // AN EMAIL DOMAIN THAT RECEIVES NO MAIL (2026-11-12). 10 of 51 emails had
+  // bounced, one to a domain with no mail server at all, and guesses at one
+  // person's address were cycled through. Before a note is written for email,
+  // the address's domain must answer for mail; a guess is said to be a guess.
+  if (channel === 'email' && !args['no-mx-check']) {
+    const addr = person.email || person.email_guess;
+    if (addr) {
+      const domain = String(addr).split('@')[1];
+      const mx = await resolveMx(domain).catch(() => []);
+      if (!mx.length) {
+        db.close();
+        throw new Error(`${domain} receives no mail (no MX record), so ${addr} cannot arrive. `
+          + 'Find another address, or another channel. Nothing drafted.');
+      }
+      if (!person.email) console.log(dim(`  ${addr} is a GUESS: its domain takes mail, the mailbox is unconfirmed.`));
+    }
+  }
+
   // THE READ PICKS THE OFFER, WHEN THERE IS ONE AND NOTHING OVERRIDES IT. The
   // router goes evidence -> work -> delivered_by -> filter by seat and size ->
   // package, and the drafter then has to justify whatever came out; that is how
@@ -531,6 +569,19 @@ async function main() {
     : (readPick ?? null);
   if (!args.service && readPick) {
     console.log(dim(`service from the read: ${readPick} — the thesis chose it, not the router`));
+  }
+  // A RETIRED OFFER IS NEVER PITCHED (2026-11-12). The read could name one --
+  // read_proposal, retired, went out in a connection note on 11-06 -- because
+  // nothing between the read and the drafter asked whether it was still for
+  // sale. From the read, it falls back to the router; asked for by name, refused.
+  const isLive = (id) => (cfg.packages ?? []).some((x) => x.id === id && (x.status ?? 'live') === 'live');
+  if (serviceId && !isLive(serviceId)) {
+    if (args.service && args.service !== true) {
+      db.close();
+      throw new Error(`--service ${serviceId} is not a live offer in config/offers.yml. Nothing drafted.`);
+    }
+    console.log(dim(`the read chose ${serviceId}, which is not a live offer; the router decides`));
+    serviceId = null;
   }
 
   // WHEN THE READ AND THE GATES DISAGREE, SAY SO. Added 2026-09-24 after the

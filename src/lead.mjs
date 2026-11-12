@@ -92,6 +92,7 @@
 //                              Writes email_guess, never email.
 //   npm run lead -- list [--vertical id]
 
+import { sendProblems } from './send-check.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -1239,6 +1240,21 @@ function sent(db, cfg, args) {
       `(${body.length} chars)${d.subject ? `, subject "${d.subject}"` : ', no subject on it'}`));
   }
   const str = (k) => (args[k] && args[k] !== true ? String(args[k]) : null);
+
+  // THE TEXT THAT WENT OUT, CHECKED (2026-11-12, src/send-check.mjs): internal
+  // notes pasted along with the note, a wrong county or greeting, a word typed
+  // twice. Refused with the reason; --checked records it anyway. The paste of
+  // the drafter's own words (--as-drafted) is checked too: its NOTES are cut,
+  // and anything left is still worth catching.
+  if (body && !args.checked) {
+    const orgName = db.prepare('SELECT name FROM orgs WHERE id = ?').get(person.org_id)?.name;
+    const problems = sendProblems(body, { person, orgName });
+    if (problems.length) {
+      throw new Error(`Before this is recorded as sent, check:\n${problems.map((x) => `  - ${x}`).join('\n')}\n`
+        + 'Nothing recorded. If it went out like that anyway, record it with --checked '
+        + '(on the card: tick "it went out as is").');
+    }
+  }
 
   // THE SAME NOTE TWICE IS ONE SEND RECORDED TWICE, almost always. Added
   // 2026-10-02: one email was recorded on two consecutive days, identical but

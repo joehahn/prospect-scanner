@@ -2631,6 +2631,7 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
           sel('linkedin_connect_note', 'Connection request note')}${sel('linkedin_message', 'Message to a 1st-degree connection')}</select>
         <button type="submit" name="do" value="draft">${draft ? 'Draft again' : 'Draft'}</button>
         <input name="subject" placeholder="subject" value="${subject}">
+        <label class="nbnote"><input type="checkbox" name="firm_ok" value="1"> colleague written to recently, write anyway</label>
       </div>
       <p class="nbto"${ch === 'email' ? '' : ' hidden'}>To: ${to}</p>
       ${declined ? '' : gradeLine(draft).html}${declined ? '' : retiredLine(draft)}
@@ -2639,6 +2640,7 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
       <div class="nbrow">
         <button type="submit" name="do" value="sent" class="sent">Sent as ${esc(({ email: 'Email', linkedin_inmail: 'InMail', linkedin_connect_note: 'Connection note', linkedin_message: 'LinkedIn message' })[ch] ?? ch)}</button>
         ${ch === 'linkedin_inmail' ? '<label class="nbnote"><input type="checkbox" name="free" value="1"> free (Open Profile, no credit spent)</label>' : ''}
+        <label class="nbnote"><input type="checkbox" name="checked" value="1"> it went out as is (skip the send check)</label>
         <span class="nbnote">Sent records the box above exactly as it stands — edit it first.</span>
       </div>
       ${declined ? '' : glanceBox(draft)}

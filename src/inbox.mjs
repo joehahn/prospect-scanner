@@ -606,6 +606,9 @@ async function note(fields) {
     if (subj) args.push('--subject', subj);
     // An InMail to an Open Profile spends no credit (lead sent --free).
     if (fields.free) args.push('--free');
+    // "it went out as is": the send-time check found something, he looked, and
+    // the note went out that way regardless (src/send-check.mjs).
+    if (fields.checked) args.push('--checked');
     const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
     await rebuild();
     return out.trim();
@@ -657,6 +660,7 @@ async function note(fields) {
   // and passing it pinned every redraft to it, over a read that now says
   // otherwise. The read picks; a revise keeps the draft it revises.
   if (service && act === 'revise') args.push('--service', service);
+  if (fields.firm_ok) args.push('--firm-ok');
   if (act === 'revise') {
     const r = (fields.revise ?? '').trim();
     if (!r) throw new Error('Say what to change, then press Go.');
