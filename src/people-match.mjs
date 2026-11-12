@@ -60,7 +60,10 @@ export function pageNames(text, name) {
   if (!parts) return true;
   const t = String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (t.includes(parts.last)) return true;
-  return parts.firsts.some((f) => new RegExp(`\\b${f}\\s+${parts.last[0]}\\.`).test(t));
+  // A preferred or native name in parentheses can sit between first name and
+  // initial: "Richard (Tzuulin) Y." is the page of Richard Y.
+  const bare = t.replace(/\([^)]*\)/g, ' ').replace(/[ \t]+/g, ' ');
+  return parts.firsts.some((f) => new RegExp(`\\b${f}\\s+${parts.last[0]}\\.`).test(bare));
 }
 
 const firstsMatch = (a, b) => a.some((x) => b.some((y) => x === y
