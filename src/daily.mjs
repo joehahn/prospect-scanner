@@ -22,7 +22,7 @@
 //                 for the best --research people rated 3+ with no pasted profile
 //                 and no research in 30 days; anyone found is judged again
 //   4a2. plans    a public body's own published plan, read for the AI work it
-//                 will fund, for up to --plans bodies (default 10); quotes are
+//                 will fund, for up to --plans bodies (default 0: off); quotes are
 //                 checked against the document, and anyone there is judged again
 //   4b. draft     a first draft for the top --drafts people the judge rated 3+,
 //                 one per firm, so the morning starts with notes to edit, not
@@ -44,7 +44,7 @@
 //   npm run daily -- --screen N   how many people to screen (default 600)
 //   npm run daily -- --judge N    how many screened people to judge in full (default 150)
 //   npm run daily -- --research N how many people rated 3+ to research (default 20)
-//   npm run daily -- --plans N    public bodies whose own plan to read (default 10)
+//   npm run daily -- --plans N    public bodies whose own plan to read (default 0, off since 2026-11-12)
 //   npm run daily -- --drafts N   first drafts to write (default 0: drafting is on the card's button)
 //   npm run daily -- --addresses N firms to look up an address for (default 8)
 //   npm run daily -- --no-batch   send every model call directly, at full price
@@ -317,7 +317,12 @@ if (researchN > 0) {
 // five-body trial it found verified AI lines at two. Read after a week: if
 // fewer than about one body in five yields a dated plan, it comes out.
 // plans.mjs re-judges the people at any body it signals.
-const plansN = argN('--plans', 10);
+//
+// OFF BY DEFAULT FROM 2026-11-12, at the operator's word. Public bodies had
+// answered 0 of 81 notes, both outside reviewers advised stopping cold
+// public-sector outreach, and this step only feeds that segment. `--plans N`
+// still runs it on a day it is wanted; plans.mjs is unchanged.
+const plansN = argN('--plans', 0);
 if (plansN > 0) run(`4a2. plans · up to ${plansN} public bodies`, ['plans', '--', '--limit', String(plansN)], BATCH ?? {});
 
 // 4b. first drafts for the strongest, so the operator edits rather than drafts.
