@@ -44,7 +44,11 @@ import { retense, upcomingTalks } from './events.mjs';
 import { voiceFor, chooseArm, splitVoice, isFollowup, PICKED_PROMPT, EDITS_PROMPT, RECENT_PROMPT } from './voice-examples.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PROMPT_FILE = 'prompts/draft-cold-note.md';
+// A REPLAY MAY DRAFT UNDER AN EARLIER VERSION of these instructions, to measure
+// whether a run of revisions helped (replay-drafts.mjs --prompts). Only with
+// --no-store: a stored draft always names the instructions that are current.
+const PROMPT_FILE = (process.argv.includes('--no-store') && process.env.DRAFT_PROMPT_FILE)
+  || 'prompts/draft-cold-note.md';
 
 // Every property required, no null unions — the strict-schema rule this project
 // keeps because an optional property doubles the branch count for no gain.

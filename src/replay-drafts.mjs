@@ -19,6 +19,14 @@
 // Usage:
 //   npm run replay -- [--limit 10] [--jobs 4] [--arms fixed,picked,edits,recent]
 //                     [--reuse data/replays/<file>.json]   keep arms drafted earlier
+//                     [--channel linkedin_connect_note]   only notes sent on this channel
+//                     [--prompts v35=path/to/old.md]      also each listed arm under these instructions
+//
+// PROMPT VERSIONS (2026-11-12). --prompts adds, for each examples arm, an arm
+// "<arm>@<name>" drafted under an earlier copy of prompts/draft-cold-note.md
+// (git show <rev>:prompts/draft-cold-note.md > file). Only the instructions
+// differ: today's code, dossier and offers are used for both, so this measures
+// the prompt's revisions and not the code's.
 //
 // Then a blind judge (models.grader, prompts/judge-replay.md) compares each
 // pair of arms against the sent note, in both orders; a split is a tie.
@@ -42,17 +50,21 @@ function arg(name, dflt) {
   return i > 0 && process.argv[i + 1] ? Number(process.argv[i + 1]) : dflt;
 }
 
-async function draftOnce(x, arm) {
+async function draftOnce(x, armId) {
+  const [arm, version] = armId.split('@');
+  const env = { ...process.env };
+  if (version) env.DRAFT_PROMPT_FILE = PROMPTS.get(version);
   const argv = ['--env-file-if-exists=.env', 'src/draft.mjs', '--person', x.person_id, '--channel', x.channel, '--examples', arm,
     '--no-store', '--no-dash', '--force', '--pool-before', String(x.id)];
   // --force: this person was written to, which is the point; nothing is stored.
   if (x.package_id) argv.push('--service', x.package_id);
-  const { stdout } = await run('node', argv, { cwd: ROOT, maxBuffer: 1 << 24, timeout: 15 * 60_000 });
+  const { stdout } = await run('node', argv, { cwd: ROOT, env, maxBuffer: 1 << 24, timeout: 15 * 60_000 });
   const line = stdout.split('\n').find((l) => l.startsWith('REPLAY '));
   if (!line) throw new Error('no REPLAY line');
   return JSON.parse(line.slice(7));
 }
 
+const PROMPTS = new Map();
 const JUDGE_PROMPT = 'prompts/judge-replay.md';
 const JUDGE_SCHEMA = {
   type: 'object', additionalProperties: false, required: ['closer', 'why'],
@@ -84,14 +96,23 @@ async function main() {
   const limit = arg('limit', 10);
   const jobs = arg('jobs', 4);
   const ai = process.argv.indexOf('--arms');
-  const ARMS = ai > 0 ? process.argv[ai + 1].split(',') : ['fixed', 'picked', 'edits'];
+  const BASE = ai > 0 ? process.argv[ai + 1].split(',') : ['fixed', 'picked', 'edits'];
+  const pi = process.argv.indexOf('--prompts');
+  for (const kv of pi > 0 ? process.argv[pi + 1].split(',') : []) {
+    const [name, file] = kv.split('=');
+    PROMPTS.set(name, resolve(process.cwd(), file));
+  }
+  const ARMS = [...BASE, ...BASE.flatMap((a) => [...PROMPTS.keys()].map((v) => `${a}@${v}`))];
+  const ci = process.argv.indexOf('--channel');
+  const channel = ci > 0 ? process.argv[ci + 1] : null;
   const db = openDb();
   const cfg = loadConfig();
   // The latest sent note per person, newest first.
   const rows = db.prepare(`SELECT d.id, d.person_id, d.channel, d.package_id, d.body, d.sent_text
       FROM drafts d WHERE d.sent_text IS NOT NULL AND TRIM(d.sent_text) <> ''
        AND d.id = (SELECT MAX(id) FROM drafts e WHERE e.person_id = d.person_id AND e.sent_text IS NOT NULL)
-     ORDER BY d.id DESC LIMIT ?`).all(limit);
+       AND (? IS NULL OR d.channel = ?)
+     ORDER BY d.id DESC LIMIT ?`).all(channel, channel, limit);
 
   const tasks = rows.flatMap((x) => ARMS.map((arm) => ({ x, arm })));
   const out = new Map(rows.map((x) => [x.id, { draft_id: x.id, channel: x.channel,
@@ -117,7 +138,7 @@ async function main() {
         const r = await draftOnce(x, arm);
         cost += r.cost_usd ?? 0;
         // An arm that fell back to the fixed set is not that arm; leave it out.
-        if (r.examples?.arm !== arm) {
+        if (r.examples?.arm !== arm.split('@')[0]) {
           console.log(dim(`  draft ${x.id} ${arm}: fell back (${r.examples?.fell_back ?? '?'}), not counted`));
           continue;
         }
