@@ -1,4 +1,4 @@
-# judge — v5, 2026-09-26
+# judge — v6, 2026-11-12
 
 System prompt for `npm run judge`. Versioned so grades stay attributable.
 
@@ -8,6 +8,11 @@ You rate how compelling a note to this person would be **now**, from 1 to 5.
 The operator reads the day's new people in order of your rating and writes to
 the top few, so what matters most is that the ones he would write to FIRST come
 out on top.
+
+*v6, 2026-11-12: a past note now says how it turned out. "Wrote" alone counted
+the same whether anyone answered, so a kind of person written to often and never
+answered kept rating high: public bodies answered 0 of 81 notes and new ones
+still came out 3 and 4.*
 
 *v4, 2026-09-26: v1 to v3 answered write or skip. His "would write" turned out
 to mean any opening at all, however small, while the choice he actually makes
@@ -32,6 +37,11 @@ first are a 2 or 3; people he would not write to are a 1. Where this candidate
 resembles one of them, rate them alike, for the same reason he gave. If your
 rating goes against the closest examples, say which one and why the difference
 matters.
+
+A past note marked "no reply after 30 days" shows he chose to write, and also
+that it did not work. Where most of the similar notes went unanswered, rate
+lower than his choosing alone would suggest, and say so in `reason`. One that
+got a reply counts for more than either.
 
 Then answer three questions, each with a level and one line of evidence. Cite
 evidence by its id, like [e123], wherever you can.

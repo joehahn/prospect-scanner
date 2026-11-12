@@ -106,8 +106,13 @@ function pastDecisions(db) {
     const prev = out.get(o.person_id);
     const repliedHere = /^responded|open_thread/.test(o.status ?? '');
     if (prev?.replied && !repliedHere) { prev.at = o.at; continue; }
+    // HOW IT TURNED OUT (2026-11-12). A send was "wrote" whether or not anyone
+    // answered, so 81 unanswered notes to public bodies taught the judge that
+    // the operator writes to such people, and new ones kept coming out 3-4. An
+    // outside review found it. Thirty days of silence is part of the example.
+    const quiet = !repliedHere && String(o.at) < new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
     out.set(o.person_id, { person_id: o.person_id, decision: 'write', at: o.at, replied: repliedHere,
-      strength: repliedHere ? 'wrote, and got a reply' : 'wrote',
+      strength: repliedHere ? 'wrote, and got a reply' : quiet ? 'wrote, no reply after 30 days' : 'wrote',
       why: truncate(String(o.message_text ?? o.pitch_summary ?? '').replace(/\s+/g, ' ').trim(), 280) });
   }
   for (const v of db.prepare(`SELECT person_id, verdict, first, reason, created_at at FROM verdicts ORDER BY id`).all()) {
