@@ -52,6 +52,7 @@ const PROMPT_FILE = (process.argv.includes('--no-store') && process.env.DRAFT_PR
   || 'prompts/draft-cold-note.md';
 
 const GLANCE_FILE = 'prompts/glance-notes.md';
+const PROOF_STEP_FILE = 'prompts/followup-proof-step.md';
 const GLANCE_SCHEMA = {
   type: 'object', additionalProperties: false,
   required: ['why_them', 'hook', 'offer', 'check', 'verdict', 'verdict_why'],
@@ -888,8 +889,18 @@ async function main() {
   console.log(dim(`  examples: ${voice.record.arm}${voice.record.shown ? ` (${voice.record.shown.length} chosen sent notes${voice.record.edits ? `, ${voice.record.edits} edits` : ''}${voice.record.anchors ? ` + ${voice.record.anchors} anchors` : ''})` : ''}${voice.record.fell_back ? ` — ${voice.record.fell_back}` : ''}`));
 
   // A connection note has LinkedIn's hard cap (draft-cold-note v24 says what to do with it).
-  const capNote = channel === 'linkedin_connect_note'
-    ? `\n\nCHARACTER LIMIT: ${CONNECT_NOTE_MAX} characters for the note, spaces included.` : '';
+  // THE FOLLOW-UP TEST (2026-11-12, the operator's go). The message after a
+  // silent accept alternates between the open door the drafter writes by
+  // default and one proof plus one easy next step (prompts/followup-proof-step.md).
+  // Assigned by the person's id, so a redraft stays in its arm; recorded on the
+  // draft, so replies can be counted by arm. Not on a replay.
+  const testArm = followup && channel === 'linkedin_message' && !args['no-store']
+    ? ([...personId].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 2 ? 'proof_step' : 'open_door')
+    : null;
+  if (testArm) console.log(dim(`  follow-up test arm: ${testArm}`));
+  const capNote = (channel === 'linkedin_connect_note'
+    ? `\n\nCHARACTER LIMIT: ${CONNECT_NOTE_MAX} characters for the note, spaces included.` : '')
+    + (testArm === 'proof_step' ? `\n\n${promptBody(PROOF_STEP_FILE)}` : '');
   // Generous: max_tokens covers thinking plus the note plus the NOTES section.
   // A note is ~400 tokens; the rest is headroom for reasoning over the dossier.
   const res = await complete(db, runId, {
@@ -1056,12 +1067,12 @@ async function main() {
 
   const stored = db.prepare(`INSERT INTO drafts (org_id, person_id, channel, version, body, package_id,
       prompt_file, model, tokens_in, tokens_out, cost_usd, created_at, run_id,
-      revised_from, revise_note, subject, examples)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      revised_from, revise_note, subject, examples, test_arm)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(org.id, personId, channel, version, body, offerId, PROMPT_FILE, model,
          res.usage.input_tokens, res.usage.output_tokens, res.cost_usd,
          new Date().toISOString(), runId, prior?.id ?? null, revise, subject,
-         JSON.stringify(voice.record));
+         JSON.stringify(voice.record), testArm);
 
   // AT A GLANCE (2026-11-12). The NOTES section runs to forty or sixty lines and
   // the operator read all of it for every note: "me parsing that content for

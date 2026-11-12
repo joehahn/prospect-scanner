@@ -264,7 +264,14 @@ async function main() {
       + `${d.subject ? `Subject: ${d.subject}\n\n` : ''}${text}\n\n`
       + `## The recipient and the offer (for question 6)\n\n${recipientFor(db, d)}\n\n`
       + `## The evidence on file\n\n${evidenceFor(db, d) || '(none)'}`
-      + (said ? `\n\n## What the operator knows first-hand (counts as evidence)\n\n${said}` : '');
+      + (said ? `\n\n## What the operator knows first-hand (counts as evidence)\n\n${said}` : '')
+      // THE FOLLOW-UP TEST'S OTHER ARM (2026-11-12, prompts/followup-proof-step.md):
+      // one proof link and one easy question are the arm, not a breach of the
+      // open-door rule. A call or meeting ask is still a breach.
+      + (d.test_arm === 'proof_step' ? '\n\n## A live test\n\nThis follow-up is in the proof_step arm of an '
+        + 'approved test: one proof point with its link and one short question the reader can answer in a few '
+        + 'words are allowed here and are not a channel-rule or tactic failure. A call, meeting, demo or referral '
+        + 'ask still is.' : '');
 
     // Code, not model: the literal screen and the length limit.
     const literal = neverClaimHits(text, neverClaim);

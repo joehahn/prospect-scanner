@@ -817,6 +817,9 @@ const COLUMN_MIGRATIONS = [
   // The drafter's NOTES reduced to a few fixed lines for the card (2026-11-12,
   // prompts/glance-notes.md). JSON; the full notes stay in `body`.
   ['drafts', 'glance', 'TEXT'],
+  // Which arm of a live test wrote this draft (2026-11-12: the follow-up after a
+  // silent accept, open_door | proof_step; prompts/followup-proof-step.md).
+  ['drafts', 'test_arm', 'TEXT'],
   // 1 when the call went through the Batches API, which bills at half price.
   // Without it a halved cost would read as a cheaper model.
   ['llm_calls', 'batch', 'INTEGER'],
