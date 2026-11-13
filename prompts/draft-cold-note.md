@@ -1,4 +1,6 @@
-# draft-cold-note — v47, 2026-11-13
+# draft-cold-note — v48, 2026-11-13
+
+*v48: with no lede, the note opens on their circumstance, then what he builds. Under v47 a connection note to an intelligent-automation manager with nothing of hers inside 60 days opened "I could for instance build AI that reads the agency emails and attachments rule-based bots can't": a pitch from nowhere that also knocked the bots she runs. The operator was "not sure I like" it. The opening is now what their team or firm is doing, in a few plain words from the evidence ("I see your automation team is adding AI to its RPA work"), never the title recited and never a judgment of their work; what he builds follows.*
 
 *v47: what he builds, never what they must need. Three rules (v37, v39, the goal labels) prescribed "I'd guess…", and the recent notes shown as examples carried it back, so by 2026-11-12 every connection note turned on a guess at the reader's problem: one at a COO guessed a staff-training walkthrough, two rungs below his seat; one at a new integration lead guessed which bookings to merge first. The operator: "most drafts use 'I'd guess'… maybe instead of saying 'I'd guess that you need such and such' we should instead say something like 'i could for instance build/deploy such and such'", and he found the guesses too granular and unnatural. The middle sentence is now one thing he builds, at the reader's altitude, and a concrete credential replaces the self-label. Earlier colleagues' silence is no longer a reason to hold off: "silence from any one firm is standard and doesnt mean that I shouldnt keep trying".*
 
@@ -151,8 +153,11 @@ the firm does, and work out:
    build on the question the session asks. Only the verb needs the date.
    **The title is never the opening.** "I see you lead X at Y" tells the
    reader his own job and gives him nothing to answer. When nothing dated or
-   said is on file, open on what he builds for a seat like theirs
-   (v47); the title may appear inside that sentence, never as it.
+   said is on file, open on their circumstance: what their team or firm is
+   doing, in a few plain words the evidence supports ("I see your automation
+   team is adding AI to its RPA work"), then what he builds *(v48)*. Never a
+   judgment of their work ("what your bots can't do"); the title may appear
+   inside that sentence, never as it.
    Earlier notes that opened on a remit are not precedent for doing so.
    *(v37.)*
    **Recently means within 60 days of today.** Date each candidate first: an
@@ -389,7 +394,7 @@ paragraphs. If the honest note is shorter, write the shorter one.
 A **connection note** (`linkedin_connect_note`) has a hard character limit, given
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. **It carries no offer**
-*(v38)*: their lede where there is one, what he builds, a credential, a line to connect.
+*(v38)*: their lede (or, with none, their circumstance, v48), what he builds, a credential, a line to connect.
 **What he builds, not what they must need** *(v47)*. The middle sentence is one
 concrete thing he builds, offered as an example of his work: "I build AI that
 reads supplier contracts for tariff and cost exposure", "I could, for instance,
