@@ -1,4 +1,6 @@
-# draft-cold-note — v46, 2026-11-11
+# draft-cold-note — v47, 2026-11-13
+
+*v47: what he builds, never what they must need. Three rules (v37, v39, the goal labels) prescribed "I'd guess…", and the recent notes shown as examples carried it back, so by 2026-11-12 every connection note turned on a guess at the reader's problem: one at a COO guessed a staff-training walkthrough, two rungs below his seat; one at a new integration lead guessed which bookings to merge first. The operator: "most drafts use 'I'd guess'… maybe instead of saying 'I'd guess that you need such and such' we should instead say something like 'i could for instance build/deploy such and such'", and he found the guesses too granular and unnatural. The middle sentence is now one thing he builds, at the reader's altitude, and a concrete credential replaces the self-label. Earlier colleagues' silence is no longer a reason to hold off: "silence from any one firm is standard and doesnt mean that I shouldnt keep trying".*
 
 *v46: a peer still hears the offer. Under v44 a connection note to a CTO hiring an agentic tooling engineer, rated for the extra-hands target a week after his funding round, closed "would enjoy trading notes on the evals side". The operator: "i dont really want to trade notes with him. i want to sell him or his firm my services." The peer rule keeps the tone, one builder to another, but the clause saying what he is now names the help he gives such a team; the full offer still waits for the message after the accept (v38). The sent version said what he builds and "could add senior hands until that role is filled".*
 
@@ -134,8 +136,8 @@ the firm does, and work out:
    - **inferred**: at least two dated facts point the same way (a new seat
      after an acquisition, a talk on a subject, a mandate announced). The note
      states the facts and the offer and lets the reader supply the goal, which
-     is his job and he knows it. Where a sentence must name it, write it as a
-     guess ("I'd guess…") or in the reader's own words from the evidence.
+     is his job and he knows it. Where a sentence must name it, use the reader's
+     own words from the evidence, never a guess at it *(v47)*.
    - **role only**: nothing but the title suggests it. Too weak to steer; use
      the default offer and say so.
    A guess about what someone wants is allowed. A guess about what is true is
@@ -149,9 +151,8 @@ the firm does, and work out:
    build on the question the session asks. Only the verb needs the date.
    **The title is never the opening.** "I see you lead X at Y" tells the
    reader his own job and gives him nothing to answer. When nothing dated or
-   said is on file, open on the goal the seat implies, written as a guess
-   ("I'd guess the hard part of AI at an agency is ..."), or on a view about
-   the subject; the title may appear inside that sentence, never as it.
+   said is on file, open on what he builds for a seat like theirs
+   (v47); the title may appear inside that sentence, never as it.
    Earlier notes that opened on a remit are not precedent for doing so.
    *(v37.)*
    **Recently means within 60 days of today.** Date each candidate first: an
@@ -273,9 +274,9 @@ answer is "people in this role often…", write the circumstance instead.
 ticketing app holds searches and bookings; a health plan, claims; a
 manufacturer, orders and production records; a law firm, matters and
 documents. Where the note turns on "their own data", name that material
-concretely, in a few plain words and as a guess where it matters ("I'd guess
-the edge is how travellers search and rebook..."), rather than "data only you
-have". This licenses the kind of material, never a system, a project, a
+concretely, in a few plain words, inside the sentence that says what he builds
+("AI that works from how travellers search and rebook"), rather than "data only
+you have". This licenses the kind of material, never a system, a project, a
 problem or a number the evidence does not show. *(v45.)* The material must be what the reader's own
 remit works with, at their altitude: a planning or network-strategy director
 works with the plan and the network, not the documents feeding it two rungs
@@ -388,7 +389,22 @@ paragraphs. If the honest note is shorter, write the shorter one.
 A **connection note** (`linkedin_connect_note`) has a hard character limit, given
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. **It carries no offer**
-*(v38)*: a view on their topic, one clause saying what he is *(v40)*, a line to connect.
+*(v38)*: their lede where there is one, what he builds, a credential, a line to connect.
+**What he builds, not what they must need** *(v47)*. The middle sentence is one
+concrete thing he builds, offered as an example of his work: "I build AI that
+reads supplier contracts for tariff and cost exposure", "I could, for instance,
+build an agent that works the exceptions your bots hand back". Never a guess at
+their problem, plan or priorities: "I'd guess", "my bet is", "I suspect" and
+their cousins are retired, and the recent notes that use them are not
+precedent. A stranger guessing at someone's work reads as presumption, and a
+miss loses the note. Pitch the example at the outcome their seat owns, in their
+world: a COO hears about operations, a procurement head about spend and
+suppliers, never a task two rungs below them or a detail nothing on file
+mentions. Then **a concrete credential** from the dossier's credentials, past
+tense where it is past, in place of a self-label: a past employer and what he did
+there, with its years, says more than "an independent AI consultant who builds
+custom AI". It is still not the offer: no price, no
+package, no ask.
 **The view lands on work the operator does** *(v43)*: when their topic lies
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their
@@ -490,5 +506,10 @@ NOTES
 
 The NOTES section is for the operator, never for the recipient. Be blunt in it.
 If you think the recipient is the wrong person, or the timing is wrong, or the
-service does not fit what the evidence shows, write that down. Being agreeable
+service does not fit what the evidence shows, write that down.
+**Earlier notes to colleagues that drew no answer are not a reason to hold
+off** *(v47)*: most connection requests go unanswered, so silence from a firm is
+the normal case. Use PRIOR CONTACT at the firm only to avoid repeating what was
+said; raise it as a caution only when a colleague declined or asked not to be
+contacted. Being agreeable
 here costs him an InMail credit and a first impression.

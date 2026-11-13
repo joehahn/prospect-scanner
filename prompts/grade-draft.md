@@ -1,4 +1,6 @@
-# grade-draft — v10, 2026-11-10
+# grade-draft — v11, 2026-11-13
+
+*v11: a connection note says what he builds, as an example of his work, with a concrete credential (draft-cold-note v47). One that guesses at the reader's problem or priorities ("I'd guess…") is flagged; an example of what he could build is not an offer, unless it carries a price, a package or an ask.*
 
 *v10: a connection note whose view implies work the operator does not do is flagged (draft-cold-note v43).*
 
@@ -176,9 +178,13 @@ problem sits in.
   easy to answer, an offer to send a resource, a hook on their talk or post, a
   referral, call or meeting ask, or the connection note's pitch restated.
 - **An offer in a connection note.** *(v8.)* A `linkedin_connect_note` that
-  proposes work for their firm ("for X that could mean...", a named use case, a
-  price or a fixed-price build offered to them). It should take a view on their
-  topic that lands on work he does (a view on staff training implies he
-  trains staff; flag it when he does not), and say in one clause what he is;
+  proposes work for their firm with a price, a package, a fixed-price build or
+  an ask. *(v11.)* One concrete example of what he builds ("I build AI that
+  reads supplier contracts", "I could, for instance, build...") is what the note
+  should carry and is NOT an offer; flag instead a note that guesses at the
+  reader's problem, plan or priorities ("I'd guess", "my bet is", "I suspect"),
+  and an example pitched below their seat (a field task to a COO). The example
+  must land on work he does (staff training implies he trains staff; flag it
+  when he does not), and a concrete credential should say what he is;
   the offer waits for the message
   after the accept.

@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import Database from 'better-sqlite3';
-import { changed, splitVoice, updateWording, chooseArm, DEFAULT_ARM } from '../src/voice-examples.mjs';
+import { changed, splitVoice, updateWording, usesRetired, chooseArm, DEFAULT_ARM } from '../src/voice-examples.mjs';
 
 test('words changed is measured on the note, not the NOTES section', () => {
   const draft = 'Greetings Ann,\n\nOne two three four.\n\nNOTES\n-----\nlots of reasoning here for the operator';
@@ -147,4 +147,11 @@ test('a follow-up after an accepted connection learns only from plain-note follo
   } finally {
     db.close(); rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('wording retired with no replacement keeps a sent note out of the examples', () => {
+  const sup = [{ was: "I'd guess" }, { was: 'old line', now: 'new line' }];
+  assert.equal(usesRetired("Hi Ann, i'd guess the hard part is data.", sup), true);
+  assert.equal(usesRetired('Hi Ann, I build AI that reads contracts. old line', sup), false);
+  assert.equal(updateWording("I'd guess so", sup), "I'd guess so");
 });

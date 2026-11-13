@@ -59,6 +59,17 @@ export function splitVoice(text) {
   return { prose, intro: parts[0].trim(), notes: parts.slice(1).map((n) => n.trim()) };
 }
 
+/**
+ * Wording retired with no replacement (`was` and no `now`): a sent note that
+ * uses it is not shown as an example, since there is nothing to swap in and a
+ * note built on it teaches it back. Added 2026-11-13, when notes the operator
+ * sent with a retired opener were teaching every new draft to use it.
+ */
+export function usesRetired(text, superseded = []) {
+  const t = String(text ?? '').toLowerCase();
+  return (superseded ?? []).some((s) => s?.was && !s?.now && t.includes(String(s.was).trim().toLowerCase()));
+}
+
 /** Old wording in a sent note replaced by the operator's current wording. */
 export function updateWording(text, superseded = []) {
   let out = String(text ?? '');
@@ -193,6 +204,7 @@ export function pickExamples(db, { personId, channel, packageId, superseded = []
     // would be an instruction from a stranger. Such a note, and its whole
     // chain, stays out of every pool.
     if (!asks.every(portable)) continue;
+    if (usesRetired(r.sent_text, superseded)) continue;
     const sent = updateWording(r.sent_text, superseded).trim();
     // A sent note that says something he must never claim is not a model to copy.
     if (neverClaimHits(sent, neverClaim).length) continue;
@@ -422,6 +434,7 @@ export function recentExamples(db, { personId, channel, superseded = [], neverCl
     // show; an ask that is not `portable` is still never shown to anyone else.
     const all = asked.all(r.person_id, r.id).map((x) => x.revise_note.trim());
     const asks = all.filter(portable);
+    if (usesRetired(r.sent_text, superseded)) continue;
     const sent = updateWording(r.sent_text, superseded).trim();
     if (neverClaimHits(sent, neverClaim).length) continue;
     out.push({ ...r, sent, asks, asksWithheld: all.length - asks.length, delta: changed(r.body, r.sent_text) });

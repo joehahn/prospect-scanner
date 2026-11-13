@@ -45,6 +45,8 @@ you:
                                           # shown to the drafter as an example (exact strings)
     - was: "Ten years in a bank's security team, running audits."
       now: "Ten years in a regional bank's security team, the last four leading its audit program."
+    - was: "I'd guess"                    # no `now`: retired outright; a sent note using it
+                                          # is not shown as an example at all (any case)
   never_claim:                            # things a draft must never say you can do
     - "penetration testing"               # e.g. you refer it out
     - "24x7 monitoring"
