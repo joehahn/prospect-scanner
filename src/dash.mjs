@@ -2272,8 +2272,8 @@ Plotly.newPlot('c-stage', [{ type:'bar', orientation:'h', y:${JSON.stringify(byS
 
 // SCOREBOARD: the judge against the old ranker (measures.mjs, shared with
 // `judge --scoreboard`).
-// PASTE THESE TODAY: the few strongest people whose seat is in doubt
-// (funnel.mjs pasteQueue). Each links to
+// PASTE THESE TODAY: the five strongest people rated 3+ with no profile on file
+// (funnel.mjs pasteQueue), those there to settle the seat marked. Each links to
 // its card below, where the paste box and the profile search are.
 // Person id -> order asked, for people asked to paste (lead paste-ask) whose
 // profile has not arrived since, and who have not been written to.
@@ -2302,14 +2302,14 @@ function pastePanel(db) {
   }
   if (!q.length) {
     return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
-      + 'whose seat is in doubt has a profile on file. Draft the rest straight from their cards.</p></section>';
+      + 'has a profile on file.</p></section>';
   }
   return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${askedHtml}
-<p class="lead">Rated 3+ on a title alone, or on a seat the judge doubts owns the work, with no profile
-on file. The profile settles whether they are the right person. Anyone rated on a dated event can be
-drafted without one; paste theirs when you open it to send, if it shows something.</p>
+<p class="lead">The strongest rated 3+ with no profile on file, one per firm. A pasted profile gets
+them a draft the next morning. Those marked <i>settle the seat</i> were rated on a title alone, or on a
+seat the judge doubts owns the work: the profile decides whether they are the right person.</p>
 <ol>${q.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> · ${p.rating}/5 ·
-  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}</li>`).join('')}</ol></section>`;
+  ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}${p.seat_unclear ? ' · <i>settle the seat</i>' : ''}</li>`).join('')}</ol></section>`;
 }
 
 // THE FUNNEL, added 2026-10-02: the operator's two daily goals as numbers.

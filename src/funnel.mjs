@@ -160,11 +160,18 @@ export function pickResults(db) {
  * named pilot) goes straight to Draft, and the operator pastes, if at all, when
  * he opens the profile to send. The list keeps the people rated on a title alone
  * or on a seat the judge doubts owns the work, one per firm.
+ *
+ * WIDENED 2026-11-13: the list is again the five strongest without a profile,
+ * whatever the seat. The rule above left people rated on a dated event in a
+ * gap: the morning drafts only for people with a profile (daily.mjs), and the
+ * list never named them, so 39 of 40 rated 3+ without one were invisible
+ * there. `seatUnclear` now only marks which entries are on the list to settle
+ * the seat; `unclearOnly: true` still gives the narrow list.
  */
 const titleOnly = (p) => !p.timing_what || /^(took the seat|no dated event)/i.test(p.timing_what);
 export const seatUnclear = (p) => titleOnly(p) || (p.owner != null && p.owner !== 'owns');
 
-export function pasteQueue(db, n = 5, { unclearOnly = true } = {}) {
+export function pasteQueue(db, n = 5, { unclearOnly = false } = {}) {
   const firms = new Set();
   const out = [];
   // A name held off the ready list has no card to paste into (employer.mjs).
@@ -172,7 +179,7 @@ export function pasteQueue(db, n = 5, { unclearOnly = true } = {}) {
   for (const p of strongWritable(db)) {
     if (p.has_profile || held.has(p.person_id) || firms.has(p.org_id) || (unclearOnly && !seatUnclear(p))) continue;
     firms.add(p.org_id);
-    out.push(p);
+    out.push({ ...p, seat_unclear: seatUnclear(p) });
     if (out.length >= n) break;
   }
   return out;

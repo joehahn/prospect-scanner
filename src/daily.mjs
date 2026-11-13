@@ -418,7 +418,7 @@ if (!dry) {
     const screened = db.prepare('SELECT COUNT(DISTINCT person_id) n FROM screens WHERE created_at >= ?').get(started)?.n ?? 0;
     const paste = pasteQueue(db);
     console.log(`  ${screened} screened · ${paste.length} profile(s) to paste today${paste.length ? ':' : ''}`);
-    for (const p of paste) console.log(`    ${p.rating}/5  ${p.name} — ${p.title ?? ''}, ${p.org_name ?? p.org_id}`);
+    for (const p of paste) console.log(`    ${p.rating}/5  ${p.name} — ${p.title ?? ''}, ${p.org_name ?? p.org_id}${p.seat_unclear ? dim('  (to settle the seat)') : ''}`);
   } catch { /* screens table not created yet */ } finally { db.close(); }
   console.log(dim('  open http://127.0.0.1:8787/ready.html'));
 }
