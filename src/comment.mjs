@@ -20,6 +20,8 @@
 //   npm run comment -- --skip <id>
 //   npm run comment -- --replied <id> [--file <f>] [--date YYYY-MM-DD]   what they said back
 //   npm run comment -- --email <id>
+//   npm run comment -- --more <id> [--url <article>] [--thread <f>]   redraft having read the
+//                      article the post links to and/or the comments he pasted from under it
 
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -30,6 +32,7 @@ import { loadBusiness } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { heading, bold, dim } from './report.mjs';
+import { fetchPage } from './sources/web.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT_FILE = 'prompts/draft-comment.md';
@@ -164,7 +167,7 @@ function operatorBrief(cfg, business) {
   ].filter(Boolean).join('\n');
 }
 
-async function commentOne(db, runId, ctx, person, paste) {
+async function commentOne(db, runId, ctx, person, paste, extra = {}) {
   const org = db.prepare('SELECT name FROM orgs WHERE id = ?').get(person.org_id) ?? {};
   const today = new Date().toISOString().slice(0, 10);
   const user = [
@@ -179,6 +182,8 @@ async function commentOne(db, runId, ctx, person, paste) {
     ctx.examples ? `## Examples of the operator's comments (match the register, not the topics)\n${ctx.examples}\n` : '',
     `## The Activity section, as the operator pasted it`,
     activitySection(paste.body),
+    extra.article ? `\n## THE ARTICLE THE POST LINKS TO (${extra.article.url}), as retrieved\n${extra.article.text}` : '',
+    extra.thread ? `\n## THE COMMENTS ALREADY UNDER THE POST, as the operator pasted them\n${extra.thread}` : '',
   ].join('\n');
   const res = await complete(db, runId, {
     model: ctx.model, maxTokens: 6000, schema: SCHEMA, system: ctx.prompt,
@@ -193,7 +198,13 @@ async function commentOne(db, runId, ctx, person, paste) {
   };
   const a = clean(d.draft_a); const b = clean(d.draft_b);
   const worthy = Boolean(d.worthy) && Boolean(a || b);
-  db.prepare(`INSERT INTO comments (person_id, evidence_id, worthy, post_date, post_excerpt, summary, why,
+  // A REDRAFT (--more) REPLACES THE DRAFTS IN PLACE, so the card keeps its id
+  // and his revise notes; a first draft inserts.
+  db.prepare(extra.replaceId
+    ? `UPDATE comments SET worthy = @worthy, post_date = @date, post_excerpt = @excerpt, summary = @summary,
+        why = @why, draft_a = @a, draft_b = @b, draft_why = @dwhy, model = @model, prompt_file = @pf,
+        cost_usd = COALESCE(cost_usd, 0) + @cost, run_id = @run WHERE id = ${Number(extra.replaceId)}`
+    : `INSERT INTO comments (person_id, evidence_id, worthy, post_date, post_excerpt, summary, why,
       draft_a, draft_b, draft_why, model, prompt_file, cost_usd, run_id, created_at)
     VALUES (@person, @ev, @worthy, @date, @excerpt, @summary, @why, @a, @b, @dwhy, @model, @pf, @cost, @run, @now)`)
     .run({ person: person.id, ev: paste.id, worthy: worthy ? 1 : 0, date: d.post_date || null,
@@ -204,6 +215,46 @@ async function commentOne(db, runId, ctx, person, paste) {
       dwhy: worthy && a ? String(d.draft_why ?? '').trim() : '', model: res.model ?? ctx.model, pf: PROMPT_FILE,
       cost: res.cost_usd ?? 0, run: runId, now: new Date().toISOString() });
   return { worthy, why: d.why ?? '', summary: d.summary ?? '', cost: res.cost_usd ?? 0 };
+}
+
+/**
+ * REDRAFT HAVING READ MORE (2026-11-13): the article the post links to, fetched
+ * under the usual robots.txt rule (never LinkedIn; getJson refuses it), and/or
+ * the comments he copied from under the post. Both are optional; one is needed.
+ */
+async function more(db, args) {
+  const id = Number(args.more);
+  const row = db.prepare('SELECT * FROM comments WHERE id = ?').get(id);
+  if (!row) throw new Error(`no comment ${id}`);
+  const paste = db.prepare('SELECT id, person_id, retrieved_at, body FROM evidence WHERE id = ?').get(row.evidence_id);
+  const person = db.prepare('SELECT * FROM people WHERE id = ?').get(row.person_id);
+  const extra = { replaceId: id };
+  const url = args.url && args.url !== true ? String(args.url).trim() : '';
+  const cfg = await loadConfig();
+  if (url) {
+    // NEVER A FORBIDDEN HOST, checked at run time against the config's own list,
+    // so a pasted LinkedIn link is refused here rather than trusted to robots.txt.
+    const host = new URL(url).hostname.toLowerCase();
+    const banned = (cfg.forbidden_hosts ?? []).map((h) => String(typeof h === 'string' ? h : h.host).toLowerCase());
+    if (banned.some((h) => host === h || host.endsWith(`.${h}`))) throw new Error(`${host} is never fetched. Paste its text into the comments box instead.`);
+    const page = await fetchPage(url, { allowBrowser: false });
+    if (!page?.ok || !page.text) throw new Error(`could not read ${url}${page?.skipped ? ' (robots.txt disallows it)' : ''}`);
+    extra.article = { url, text: page.text.slice(0, 12000) };
+    db.prepare(`INSERT INTO evidence (org_id, person_id, kind, claim, source_url, retrieved_at, provenance, body)
+      VALUES (?, ?, 'article', ?, ?, ?, 'retrieved', ?)`).run(person.org_id, person.id,
+      `Article linked from a post: ${page.title ?? url}`.slice(0, 200), url, new Date().toISOString(), extra.article.text);
+  }
+  if (args.thread && args.thread !== true) extra.thread = readFileSync(String(args.thread), 'utf8').trim().slice(0, 8000) || '';
+  if (!extra.article && !extra.thread) throw new Error('Give the article address, the comments under the post, or both.');
+  const business = loadBusiness(cfg);
+  const ctx = { model: cfg.models.draft ?? cfg.models.default, prompt: promptBody(PROMPT_FILE),
+    brief: operatorBrief(cfg, business), examples: voiceExamples(db),
+    neverClaim: cfg.operator?.never_claim ?? business.you?.never_claim };
+  const runId = startRun(db, 'comment', { model: ctx.model, notes: `more ${id}` });
+  const r = await commentOne(db, runId, ctx, person, paste, extra);
+  finishRun(db, runId, { cost_usd: r.cost, n_in: 1, n_out: r.worthy ? 1 : 0 });
+  const now = db.prepare('SELECT draft_a, draft_b FROM comments WHERE id = ?').get(id);
+  console.log(r.worthy ? `A: ${now.draft_a}\n\nB: ${now.draft_b}` : `not worth a comment now: ${r.why}`);
 }
 
 /** Rewrite draft A on the operator's note; keep the note, and the text before and after. */
@@ -279,6 +330,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const db = openDb();
   if (args.revise) { await revise(db, args); db.close(); return; }
+  if (args.more) { await more(db, args); db.close(); return; }
   if (args.posted || args.skip || args.replied || args.email) { record(db, args); db.close(); return; }
 
   const latestPaste = db.prepare(`SELECT id, person_id, retrieved_at, body FROM evidence

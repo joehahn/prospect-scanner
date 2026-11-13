@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 10, 2026-11-10.**
+**Version 11, 2026-11-13.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -73,6 +73,14 @@ to say people should learn AI rather than fear it. It passed as worthy; the
 operator skipped it: the post makes no claim to take further, comments under
 it are agreement, and the better draft explained model-risk checking to a man
 who lives with it.*
+
+*v11: the article a post points to, and the comments already under it. A PE
+firm's head of AI posted three questions asked of every AI tool after go-live
+and linked his firm's full article. Neither draft had read it, and one
+suggested tracking how often specialists override the AI, which the article
+already reports for a portfolio company. The operator can now give the
+article's address and paste the thread; both arrive below the Activity
+section when he does.*
 
 ---
 
@@ -184,6 +192,18 @@ few seconds, so it stays short. Each draft:
 - If the work the post describes stalled, say the work stalled; never that the
   poster's team failed.
 - No em dashes. No hashtags. No emoji.
+
+**When THE ARTICLE THE POST LINKS TO is given** *(v11)*, the post is a summary
+of it. Read it before choosing the step: a comment that suggests what the
+article already says or does tells the poster you did not read it. Take the
+step past what the article covers. Do not quote its figures or name its
+examples back to the poster: they wrote it, and a detail recited from it
+reads as showing off having read it.
+
+**When THE COMMENTS ALREADY UNDER THE POST are given** *(v11)*, never make a
+point another commenter has made, and never agree with one by name. If the
+best step has been taken already, take the next one, or say the post is no
+longer worth a comment (`worthy` false) when nothing is left to add.
 
 ## Fields
 

@@ -1536,6 +1536,17 @@ function commentsPanel(db) {
         <p><b>Your comment</b> ${copyBtn(c.draft_a)}</p><div class="wrapped">${esc(c.draft_a)}</div>
         <p><b>Why this comment</b><br>${esc(c.draft_why || c.why)}</p>
         ${reviseForm(c)}
+        <details class="raw"><summary>Read the article or the other comments first</summary>
+          <form method="post" action="${SERVER}/comment" class="nb notebox">${back}
+            <input type="hidden" name="id" value="${c.id}">
+            <input type="url" name="url" placeholder="Address of the article the post links to (not a LinkedIn link)" style="width:100%">
+            <textarea name="thread" rows="3" placeholder="Paste the comments under the post, if any."></textarea>
+            <div class="nbrow">
+              <button type="submit" name="do" value="more">Redraft</button>
+              <span class="nbnote">Reads either or both, then rewrites both drafts so they go past the article and repeat no one.</span>
+            </div>
+          </form>
+        </details>
         <details class="raw"><summary>Why this post${c.draft_b ? ', and another angle' : ''}</summary>
           ${c.draft_why ? `<p class="dim">${esc(c.why)}</p>` : ''}
           ${c.draft_b ? `<p><b>Another angle</b> ${copyBtn(c.draft_b)}</p><div class="wrapped">${esc(c.draft_b)}</div>` : ''}

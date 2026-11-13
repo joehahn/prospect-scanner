@@ -559,6 +559,14 @@ async function commentAction(f) {
     const file = join(tmp, `revise-${id}.txt`);
     writeFileSync(file, `${note}\n`);
     args.push('--revise', id, '--file', file);
+  } else if (act === 'more') {
+    // THE ARTICLE AND THE THREAD (2026-11-13): redraft having read either.
+    const url = (f.url ?? '').trim();
+    const thread = (f.thread ?? '').trim();
+    if (!url && !thread) throw new Error('Give the article address, the comments under the post, or both.');
+    args.push('--more', id);
+    if (url) args.push('--url', url);
+    if (thread) { const file = join(tmp, `thread-${id}.txt`); writeFileSync(file, `${thread}\n`); args.push('--thread', file); }
   } else if (act === 'posted') {
     const body = (f.body ?? '').trim();
     if (!body) throw new Error('Nothing in the comment box to record as posted.');
