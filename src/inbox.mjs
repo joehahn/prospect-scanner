@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
+import { pasteQueue } from './funnel.mjs';
 import { operatorLastSaid } from './operator-said.mjs';
 import { nameKey, sameName, headerName, firmOnPage, firmShare, ownPart } from './profile-identity.mjs';
 
@@ -217,11 +218,12 @@ function matchPerson(db, text) {
 }
 
 function page(db, { note = '', text = '', err = '' } = {}) {
-  const waiting = db.prepare(`SELECT p.id, p.name, COALESCE(p.title,'') title, COALESCE(o.name,'') org
-      FROM people p LEFT JOIN orgs o ON o.id = p.org_id
-      JOIN person_scores s ON s.person_id = p.id
-     WHERE s.needs_profile = 1 GROUP BY p.id
-     ORDER BY MAX(s.total) DESC LIMIT 40`).all();
+  // THE MORNING'S PASTE LIST, LONGER (2026-11-14). This read the old ranker's
+  // scores, so it offered people the operator had skipped, people already
+  // written to, and people the judge rates 2. Now the same rule as the paste
+  // list on the dashboard: rated 3+, writable, no profile yet, one per firm.
+  const waiting = pasteQueue(db, 40).map((p) => ({ id: p.person_id, name: p.name,
+    title: p.title ?? '', org: p.org_name ?? '' }));
   return `<!doctype html><meta charset="utf-8"><title>paste a profile</title>
 <style>
  :root{color-scheme:light dark}
@@ -252,7 +254,7 @@ ${note ? `<p class="ok">${esc(note)}</p>` : ''}
   <button type="submit">Ingest</button>
   <span class="dim">&nbsp;Runs <code>lead -- paste</code>. Nothing fetches linkedin.com.</span>
 </form>
-<h2>Waiting on a profile <span class="dim">(top ${waiting.length} by score)</span></h2>
+<h2>Waiting on a profile <span class="dim">(${waiting.length} rated 3+ with no profile yet, one per firm)</span></h2>
 <ul class="dim">${waiting.map((w) =>
   `<li><code>${esc(w.id)}</code> — ${esc(w.name)}${w.title ? `, ${esc(w.title)}` : ''}${w.org ? ` · ${esc(w.org)}` : ''}</li>`).join('')}</ul>
 ${AUTO_PASTE}`;
