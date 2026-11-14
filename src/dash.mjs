@@ -942,19 +942,14 @@ document.addEventListener('click', (e) => {
   if (!a) return;
   const s = (a.closest('article.card') || a.closest('tr'))?.querySelector('a.search');
   if (!s) return;
-  // THE CARD FIRST, BY HAND (2026-11-14). Left to the link's own new-tab
-  // default, the profile's window.open ran first and the browser's pop-up
-  // blocker, which allows one new tab per click, dropped the card. Opened in
-  // this order, the card always opens; the profile needs pop-ups allowed for
-  // this local page once (the browser offers it in the address bar).
   e.preventDefault();
-  window.open(a.href, '_blank');
-  // A FRESH TAB, so it lands just right of the card (2026-11-14): the reused
-  // named tab stayed wherever it already was, often left of the card. Without
-  // 'noopener', which made the browser treat it as unrelated and put it next to
-  // this page, ahead of the card; the opener link is cut by hand instead.
+  // PROFILE FIRST, THEN THE CARD (2026-11-14). The browser puts each tab a page
+  // opens right next to that page, so the last one opened sits leftmost; the
+  // operator wants the card on the left. Both open only with pop-ups allowed
+  // for this local page, which he has set.
   const w = window.open(s.href, '_blank');
   if (w) try { w.opener = null; } catch {}
+  window.open(a.href, '_blank');
 });
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
