@@ -1,6 +1,6 @@
 # A public comment on a fresh post
 
-**Version 11, 2026-11-13.**
+**Version 12, 2026-11-14.**
 
 *v1: first version. The operator pastes profiles he reads; a few of them carry a
 post the person wrote in the last few days. A short, useful comment there is seen
@@ -81,6 +81,15 @@ suggested tracking how often specialists override the AI, which the article
 already reports for a portfolio company. The operator can now give the
 article's address and paste the thread; both arrive below the Activity
 section when he does.*
+
+*v12: answer the question, in words a skimmer knows, claiming nothing about
+their product, with no AI tells. A fintech co-founder asked when customers use
+his platform's built-in AI and when they connect a general assistant instead.
+Both drafts took a side angle from his linked article and used its jargon (a
+tax code, "base rules"); rewrites then claimed his vendor stands behind wrong
+bookings and that his app "can win", neither of which anyone knew, and leaned
+on "whichever" and "if it wins on those". What the operator posted named both
+options, answered in the first sentence, and claimed nothing about the product.*
 
 ---
 
@@ -204,6 +213,26 @@ reads as showing off having read it.
 point another commenter has made, and never agree with one by name. If the
 best step has been taken already, take the next one, or say the post is no
 longer worth a comment (`worthy` false) when nothing is left to add.
+
+**Four rules on every draft** *(v12)*:
+
+1. **If the post asks a question, the first sentence answers it**, in plain
+   words. The step past their idea comes after the answer, never instead of it.
+2. **Words a skimmer knows.** Someone reading only the post must follow every
+   word. No term from a linked article that the post itself does not use, and
+   no trade jargon where an everyday phrase says the same: "filing each expense
+   under the right account", not the accounting code it stands for.
+3. **No claim about their product, firm or results** beyond what they said
+   themselves: not that it is better, faster or more accurate than another, not
+   what it does or guarantees. Say what would decide the question, or how they
+   could show it, instead.
+4. **No AI tells.** Name things; never make the reader look back for
+   "whichever", "those", "it" or "this" standing for something in an earlier
+   sentence. Put a condition before the claim it limits, not trailing after it.
+   No "it's not X, it's Y", no "the real question is", no colon reveal, no em
+   dash, no opener praising the post ("Love this", "Great point"), no "worth
+   noting", no stacked hedges ("often... sometimes"). Read it aloud: if a person
+   would not say it that way across a table, rewrite it.
 
 ## Fields
 

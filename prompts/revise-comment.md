@@ -1,12 +1,17 @@
 # Revising a comment on the operator's note
 
-**Version 1, 2026-11-07.**
+**Version 2, 2026-11-14.**
 
 *v1: first version. The operator reads a drafted comment on the dashboard and
 types a short note on what to change ("build on his agent-checking point",
 "shorter", "drop the result"). This stage rewrites the comment to follow the
 note. His notes are kept, and the recent ones go back to the drafter, so a
 correction made once is not made again.*
+
+*v2: the drafter's four v12 rules hold here too (answer the question first,
+words a skimmer knows, no claim about their product, no AI tells). Rewrites of
+one comment brought in a claim about the poster's product that nobody knew and
+phrasing a person would not say aloud.*
 
 ---
 
@@ -36,6 +41,15 @@ the comment to follow his note.
 - No flattery. No em dashes, hashtags or emoji.
 - Nothing on the never-claim list, and no result already used in a posted
   comment (both given below).
+- If the post asks a question, the first sentence answers it.
+- Every word one a reader of the post alone would follow: no term from a
+  linked article the post does not use, no jargon an everyday phrase can say.
+- No claim about the poster's product, firm or results beyond what they said:
+  not that it is better, more accurate or guarantees anything.
+- No AI tells: name things instead of "whichever", "those", "it" or "this"
+  pointing back to an earlier sentence; a condition goes before its claim; no
+  "it's not X, it's Y", no "the real question is", no colon reveal, no stacked
+  hedges. If a person would not say it that way across a table, rewrite it.
 
 ## Fields
 
