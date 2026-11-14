@@ -940,7 +940,9 @@ window.addEventListener('DOMContentLoaded', () => {
 document.addEventListener('click', (e) => {
   const a = e.target.closest && e.target.closest('a.cardlink');
   if (!a) return;
-  const s = (a.closest('article.card') || a.closest('tr'))?.querySelector('a.search');
+  // The card's own search link; from the paste list, the card the link names.
+  const s = a.closest('article.card, tr, li')?.querySelector('a.search')
+    || document.getElementById(a.dataset.card || '')?.querySelector('a.search');
   if (!s) return;
   e.preventDefault();
   // PROFILE FIRST, THEN THE CARD (2026-11-14). The browser puts each tab a page
@@ -2320,13 +2322,18 @@ function askedToPaste(db) {
   return new Map(rows.map((id, i) => [id, i]));
 }
 
+// A paste-list name opens its card on the left and the profile on the right,
+// as the card's own arrow does (2026-11-14, his request).
+const pasteCardLink = (p) => `<a class="cardlink" href="?card=r-${esc(p.person_id)}" target="_blank" data-card="r-${
+  esc(p.person_id)}" title="Opens their card and their profile, each in its own tab">${esc(p.name)}</a>`;
+
 function pastePanel(db) {
   const askedIds = askedToPaste(db);
   const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id, p.profile_url
       FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...askedIds.keys()].map(() => '?').join(',')})`)
     .all(...askedIds.keys()).sort((a, b) => askedIds.get(a.person_id) - askedIds.get(b.person_id)) : [];
   const askedHtml = askedList.length ? `<p class="lead"><b>You asked for these:</b></p>
-<ol>${askedList.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> ·
+<ol>${askedList.map((p) => `<li>${pasteCardLink(p)} ·
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}
   <br>${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>` : '';
   const q = pasteQueue(db).filter((p) => !askedIds.has(p.person_id));
@@ -2341,7 +2348,7 @@ function pastePanel(db) {
 <p class="lead">The strongest rated 3+ with no profile on file, one per firm. A pasted profile gets
 them a draft the next morning. Those marked <i>settle the seat</i> were rated on a title alone, or on a
 seat the judge doubts owns the work: the profile decides whether they are the right person.</p>
-<ol>${q.map((p) => `<li><a href="#r-${esc(p.person_id)}">${esc(p.name)}</a> · ${p.rating}/5 ·
+<ol>${q.map((p) => `<li>${pasteCardLink(p)} · ${p.rating}/5 ·
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}${p.seat_unclear ? ' · <i>settle the seat</i>' : ''}</li>`).join('')}</ol></section>`;
 }
 
