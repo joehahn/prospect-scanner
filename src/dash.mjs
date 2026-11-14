@@ -927,8 +927,21 @@ window.addEventListener('DOMContentLoaded', () => {
     a.title = 'Open this card in its own tab';
     a.textContent = '↗';
     a.style.cssText = 'margin-left:.4rem;text-decoration:none;font-weight:400';
+    a.classList.add('cardlink');
     h.appendChild(a);
   }
+});
+// THE PROFILE OPENS WITH THE CARD (2026-11-14). The operator: "whenever i click
+// button that would open card in a new tab, also open the profile in new tab
+// too", on the cards and on Worth a comment. His click opens, in his browser,
+// the link already on that card (the profile he pasted, or the people-search
+// link): nothing new is linked, and nothing reads the page it opens. Into the
+// same named tab as that link, so a session still leaves one LinkedIn tab.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a.cardlink');
+  if (!a) return;
+  const s = (a.closest('article.card') || a.closest('tr'))?.querySelector('a.search');
+  if (s) window.open(s.href, s.target || '_blank', 'noopener');
 });
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
@@ -1530,9 +1543,9 @@ function commentsPanel(db) {
   };
   const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b>${
         c.rating != null ? `<br><span class="dim">prospect ${esc(String(c.rating))}/5</span>` : ''}</td>
-      <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
-        searchLink(c.name, c.org_name, c.profile_url)}<br>
-        <a href="index.html#p-${esc(c.person_id)}">their card</a></td>
+      <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>
+        <a class="cardlink" href="index.html?card=p-${esc(c.person_id)}" target="_blank" title="Opens their card and their profile, each in its own tab">their card</a><br>${
+        searchLink(c.name, c.org_name, c.profile_url)}</td>
       <td><p><b>The post</b>, starting &ldquo;${esc(String(c.post_excerpt ?? '').trim().replace(/[.…\s]+$/, ''))}&hellip;&rdquo;<br>${esc(c.summary)}</p>
         <p><b>Your comment</b> ${copyBtn(c.draft_a)}</p><div class="wrapped">${esc(c.draft_a)}</div>
         <p><b>Why this comment</b><br>${esc(c.draft_why || c.why)}</p>
