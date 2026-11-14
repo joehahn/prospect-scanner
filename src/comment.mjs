@@ -300,6 +300,21 @@ async function revise(db, args) {
   console.log(`comment ${id} revised · $${cost.toFixed(4)}\n  ${draft}`);
 }
 
+// A PAUSE AFTER A COMMENT (2026-11-14). The operator: wait one to two full
+// business days before reaching out to anyone he commented on, so the comment
+// is seen as itself and not as the opening of a pitch. Two full weekdays after
+// the day it was posted; the hold table already stops the drafter and shows on
+// the dashboard, so the pause is a hold.
+export const COMMENT_PAUSE_BUSINESS_DAYS = 2;
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+/** The first local date outreach may resume after a comment posted on `day` (a Date). */
+export function commentPauseEnds(day, n = COMMENT_PAUSE_BUSINESS_DAYS) {
+  const d = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  for (let full = 0; full < n;) { d.setDate(d.getDate() + 1); if (d.getDay() % 6) full += 1; }
+  d.setDate(d.getDate() + 1);
+  return ymd(d);
+}
+
 function record(db, args) {
   const id = Number(args.posted ?? args.skip ?? args.replied ?? args.email);
   const row = db.prepare('SELECT * FROM comments WHERE id = ?').get(id);
@@ -309,7 +324,11 @@ function record(db, args) {
     const text = args.file && args.file !== true ? readFileSync(String(args.file), 'utf8').trim() : '';
     if (!text) throw new Error('--posted needs --file with the comment as posted');
     db.prepare('UPDATE comments SET posted_text = ?, posted_at = ?, skipped_at = NULL WHERE id = ?').run(text, now, id);
-    console.log(`posted comment ${id} recorded`);
+    const until = commentPauseEnds(new Date());
+    const why = `commented on their post; no outreach for ${COMMENT_PAUSE_BUSINESS_DAYS} full business days after (comment ${id})`;
+    db.prepare(`DELETE FROM hold WHERE person_id = ? AND condition LIKE 'commented on their post;%' AND seeded = 0`).run(row.person_id);
+    db.prepare('INSERT INTO hold (person_id, release_after, condition) VALUES (?, ?, ?)').run(row.person_id, until, why);
+    console.log(`posted comment ${id} recorded; no outreach to them until ${until}`);
   } else if (args.skip) {
     db.prepare('UPDATE comments SET skipped_at = ? WHERE id = ?').run(now, id);
     console.log(`comment ${id} skipped`);

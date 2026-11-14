@@ -112,7 +112,7 @@ import { loadTargeting } from './targeting.mjs';
 import { complete, batchMode, promptBody } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
-import { notThisPerson, withoutMessaging } from './profile-identity.mjs';
+import { notThisPerson, withoutMessaging, headerName, nameKey, sameName } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EXTRACT_PROMPT = 'prompts/extract-profile.md';
@@ -685,7 +685,12 @@ async function paste(db, cfg, args) {
     const stranger = notThisPerson(body, person.name, firmName);
     if (stranger) throw new Error(`${stranger}\nNothing stored. Paste the right page, or run again with --force if it is them.`);
     const parts = personName(person.name);
-    if (parts && !pageNames(body, person.name)) {
+    // OUTSIDE THE NETWORK a page prints the surname as an initial ("Beth M S."),
+    // so it can never name it; the header check above has already matched that
+    // initial and the first name, and the firm (2026-11-14).
+    const head = nameKey(headerName(body));
+    const initialOnly = head && head.last.length === 1 && sameName(head, person.name);
+    if (parts && !initialOnly && !pageNames(body, person.name)) {
       throw new Error(`This page never mentions "${parts.last}", so it is probably not ${person.name}'s profile. ` +
         'Nothing stored. Paste it on the right card, or run again with --force if it is them under another name.');
     }

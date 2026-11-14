@@ -38,6 +38,10 @@ export function nameKey(s) {
     .filter((x) => x && !/^(dr|mr|mrs|ms|prof)$/.test(x));
   while (w.length > 2 && SUFFIX.test(w[w.length - 1])) w.pop();
   while (w.length > 2 && w[0].length === 1) w.shift();
+  // ONLY INITIALS AFTER THE FIRST NAME (2026-11-14): "Beth M S." outside the
+  // network is Beth, a middle initial, and the surname's initial. Dropping the
+  // trailing initial left "m" as her surname and refused her own page.
+  if (w.length > 2 && w.slice(1).every((x) => x.length === 1)) w = [w[0], w[w.length - 1]];
   while (w.length > 2 && w[w.length - 1].length === 1) w.pop();
   return w.length < 2 ? null : { first: w[0], last: w[w.length - 1], words: w, alias };
 }
@@ -47,7 +51,11 @@ export function sameName(head, name) {
   const k = nameKey(name);
   if (!head || !k) return false;
   // OUTSIDE YOUR NETWORK the surname is an initial: "Frantz F."
-  if (head.last.length === 1) return k.first === head.first && k.last[0] === head.last;
+  // The first name may still be the long form of the one on file: "Michael V."
+  // for a card that says Mike (2026-11-14).
+  if (head.last.length === 1) {
+    return k.last[0] === head.last && [k.first, k.alias].filter(Boolean).some((a) => sameFirst(a, head.first));
+  }
   // A compound surname may print in full or in part ("Ann B. Contoso Fabrikam").
   const surname = head.last === k.last || head.words.includes(k.last) || k.words.includes(head.last);
   const first = [k.first, k.alias].filter(Boolean)

@@ -57,3 +57,10 @@ test('one shared word does not name a firm as fully as its own name', () => {
   assert.ok(firmShare(p, 'Fabrikam Industrial Works') > firmShare(p, 'Contoso (Automotive Trade Alliance)'));
   assert.equal(firmShare(p, ''), 0);
 });
+
+test('outside the network: a middle initial before the surname initial, and a long-form first name', () => {
+  assert.equal(notThisPerson(page('Ann M C.', 'CPO at Fabrikam', 'Fabrikam'), 'Ann Contoso', 'Fabrikam'), null);
+  assert.equal(notThisPerson(page('Michael C.', 'Head of Procurement', 'Fabrikam'), 'Mike Contoso', 'Fabrikam'), null);
+  assert.match(notThisPerson(page('Ann M D.', 'CPO at Fabrikam', 'Fabrikam'), 'Ann Contoso', 'Fabrikam'), /not Ann Contoso's/);
+  assert.match(notThisPerson(page('Paul C.', 'CPO at Fabrikam', 'Fabrikam'), 'Ann Contoso', 'Fabrikam'), /not Ann Contoso's/);
+});
