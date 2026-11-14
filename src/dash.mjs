@@ -941,7 +941,15 @@ document.addEventListener('click', (e) => {
   const a = e.target.closest && e.target.closest('a.cardlink');
   if (!a) return;
   const s = (a.closest('article.card') || a.closest('tr'))?.querySelector('a.search');
-  if (s) window.open(s.href, s.target || '_blank', 'noopener');
+  if (!s) return;
+  // THE CARD FIRST, BY HAND (2026-11-14). Left to the link's own new-tab
+  // default, the profile's window.open ran first and the browser's pop-up
+  // blocker, which allows one new tab per click, dropped the card. Opened in
+  // this order, the card always opens; the profile needs pop-ups allowed for
+  // this local page once (the browser offers it in the address bar).
+  e.preventDefault();
+  window.open(a.href, '_blank');
+  window.open(s.href, s.target || '_blank', 'noopener');
 });
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
