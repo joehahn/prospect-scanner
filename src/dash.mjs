@@ -1531,7 +1531,8 @@ function commentsPanel(db) {
   const items = open.map((c) => `<tr><td><b>${esc(c.post_date ?? '')}</b>${
         c.rating != null ? `<br><span class="dim">prospect ${esc(String(c.rating))}/5</span>` : ''}</td>
       <td>${esc(c.name)}<br><span class="dim">${esc(c.title ?? '')}</span><br>${esc(c.org_name)}<br>${
-        searchLink(c.name, c.org_name, c.profile_url)}</td>
+        searchLink(c.name, c.org_name, c.profile_url)}<br>
+        <a href="index.html#p-${esc(c.person_id)}">their card</a></td>
       <td><p><b>The post</b>, starting &ldquo;${esc(String(c.post_excerpt ?? '').trim().replace(/[.…\s]+$/, ''))}&hellip;&rdquo;<br>${esc(c.summary)}</p>
         <p><b>Your comment</b> ${copyBtn(c.draft_a)}</p><div class="wrapped">${esc(c.draft_a)}</div>
         <p><b>Why this comment</b><br>${esc(c.draft_why || c.why)}</p>
