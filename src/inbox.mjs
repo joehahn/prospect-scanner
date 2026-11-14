@@ -396,6 +396,11 @@ function rebuild() {
   return rebuildNext;
 }
 let pasteCount = 0;
+// HELD UP THROUGH THE REBUILD (2026-11-14). The banner used to drop when the
+// last paste was stored, though the cards change only after the re-rank and
+// rebuild that follow, about a minute later. A reload in that minute showed the
+// old To-paste list with no banner, and pastes looked lost.
+let pasteRebuilding = false;
 const pasteJobs = new Map();
 const pasteFailures = [];
 
@@ -439,11 +444,13 @@ function queuePaste(personId, args) {
   }).then(async () => {
     pasteCount -= 1;
     if (pasteCount > 0) return;
+    pasteRebuilding = true;
     try {
       await run(['run', 'rank', '--silent']);
       await rebuild();
       console.log('  re-ranked and rebuilt');
     } catch (e) { console.log(`  rebuild failed: ${String(e.stderr || e.message).slice(0, 200)}`); }
+    finally { if (pasteCount === 0) pasteRebuilding = false; }
   });
   pasteChain = job;
   pasteJobs.set(personId, job);
@@ -457,10 +464,12 @@ const pasteSettled = (personId) => pasteJobs.get(String(personId ?? '').trim()) 
 const FAILURE_SHOWN_MS = 30 * 60_000;
 function pasteBanner() {
   const failed = pasteFailures.filter((f) => Date.now() - f.at < FAILURE_SHOWN_MS);
-  if (!pasteCount && !failed.length) return '';
+  if (!pasteCount && !pasteRebuilding && !failed.length) return '';
   const line = pasteCount
-    ? `<div>${pasteCount} paste${pasteCount === 1 ? '' : 's'} in line: stored, judged and then rebuilt in the background. Reload to see the cards once the line is empty.</div>`
-    : '';
+    ? `<div>${pasteCount} paste${pasteCount === 1 ? '' : 's'} in line: stored, judged and then rebuilt in the background. Reload to see the cards once this banner is gone.</div>`
+    : pasteRebuilding
+      ? '<div>Pastes stored; re-ranking and rebuilding the pages (about a minute). Reload to see the cards once this banner is gone.</div>'
+      : '';
   const fails = failed.map((f) => `<div><b>Paste for ${esc(f.personId)} failed:</b> ${esc(f.msg)}</div>`).join('');
   return `<div style="position:sticky;top:0;z-index:98;padding:8px 16px;font-size:13px;white-space:pre-wrap;${
     failed.length ? 'background:#b3261e;color:#fff' : 'background:#fdf3d0;color:#3d3200'}">${line}${fails}</div>`;
