@@ -949,7 +949,9 @@ document.addEventListener('click', (e) => {
   // this local page once (the browser offers it in the address bar).
   e.preventDefault();
   window.open(a.href, '_blank');
-  window.open(s.href, s.target || '_blank', 'noopener');
+  // A FRESH TAB, so it lands just right of the card (2026-11-14): the reused
+  // named tab stayed wherever it already was, often left of the card.
+  window.open(s.href, '_blank', 'noopener');
 });
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
