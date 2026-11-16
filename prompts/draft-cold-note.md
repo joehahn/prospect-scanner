@@ -1,4 +1,6 @@
-# draft-cold-note — v48, 2026-11-13
+# draft-cold-note — v49, 2026-11-16
+
+*v49: who he is before what he builds, and what he builds catches a problem while it can still be fixed. Under v47–v48 a connection note ran lede, what he builds, credential: the offer came before the reader knew who was offering, and the operator flipped the order by hand on every note drafted 2026-11-16 ("the offer comes before i explain what i do, which seems somewhat backwards"). The same day a note to a logistics director whose post was about what happens when third-party logistics controls are not set up right offered AI that reads the partners' invoices and shipment data "to show what each partner costs and where service slips": a report on what already went wrong. The operator: "ai to improve visibility into issues seems mundane, most people would rather have ai to mitigate issues before they bubble up". The version he preferred flags a delivery at risk while there is still time to act.*
 
 *v48: with no lede, the note opens on their circumstance, then what he builds. Under v47 a connection note to an intelligent-automation manager with nothing of hers inside 60 days opened "I could for instance build AI that reads the agency emails and attachments rule-based bots can't": a pitch from nowhere that also knocked the bots she runs. The operator was "not sure I like" it. The opening is now what their team or firm is doing, in a few plain words from the evidence ("I see your automation team is adding AI to its RPA work"), never the title recited and never a judgment of their work; what he builds follows.*
 
@@ -155,7 +157,8 @@ the firm does, and work out:
    reader his own job and gives him nothing to answer. When nothing dated or
    said is on file, open on their circumstance: what their team or firm is
    doing, in a few plain words the evidence supports ("I see your automation
-   team is adding AI to its RPA work"), then what he builds *(v48)*. Never a
+   team is adding AI to its RPA work"), then who he is and what he builds
+   *(v48, v49)*. Never a
    judgment of their work ("what your bots can't do"); the title may appear
    inside that sentence, never as it.
    Earlier notes that opened on a remit are not precedent for doing so.
@@ -330,6 +333,16 @@ handles, usually the unstructured material around their systems: emails,
 notices, reports, documents, other languages, other regions' formats, and the
 routine calls people make from them, drafted for a person to approve.
 
+**Catch it while it can still change, not report it after.** *(v49.)* The
+work he offers acts ahead of the problem: it flags the delivery at risk, the
+supplier slipping, the claim likely to be refused, the clause that will cost
+money at renewal, while someone can still do something about it. A report on
+what already happened ("shows what each partner costs and where service
+slipped", "gives visibility into issues") is the mundane version; a reader
+would rather head the problem off than read about it. Say what the AI flags
+and when, never that it prevents the problem: whether it can is not known
+until the data is seen.
+
 ## Never suggest their house is a mess
 
 *A circumstance is not a judgment (v28).* A turnaround after a bankruptcy, an
@@ -394,22 +407,30 @@ paragraphs. If the honest note is shorter, write the shorter one.
 A **connection note** (`linkedin_connect_note`) has a hard character limit, given
 with the request; LinkedIn refuses anything longer. Write one or two sentences
 within it: no greeting line, no signature, no subject. **It carries no offer**
-*(v38)*: their lede (or, with none, their circumstance, v48), what he builds, a credential, a line to connect.
-**What he builds, not what they must need** *(v47)*. The middle sentence is one
-concrete thing he builds, offered as an example of his work: "I build AI that
-reads supplier contracts for tariff and cost exposure", "I could, for instance,
-build an agent that works the exceptions your bots hand back". Never a guess at
+*(v38)*: their lede (or, with none, their circumstance, v48), who he is, what he builds, a line to connect.
+**Who he is comes before what he builds** *(v49)*: the reader learns who is
+writing, then what that person builds. In that order the build reads as his
+work; ahead of the credential it reads as a pitch from a stranger. Write it
+as plainly as "I could help..." or "I could build...", with no "for instance":
+following the credential, it is already an example. The recent notes shown
+in the dossier that put the build first are not precedent for the order.
+**A concrete credential** from the dossier's credentials, past tense where it
+is past, in place of a self-label: a past employer and what he did there says
+more than "an independent AI consultant who builds custom AI". It is still not
+the offer: no price, no package, no ask.
+**What he builds, not what they must need** *(v47)*. The sentence after it is
+one concrete thing he builds, offered as an example of his work, and it
+catches something early (v49): "I could build AI that reads supplier
+contracts and flags tariff exposure before a renewal locks it in", "I could
+build an agent that works the exceptions your bots hand back before they
+queue up". Never a guess at
 their problem, plan or priorities: "I'd guess", "my bet is", "I suspect" and
 their cousins are retired, and the recent notes that use them are not
 precedent. A stranger guessing at someone's work reads as presumption, and a
 miss loses the note. Pitch the example at the outcome their seat owns, in their
 world: a COO hears about operations, a procurement head about spend and
 suppliers, never a task two rungs below them or a detail nothing on file
-mentions. Then **a concrete credential** from the dossier's credentials, past
-tense where it is past, in place of a self-label: a past employer and what he did
-there, with its years, says more than "an independent AI consultant who builds
-custom AI". It is still not the offer: no price, no
-package, no ask.
+mentions.
 **The view lands on work the operator does** *(v43)*: when their topic lies
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their
@@ -435,9 +456,9 @@ chat makes the offer after the accept a surprise. The full offer still waits
 for that message (v38).
 Its job is the accept. Work out the storyline and the offer as usual and put
 them in NOTES: the offer is used in the message after the accept, not here.
-**If the voice rules give a connection-note shape, follow it instead of the five
-beats.** Put only the note under DRAFT: its length, if worth saying, goes in
-NOTES. *(v26.)*
+**The shape above replaces the five beats** *(v49)*; the voice file's five beats
+are for longer notes. Put only the note under DRAFT: its length, if worth saying,
+goes in NOTES. *(v26.)*
 
 ## The message after an accepted connection
 
