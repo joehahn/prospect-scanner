@@ -953,6 +953,14 @@ document.addEventListener('click', (e) => {
   if (w) try { w.opener = null; } catch {}
   window.open(a.href, '_blank');
 });
+// Open all: each name's own click, last name first, so that with every tab
+// placed next to this page the first name ends up leftmost.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('button.openall');
+  if (!btn) return;
+  const links = [...btn.closest('section').querySelectorAll('a.cardlink')];
+  for (const a of links.reverse()) a.click();
+});
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
 // thirty seconds -- and an unchanged page for that long reads as a dead button.
@@ -2325,6 +2333,10 @@ function askedToPaste(db) {
   return new Map(rows.map((id, i) => [id, i]));
 }
 
+// ONE BUTTON OPENS THE WHOLE LIST (2026-11-17, his request): every name's card
+// and profile, as if he had clicked each name in turn.
+const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button></p>`;
+
 // A paste-list name opens its card on the left and the profile on the right,
 // as the card's own arrow does (2026-11-14, his request).
 const pasteCardLink = (p) => `<a class="cardlink" href="?card=r-${esc(p.person_id)}" target="_blank" data-card="r-${
@@ -2341,13 +2353,13 @@ function pastePanel(db) {
   <br>${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>` : '';
   const q = pasteQueue(db).filter((p) => !askedIds.has(p.person_id));
   if (askedHtml && !q.length) {
-    return `<section class="panel"><h2>Profiles to paste today: ${askedList.length}</h2>${askedHtml}</section>`;
+    return `<section class="panel"><h2>Profiles to paste today: ${askedList.length}</h2>${OPEN_ALL}${askedHtml}</section>`;
   }
   if (!q.length) {
     return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
       + 'has a profile on file.</p></section>';
   }
-  return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${askedHtml}
+  return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${OPEN_ALL}${askedHtml}
 <p class="lead">The strongest rated 3+ with no profile on file, one per firm. A pasted profile gets
 them a draft the next morning. Those marked <i>settle the seat</i> were rated on a title alone, or on a
 seat the judge doubts owns the work: the profile decides whether they are the right person.</p>
