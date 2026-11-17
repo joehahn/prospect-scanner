@@ -6,6 +6,8 @@
 //   1. searches   the measured search list, --save, but only on Monday (it
 //                 costs a search credit per search, and the news does not turn
 //                 over daily); --searches forces it
+//   0. drop       profiles the assistant saved in the shared drop folder
+//                 (`npm run drop`), stored and judged before anything else
 //   1b. agendas   speakers from conference agendas (`npm run events`), also
 //                 weekly: a session abstract is a named practitioner saying what
 //                 they are working on, which no news search reaches; --events
@@ -186,6 +188,10 @@ console.log(heading(`daily · ${localStart}${dry ? ' · dry run' : ''}`));
 // made up on the next weekday, and the Monday after still runs, since two days
 // apart is enough for a catch-up and the regular slot to both be worth it.
 const weeklyDue = (age) => (new Date().getDay() === 1 && age >= 2) || age >= 7.5;
+
+// 0. the assistant's drop folder (2026-11-17): pages she saved since yesterday
+// are stored first, so the morning's judging sees them.
+run('0. drop folder', ['drop']);
 
 // 1. searches, weekly
 // Only a run of the whole list sets the clock; a hand run of chosen searches does not.

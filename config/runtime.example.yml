@@ -134,3 +134,9 @@ models:
   # Outside reviewers (npm run review): models from other makers, through
   # OpenRouter's zero-retention endpoints. Empty turns the review off.
   reviewers: []
+
+# Optional: a shared folder where an assistant saves profile pages she copied
+# (`npm run drop`). Share only this folder with her; `npm run dash` writes her
+# paste list into it as to-paste.html. Unset, there is no drop folder.
+# assistant_drop:
+#   dir: "~/Dropbox/prospect-pastes"

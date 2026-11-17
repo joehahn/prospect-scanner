@@ -33,6 +33,8 @@
 //                              [--title "..."] [--degree 1|2|3] [--email a@b.c] [--role "..."]
 //                              [--extract]  read the fields off the page with a cheap model
 //                              [--check]  run the refusals only and store nothing
+//                              [--via assistant]  his assistant copied the page: her
+//                              connection degree is not his, so the degree on file stands
 //                              [--confirmed confirmed|unclear|contradicted]  does the page back the title up
 //                              [--activity dormant|low|active|high] [--followers N]
 //                              [--in-seat-since YYYY-MM] [--referral 0..1]
@@ -969,7 +971,11 @@ async function extractProfile(db, cfg, person, body, url, args) {
     // passes it as --degree; the model's own reading overrode it, and two 3rd-
     // degree strangers were stored as 1st-degree connections (2026-10-05), which
     // made them look warm and picked the wrong channel.
-    degree: (args?.degree && args.degree !== true ? Number(args.degree) : null) ?? d.degree ?? person.degree,
+    // SOMEONE ELSE'S DEGREE IS NOT HIS (2026-11-17). A page the assistant copied
+    // shows her connection degree to the person, not the operator's, so with
+    // --via assistant the degree on file stands whatever the page says.
+    degree: args?.via === 'assistant' ? person.degree
+      : (args?.degree && args.degree !== true ? Number(args.degree) : null) ?? d.degree ?? person.degree,
     // AN ADDRESS OR NOTHING. `email` is the VERIFIED column -- rank scores a
     // value here above an email_guess, and draft addresses the note to it --
     // so the one thing it must never hold is a token the model emitted to

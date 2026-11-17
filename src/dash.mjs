@@ -12,7 +12,7 @@
 // Usage:  npm run dash            writes data/dashboard.html
 //         npm run dash -- --open  and opens it
 
-import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync, existsSync, copyFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -30,6 +30,7 @@ import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { upcomingTalks } from './events.mjs';
+import { dropDir } from './drop.mjs';
 import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -2342,6 +2343,36 @@ const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every ca
 const pasteCardLink = (p) => `<a class="cardlink" href="?card=r-${esc(p.person_id)}" target="_blank" data-card="r-${
   esc(p.person_id)}" title="Opens their card and their profile, each in its own tab">${esc(p.name)}</a>`;
 
+// The paste list for the assistant: who, and the link to open. No ratings, no
+// notes, nothing about why: she sees only what she needs to copy the page.
+function assistantPage(db) {
+  const asked = askedToPaste(db);
+  const askedRows = asked.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.profile_url
+      FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...asked.keys()].map(() => '?').join(',')})`)
+    .all(...asked.keys()) : [];
+  const list = [...askedRows, ...pasteQueue(db).filter((p) => !asked.has(p.person_id))];
+  const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profiles to paste</title>
+<style>:root{color-scheme:light dark}body{font:16px/1.5 -apple-system,system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px}
+li{margin:.6rem 0}.dim{opacity:.7;font-size:14px}code{background:#8882;padding:.05rem .3rem;border-radius:3px}</style>
+<h1>Profiles to paste: ${list.length}</h1>
+<p class="dim">Updated ${esc(when)}.</p>
+<ol>${list.map((p) => `<li><a href="cards.html?card=r-${esc(p.person_id)}" target="_blank"><b>${esc(p.name)}</b></a> · ${
+    esc(p.title ?? '')}, ${esc(p.org_name ?? '')}<br>${
+    searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>
+<h2>For each person</h2>
+<ol>
+<li>The name opens the person's card; the link under it opens LinkedIn. If it is a search, click the person whose title and firm match the line above.</li>
+<li>Copy the address bar (the URL with <code>/in/</code> in it).</li>
+<li>Click anywhere on the profile page, press Cmd-A then Cmd-C to copy the whole page.</li>
+<li>In a new plain-text file, put the URL on the first line, paste the page below it, and save it into this folder
+as <code>firstname-lastname.txt</code>.</li>
+</ol>
+<p class="dim">Files are picked up from this folder each morning. A file that went in moves to <code>done</code>; one that did not
+moves to <code>check</code> with a note saying why. Do not message, connect with or follow anyone from this list.</p>`;
+}
+
 function pastePanel(db) {
   const askedIds = askedToPaste(db);
   const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id, p.profile_url
@@ -3953,6 +3984,19 @@ ${mine.length ? cards(mine, cfg, d)
     ? 'See above &mdash; the evidence that would put someone here has never been retrieved.'
     : 'The triggers have fired, but not at a firm that also clears the gates and has a reachable seat.'}</p>`}
 </section>`);
+  }
+
+  // THE ASSISTANT'S PASTE LIST (2026-11-17), into the shared drop folder: the
+  // same people as the paste panel, and nothing else from the book.
+  const drop = dropDir(cfg);
+  // Her cards too, in full (2026-11-17, the operator: "i'm ok with her seeing
+  // the entire card"): the Ready page, which holds every card on her list, as
+  // cards.html; her list opens each one. Only that page: all of them run past
+  // 100MB, synced again on every rebuild.
+  if (drop && existsSync(drop)) {
+    writeFileSync(resolve(drop, 'to-paste.html'), assistantPage(db));
+    const ready = resolve(OUT_DIR, 'ready.html');
+    if (existsSync(ready)) copyFileSync(ready, resolve(drop, 'cards.html'));
   }
 
   // The single-page entry point stays where it was, as a redirect.
