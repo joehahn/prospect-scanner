@@ -135,8 +135,9 @@ models:
   # OpenRouter's zero-retention endpoints. Empty turns the review off.
   reviewers: []
 
-# Optional: a shared folder where an assistant saves profile pages she copied
-# (`npm run drop`). Share only this folder with her; `npm run dash` writes her
-# paste list into it as to-paste.html. Unset, there is no drop folder.
-# assistant_drop:
-#   dir: "~/Dropbox/prospect-pastes"
+# Optional: the form server (npm run inbox) also answers on this address, so an
+# assistant can paste profiles from her own laptop. Use a private-network address
+# only (a Tailscale 100.x address), never a public one. From it, decision buttons
+# are disabled and her pastes are stored --via assistant. Unset: 127.0.0.1 only.
+# inbox:
+#   remote_listen: "100.64.0.1"

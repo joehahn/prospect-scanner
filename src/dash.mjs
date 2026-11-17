@@ -12,7 +12,7 @@
 // Usage:  npm run dash            writes data/dashboard.html
 //         npm run dash -- --open  and opens it
 
-import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync, existsSync, copyFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync, readdirSync, unlinkSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -30,7 +30,6 @@ import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { upcomingTalks } from './events.mjs';
-import { dropDir } from './drop.mjs';
 import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -932,36 +931,7 @@ window.addEventListener('DOMContentLoaded', () => {
     h.appendChild(a);
   }
 });
-// THE PROFILE OPENS WITH THE CARD (2026-11-14). The operator: "whenever i click
-// button that would open card in a new tab, also open the profile in new tab
-// too", on the cards and on Worth a comment. His click opens, in his browser,
-// the link already on that card (the profile he pasted, or the people-search
-// link): nothing new is linked, and nothing reads the page it opens. Into the
-// same named tab as that link, so a session still leaves one LinkedIn tab.
-document.addEventListener('click', (e) => {
-  const a = e.target.closest && e.target.closest('a.cardlink');
-  if (!a) return;
-  // The card's own search link; from the paste list, the card the link names.
-  const s = a.closest('article.card, tr, li')?.querySelector('a.search')
-    || document.getElementById(a.dataset.card || '')?.querySelector('a.search');
-  if (!s) return;
-  e.preventDefault();
-  // PROFILE FIRST, THEN THE CARD (2026-11-14). The browser puts each tab a page
-  // opens right next to that page, so the last one opened sits leftmost; the
-  // operator wants the card on the left. Both open only with pop-ups allowed
-  // for this local page, which he has set.
-  const w = window.open(s.href, '_blank');
-  if (w) try { w.opener = null; } catch {}
-  window.open(a.href, '_blank');
-});
-// Open all: each name's own click, last name first, so that with every tab
-// placed next to this page the first name ends up leftmost.
-document.addEventListener('click', (e) => {
-  const btn = e.target.closest && e.target.closest('button.openall');
-  if (!btn) return;
-  const links = [...btn.closest('section').querySelectorAll('a.cardlink')];
-  for (const a of links.reverse()) a.click();
-});
+${CARD_TABS_JS}
 // Send the browser back to the card it was posted from, and say something is
 // happening. A draft is two API calls plus a re-rank and a rebuild -- about
 // thirty seconds -- and an unchanged page for that long reads as a dead button.
@@ -1144,19 +1114,7 @@ const layoutFor = (extra) => Object.assign({
   apply();
 })();
 
-// One delegated listener for every copy button on the page. Falls back to
-// selecting the text when the clipboard API is unavailable, which it is on a
-// file:// page in some browsers — and these pages are always opened from disk.
-document.addEventListener('click', (e) => {
-  const b = e.target.closest('button.copy');
-  if (!b) return;
-  const text = b.getAttribute('data-copy');
-  const done = () => { const o = b.textContent; b.textContent = 'copied'; b.classList.add('done');
-    setTimeout(() => { b.textContent = o; b.classList.remove('done'); }, 1200); };
-  if (navigator.clipboard && window.isSecureContext) {
-    navigator.clipboard.writeText(text).then(done, () => selectInstead(b));
-  } else selectInstead(b);
-});
+${COPY_JS}
 // The note box's To: line shows only while Email is the channel, and a
 // connection note shows its length against LinkedIn's cap.
 function nbCount(f) {
@@ -1180,13 +1138,6 @@ document.addEventListener('change', (e) => {
 });
 document.addEventListener('input', (e) => { if (e.target.name === 'body') nbCount(e.target.closest('form')); });
 document.querySelectorAll('form.nb').forEach(nbCount);
-function selectInstead(b) {
-  const code = b.parentElement.querySelector('code');
-  if (!code) return;
-  const r = document.createRange(); r.selectNodeContents(code);
-  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-  b.textContent = 'select+copy';
-}
 ${script}
 
 // ALL PROSPECTS, one click from anywhere down a page of cards (operator,
@@ -2334,6 +2285,63 @@ function askedToPaste(db) {
   return new Map(rows.map((id, i) => [id, i]));
 }
 
+// THE CARD-AND-PROFILE CLICK AND THE COPY BUTTONS, as constants so any page
+// that lists people can carry the same clicks.
+const CARD_TABS_JS = `// THE PROFILE OPENS WITH THE CARD (2026-11-14). The operator: "whenever i click
+// button that would open card in a new tab, also open the profile in new tab
+// too", on the cards and on Worth a comment. His click opens, in his browser,
+// the link already on that card (the profile he pasted, or the people-search
+// link): nothing new is linked, and nothing reads the page it opens. Into the
+// same named tab as that link, so a session still leaves one LinkedIn tab.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest && e.target.closest('a.cardlink');
+  if (!a) return;
+  // The card's own search link; from the paste list, the card the link names.
+  const s = a.closest('article.card, tr, li')?.querySelector('a.search')
+    || document.getElementById(a.dataset.card || '')?.querySelector('a.search');
+  if (!s) return;
+  // ONE POP-UP PER CLICK (2026-11-17). A browser lets a click open one window
+  // by script; a page opened from disk without pop-ups allowed blocked the
+  // second, so the card opened and the profile did not. The card now opens as
+  // the link's own click, and only the profile is opened by script.
+  // PROFILE FIRST, THEN THE CARD (2026-11-14). The browser puts each tab a page
+  // opens right next to that page, so the last one opened sits leftmost; the
+  // operator wants the card on the left. Both open only with pop-ups allowed
+  // for this local page, which he has set.
+  const w = window.open(s.href, '_blank');
+  if (w) try { w.opener = null; } catch {}
+});
+// Open all: each name's own click, last name first, so that with every tab
+// placed next to this page the first name ends up leftmost.
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('button.openall');
+  if (!btn) return;
+  const links = [...btn.closest('section').querySelectorAll('a.cardlink')];
+  for (const a of links.reverse()) a.click();
+});
+`;
+const COPY_JS = `// One delegated listener for every copy button on the page. Falls back to
+// selecting the text when the clipboard API is unavailable, which it is on a
+// file:// page in some browsers — and these pages are always opened from disk.
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button.copy');
+  if (!b) return;
+  const text = b.getAttribute('data-copy');
+  const done = () => { const o = b.textContent; b.textContent = 'copied'; b.classList.add('done');
+    setTimeout(() => { b.textContent = o; b.classList.remove('done'); }, 1200); };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(done, () => selectInstead(b));
+  } else selectInstead(b);
+});
+function selectInstead(b) {
+  const code = b.parentElement.querySelector('code');
+  if (!code) return;
+  const r = document.createRange(); r.selectNodeContents(code);
+  const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  b.textContent = 'select+copy';
+}
+`;
+
 // ONE BUTTON OPENS THE WHOLE LIST (2026-11-17, his request): every name's card
 // and profile, as if he had clicked each name in turn.
 const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button></p>`;
@@ -2342,36 +2350,6 @@ const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every ca
 // as the card's own arrow does (2026-11-14, his request).
 const pasteCardLink = (p) => `<a class="cardlink" href="?card=r-${esc(p.person_id)}" target="_blank" data-card="r-${
   esc(p.person_id)}" title="Opens their card and their profile, each in its own tab">${esc(p.name)}</a>`;
-
-// The paste list for the assistant: who, and the link to open. No ratings, no
-// notes, nothing about why: she sees only what she needs to copy the page.
-function assistantPage(db) {
-  const asked = askedToPaste(db);
-  const askedRows = asked.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.profile_url
-      FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...asked.keys()].map(() => '?').join(',')})`)
-    .all(...asked.keys()) : [];
-  const list = [...askedRows, ...pasteQueue(db).filter((p) => !asked.has(p.person_id))];
-  const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
-  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Profiles to paste</title>
-<style>:root{color-scheme:light dark}body{font:16px/1.5 -apple-system,system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 16px}
-li{margin:.6rem 0}.dim{opacity:.7;font-size:14px}code{background:#8882;padding:.05rem .3rem;border-radius:3px}</style>
-<h1>Profiles to paste: ${list.length}</h1>
-<p class="dim">Updated ${esc(when)}.</p>
-<ol>${list.map((p) => `<li><a href="cards.html?card=r-${esc(p.person_id)}" target="_blank"><b>${esc(p.name)}</b></a> · ${
-    esc(p.title ?? '')}, ${esc(p.org_name ?? '')}<br>${
-    searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>
-<h2>For each person</h2>
-<ol>
-<li>The name opens the person's card; the link under it opens LinkedIn. If it is a search, click the person whose title and firm match the line above.</li>
-<li>Copy the address bar (the URL with <code>/in/</code> in it).</li>
-<li>Click anywhere on the profile page, press Cmd-A then Cmd-C to copy the whole page.</li>
-<li>In a new plain-text file, put the URL on the first line, paste the page below it, and save it into this folder
-as <code>firstname-lastname.txt</code>.</li>
-</ol>
-<p class="dim">Files are picked up from this folder each morning. A file that went in moves to <code>done</code>; one that did not
-moves to <code>check</code> with a note saying why. Do not message, connect with or follow anyone from this list.</p>`;
-}
 
 function pastePanel(db) {
   const askedIds = askedToPaste(db);
@@ -3984,19 +3962,6 @@ ${mine.length ? cards(mine, cfg, d)
     ? 'See above &mdash; the evidence that would put someone here has never been retrieved.'
     : 'The triggers have fired, but not at a firm that also clears the gates and has a reachable seat.'}</p>`}
 </section>`);
-  }
-
-  // THE ASSISTANT'S PASTE LIST (2026-11-17), into the shared drop folder: the
-  // same people as the paste panel, and nothing else from the book.
-  const drop = dropDir(cfg);
-  // Her cards too, in full (2026-11-17, the operator: "i'm ok with her seeing
-  // the entire card"): the Ready page, which holds every card on her list, as
-  // cards.html; her list opens each one. Only that page: all of them run past
-  // 100MB, synced again on every rebuild.
-  if (drop && existsSync(drop)) {
-    writeFileSync(resolve(drop, 'to-paste.html'), assistantPage(db));
-    const ready = resolve(OUT_DIR, 'ready.html');
-    if (existsSync(ready)) copyFileSync(ready, resolve(drop, 'cards.html'));
   }
 
   // The single-page entry point stays where it was, as a redirect.

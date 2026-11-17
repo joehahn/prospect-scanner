@@ -69,6 +69,15 @@ A configurable prospect-discovery pipeline for small consulting firms, with a bu
   bound to 127.0.0.1, started by a command and stopped when the work is done. The
   dashboards themselves stay static files: this is a data-entry exception, not a web app,
   and nothing listens when nobody is typing.)*
+  *(Amended 2026-11-17. The operator, so an assistant can paste profiles from her own
+  laptop: "lets use Tailscale for now", and "keep her view the same as mine ... maybe
+  disable buttons so she doesnt accidentally input something incorrectly". The form
+  server may stay running, and may answer on ONE more address, `inbox.remote_listen` in
+  `config/runtime.yml`: this machine's address on a private network (Tailscale) that
+  only devices the operator shares it with can reach. Never a public address. A request
+  on that address is the assistant's: she sees the same pages, the buttons that record
+  the operator's decisions are disabled and refused by the server, and her pastes are
+  stored `--via assistant`. Unset, the server answers on 127.0.0.1 only.)*
 - Playwright where a plain fetch cannot read a page `robots.txt` permits, under the
   three conditions in the guardrail above. Not as a default: `fetch` first, always,
   because a browser is two orders of magnitude more expensive per page. Never against

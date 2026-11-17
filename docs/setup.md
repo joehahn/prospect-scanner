@@ -72,6 +72,45 @@ npm run daily
 
 Checks: `npm test` and `npm run leaks`.
 
+## An assistant on your private network
+
+Someone else can paste profiles into your book from their own laptop, with the same
+pages you see. The form server stays running on your machine and also answers on its
+[Tailscale](https://tailscale.com) address, which only devices you share it with can
+reach. Never point it at a public address.
+
+1. Install Tailscale on your machine and sign in. `tailscale ip -4` prints its address.
+2. Set it in `config/runtime.yml`:
+   ```yaml
+   inbox:
+     remote_listen: "<your-tailscale-ip>"
+   ```
+3. Keep `npm run inbox` running (on a Mac, a launchd job with `KeepAlive`; write its log
+   outside any cloud-synced folder, where launchd may not be allowed to open it), and
+   keep the machine awake. When it sleeps, the assistant waits.
+4. In the Tailscale console, limit shared devices to the dashboard port, then share
+   your machine with the assistant's account:
+   ```json
+   {
+     "hosts": { "my-machine": "<your-tailscale-ip>" },
+     "acls": [
+       { "action": "accept", "src": ["autogroup:member"], "dst": ["*:*"] },
+       { "action": "accept", "src": ["autogroup:shared"], "dst": ["my-machine:8787"] }
+     ]
+   }
+   ```
+5. The assistant installs Tailscale, accepts the share, opens
+   `http://<your-tailscale-ip>:8787/` and allows pop-ups for it.
+
+From that address the pages are yours, with every button that records a decision
+(verdicts, drafts, Sent, comments) disabled and refused by the server. Paste boxes and
+paste-anywhere work, and those pastes are stored `--via assistant`: the connection
+degree on the assistant's page is theirs, not yours, so it is never recorded.
+
+The assistant copies pages by hand. No AI agent or browser assistant reads, clicks or
+summarizes LinkedIn for them, and cards, profiles and drafts are not pasted into
+outside AI tools.
+
 ## Adapting it to your business
 
 Everything specific to one business is in `config/business.yml`:

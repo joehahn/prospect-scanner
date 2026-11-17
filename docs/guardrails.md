@@ -26,8 +26,11 @@ These are enforced in code and tests, not asked of a model.
   fails on any identifying term, price or prospect name in source, prompts or docs.
 - **Nothing private in history.** A commit hook refuses a commit message that names a
   prospect on file.
-- **The form server is local.** It binds to 127.0.0.1, is started by hand, and
-  nothing listens when nobody is working.
+- **The form server is private.** It binds to 127.0.0.1. Optionally it also answers on
+  one private-network address (Tailscale), so an assistant can paste profiles from her
+  own laptop; never on a public address. From there every button that records a
+  decision is disabled and refused, and her pastes never record her LinkedIn
+  connection degree as mine.
 
 ## A prompt injection, caught in the wild
 

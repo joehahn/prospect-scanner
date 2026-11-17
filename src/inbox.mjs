@@ -8,8 +8,8 @@
 // A page opened from file:// cannot write to SQLite, so this needed the "no
 // server" convention relaxed. He relaxed it on 2026-09-24, for a laptop-local
 // tool. The terms are in CLAUDE.md and they are narrow: bound to 127.0.0.1,
-// started by a command, stopped when the work is done, and the DASHBOARDS STAY
-// STATIC FILES. Nothing listens when nobody is typing.
+// and the DASHBOARDS STAY STATIC FILES. Since 2026-11-17 it may stay running and
+// answer on one private-network address for an assistant (REMOTE, below).
 //
 // IT SHELLS OUT TO `lead -- paste` RATHER THAN REIMPLEMENTING IT. That stage
 // holds the provenance rules, the FIRST_HAND marker, the confirmed/degree
@@ -28,9 +28,34 @@ import { openDb } from './db.mjs';
 import { pasteQueue } from './funnel.mjs';
 import { operatorLastSaid } from './operator-said.mjs';
 import { fieldsNear, urlFrom, matchPerson } from './paste-match.mjs';
+import { loadConfig } from './config.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.INBOX_PORT ?? 8787);
+// AN ASSISTANT OVER A PRIVATE NETWORK (2026-11-17). The operator: "lets use
+// Tailscale for now" so his assistant can paste profiles from her own laptop,
+// and "keep her view the same as mine ... maybe disable buttons so she doesnt
+// accidentally input something". runtime.yml `inbox.remote_listen` names one
+// more address to answer on: this machine's address on a private network
+// (Tailscale) that only shared devices can reach. Unset, the server answers on
+// 127.0.0.1 only, as before. A request that arrived on that address is the
+// assistant's: she sees every page as he does, the buttons that record his
+// decisions are disabled, the server refuses them anyway, and her pastes are
+// stored --via assistant so her connection degree is never recorded as his.
+const REMOTE = (() => { try { return loadConfig()?.inbox?.remote_listen || null; } catch { return null; } })();
+const LOCAL_HOST = `http://127.0.0.1:${PORT}`;
+const fromAssistant = (req) => !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(String(req.socket.localAddress ?? ''));
+// Her pages: every form but a paste box disabled, with the reason on hover.
+const ASSISTANT_VIEW = `<script>(() => {
+  const why = 'Only the operator records this. Paste boxes work.';
+  for (const f of document.querySelectorAll('form')) {
+    if (f.classList.contains('pb')) continue;
+    for (const el of f.querySelectorAll('button, input, select, textarea')) {
+      el.disabled = true; el.title = why; el.style.cursor = 'not-allowed';
+    }
+    f.style.opacity = '.55';
+  }
+})();</script>`;
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -88,7 +113,7 @@ const DASH = resolve(ROOT, 'data/dash');
 // form inside them to have somewhere to post.
 const MIME = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
-function serveDash(req, res, url) {
+function serveDash(req, res, url, assistant = false) {
   // The bare address opens Ready, where the day starts (2026-09-26).
   const rel = decodeURIComponent(url.pathname).replace(/^\/+/, '') || 'ready.html';
   const file = resolve(DASH, rel);
@@ -105,10 +130,15 @@ function serveDash(req, res, url) {
     'content-type': MIME[ext] ?? 'application/octet-stream',
     'cache-control': 'no-store, must-revalidate',
     pragma: 'no-cache',
-  }).end(ext === '.html' ? withAutoPaste(readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner))
+  }).end(ext === '.html' ? forViewer(withAutoPaste(readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner)), assistant)
     : readFileSync(file));
   return true;
 }
+
+// Her copy: the pages' absolute links to this server point at her own laptop's
+// 127.0.0.1, so they become relative; and the decision buttons are disabled.
+const forViewer = (html, assistant) => (!assistant ? html
+  : html.split(LOCAL_HOST).join('').replace(/<\/body>(?![\s\S]*<\/body>)/, `${ASSISTANT_VIEW}</body>`));
 
 // The script goes last in the body, where the body it appends to exists.
 const withAutoPaste = (html) => (html.includes('</body>')
@@ -149,7 +179,7 @@ async function awaitBackgroundRead(person) {
   rmSync(mark, { force: true });
 }
 
-function ingest(fields) {
+function ingest(fields, assistant = false) {
   const text = (fields.text ?? '').trim();
   if (!text) throw new Error('Nothing pasted.');
   let personId = (fields.person ?? '').trim();
@@ -181,6 +211,8 @@ function ingest(fields) {
   for (const k of ['degree', 'followers', 'activity', 'location', 'country']) {
     if (!(fields[k] ?? '').trim() && auto[k]) args.push(`--${k}`, auto[k]);
   }
+  // Her page shows HER degree to them; lead keeps the one on file.
+  if (assistant) args.push('--via', 'assistant');
   // A paste IS the page, so the title it carries is confirmed by definition.
   if (!(fields.confirmed ?? '').trim()) args.push('--confirmed', 'confirmed');
   // ONLY THE REFUSALS ARE WAITED ON (2026-10-20). Store, extract, re-judge,
@@ -538,15 +570,21 @@ async function runDraft(args, person) {
   return out.trim();
 }
 
-createServer((req, res) => {
+function handle(req, res) {
   const send = (html, code = 200) =>
     res.writeHead(code, { 'content-type': 'text/html; charset=utf-8' }).end(html);
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  const assistant = fromAssistant(req);
 
   if (req.method === 'GET') {
     if (url.pathname === '/paste') return send(page(db));
-    if (serveDash(req, res, url)) return;
+    if (serveDash(req, res, url, assistant)) return;
     return send(page(db));
+  }
+  // Verdicts, notes, sends, comments and balances are his: refused from her
+  // address even if a disabled button is forced.
+  if (assistant && ['/note', '/comment', '/verdict', '/balance'].includes(url.pathname)) {
+    return send(page(db, { err: 'Only the operator records this. Pasting a profile works from here.' }), 403);
   }
 
   if (url.pathname === '/note') {
@@ -649,7 +687,7 @@ createServer((req, res) => {
       const f = Object.fromEntries(new URLSearchParams(raw));
       const back = (f.back ?? '').trim() || '/';
       try {
-        const r = ingest(f);
+        const r = ingest(f, assistant);
         res.writeHead(303, { location: `${back}${back.includes('#') ? '' : '#'}` }).end();
         console.log(`  queued ${r.personId}${r.url ? ` · ${r.url}` : ''}`);
       } catch (e) {
@@ -695,6 +733,7 @@ createServer((req, res) => {
       ['activity', f.activity], ['followers', f.followers]]) {
       if ((v ?? '').trim()) args.push(`--${k}`, String(v).trim());
     }
+    if (assistant) args.push('--via', 'assistant');
     try {
       const out = execFileSync('npm', args, { cwd: ROOT, encoding: 'utf8' });
       const who = db.prepare('SELECT name FROM people WHERE id = ?').get(personId)?.name ?? personId;
@@ -703,7 +742,9 @@ createServer((req, res) => {
       send(page(db, { text, err: `lead -- paste refused it:\n${e.stderr || e.message}` }));
     }
   });
-}).listen(PORT, '127.0.0.1', () => {
+}
+
+createServer(handle).listen(PORT, '127.0.0.1', () => {
   console.log(`\n  DASHBOARDS   http://127.0.0.1:${PORT}/index.html`);
   console.log('               open them here, not from disk, and every card that needs a');
   console.log('               profile has its own paste box. A paste is checked, then queued:');
@@ -712,3 +753,8 @@ createServer((req, res) => {
   console.log(`\n  BULK FORM    http://127.0.0.1:${PORT}/paste`);
   console.log('\n  Local only, nothing listens when this stops. Ctrl-C when done.\n');
 });
+if (REMOTE) {
+  createServer(handle).listen(PORT, REMOTE, () => {
+    console.log(`  ASSISTANT    http://${REMOTE}:${PORT}/  (private network; decisions disabled)\n`);
+  }).on('error', (e) => console.log(`  ASSISTANT    not listening on ${REMOTE}: ${e.code || e.message}\n`));
+}

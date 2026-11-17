@@ -1,7 +1,6 @@
 // What a pasted LinkedIn page says about whose page it is, and the fields
-// near the subject's name. Shared by the paste server (inbox.mjs) and the
-// assistant's drop folder (drop.mjs). Nothing here fetches linkedin.com: it
-// reads text a person copied.
+// near the subject's name, used by the paste server (inbox.mjs). Nothing here
+// fetches linkedin.com: it reads text a person copied.
 import { nameKey, sameName, headerName, firmOnPage, firmShare, ownPart } from './profile-identity.mjs';
 
 // THE DEGREE AND THE FOLLOWER COUNT ARE ALREADY IN THE PASTE, and the first

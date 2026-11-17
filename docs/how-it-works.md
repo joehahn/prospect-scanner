@@ -110,7 +110,9 @@ weighted formula runs beside it as the baseline it must beat
 ## The dashboard
 
 Static HTML from the database, opened from disk or through a form server
-(`npm run inbox`, 127.0.0.1, started by hand) that records clicks, pastes and sends.
+(`npm run inbox`, 127.0.0.1) that records clicks, pastes and sends. It can also answer
+on a private-network address for an assistant (see the README); she sees the same pages
+and can paste profiles, and the buttons that record decisions are disabled for her.
 
 - **All prospects:** everyone not yet written to, in the judge's order.
 - **Ready:** the short list, rated 3 and up.

@@ -148,6 +148,12 @@ Claude Code sessions are billed separately and not included.
   Sent. Each draft is graded on the spot.
 - **I log replies.** The Scoreboard, Searches and Spend pages show what's working and
   what it costs.
+- **My assistant pastes profiles too,** from her own laptop. The form server stays
+  running on my Mac and also answers on its [Tailscale](https://tailscale.com) address,
+  which only devices I share it with can reach (`inbox.remote_listen` in
+  `config/runtime.yml`). She sees the same pages I do; her paste boxes work, the
+  buttons that record my decisions are disabled, and the connection degree on her
+  pastes is hers, so it's never stored as mine. When my laptop sleeps, she waits. ([Setup](docs/setup.md#an-assistant-on-your-private-network))
 - **Any step also runs from the command line,** or by asking Claude Code in plain
   English. Every step runs on Claude; every model call
   goes through one small adapter, so moving a step to another provider is a config
