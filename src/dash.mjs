@@ -2361,7 +2361,7 @@ function pastePanel(db) {
   }
   return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${OPEN_ALL}${askedHtml}
 <p class="lead">The strongest rated 3+ with no profile on file, one per firm. A pasted profile gets
-them a draft the next morning. Those marked <i>settle the seat</i> were rated on a title alone, or on a
+them judged again; drafting is yours, from their card. Those marked <i>settle the seat</i> were rated on a title alone, or on a
 seat the judge doubts owns the work: the profile decides whether they are the right person.</p>
 <ol>${q.map((p) => `<li>${pasteCardLink(p)} · ${p.rating}/5 ·
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}${p.seat_unclear ? ' · <i>settle the seat</i>' : ''}</li>`).join('')}</ol></section>`;
