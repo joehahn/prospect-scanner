@@ -1464,8 +1464,11 @@ function acceptedPanel(db, d) {
   const carded = new Set((d.inFlight ?? []).map((p) => p.person_id));
   const items = rows.map((r) => {
     const dr = draftOf.get(r.person_id);
+    // The name opens their card on the left and their profile on the right, as
+    // on the paste list (2026-11-16, his request); the row's own profile link
+    // is the one opened.
     const who = carded.has(r.person_id)
-      ? `<a href="#p-${esc(r.person_id)}">${esc(r.name)}</a>`
+      ? `<a class="cardlink" href="?card=p-${esc(r.person_id)}" target="_blank" title="Opens their card and their profile, each in its own tab">${esc(r.name)}</a>`
       : `${esc(r.name)} <span class="dim">(no card in this run)</span>`;
     // The message alone, wrapped: the stored body carries the drafter's NOTES
     // too, and a <pre> of it ran far off the right edge of the page.
