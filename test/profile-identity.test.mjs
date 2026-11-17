@@ -64,3 +64,11 @@ test('outside the network: a middle initial before the surname initial, and a lo
   assert.match(notThisPerson(page('Ann M D.', 'CPO at Fabrikam', 'Fabrikam'), 'Ann Contoso', 'Fabrikam'), /not Ann Contoso's/);
   assert.match(notThisPerson(page('Paul C.', 'CPO at Fabrikam', 'Fabrikam'), 'Ann Contoso', 'Fabrikam'), /not Ann Contoso's/);
 });
+
+test('a surname a letter off or spaced differently is the same person', () => {
+  assert.ok(sameName(nameKey('Jane Contossa'), 'Jane Contosa'));
+  assert.ok(sameName(nameKey('Dr. Jane Alfabrik'), 'Dr. Jane Al Fabrik'));
+  assert.ok(!sameName(nameKey('Jane Smyth'), 'Jane Smith'), 'short surnames stay exact');
+  assert.ok(!sameName(nameKey('Jane Contossa'), 'Ann Contosa'), 'the first name still has to match');
+  assert.equal(notThisPerson(page('Jane Contossa', 'CIO at Fabrikam', 'Fabrikam'), 'Jane Contosa', 'Fabrikam'), null);
+});

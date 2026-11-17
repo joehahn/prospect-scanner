@@ -46,6 +46,15 @@ export function nameKey(s) {
   return w.length < 2 ? null : { first: w[0], last: w[w.length - 1], words: w, alias };
 }
 
+/** At most one letter added, dropped or changed. */
+function oneEditApart(a, b) {
+  if (a === b) return true;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && a[i] === b[i]) i++;
+  return a.slice(i + 1) === b.slice(i + 1) || a.slice(i) === b.slice(i + 1) || a.slice(i + 1) === b.slice(i);
+}
+
 /** Does the name on the page (a key) belong to the name on file? */
 export function sameName(head, name) {
   const k = nameKey(name);
@@ -57,7 +66,14 @@ export function sameName(head, name) {
     return k.last[0] === head.last && [k.first, k.alias].filter(Boolean).some((a) => sameFirst(a, head.first));
   }
   // A compound surname may print in full or in part ("Ann B. Contoso Fabrikam").
-  const surname = head.last === k.last || head.words.includes(k.last) || k.words.includes(head.last);
+  // A SURNAME SPELLED A LETTER OFF, OR SPACED (2026-11-17): the book's "Luccheta"
+  // for the page's "Lucchetta", "Al Kaabi" for "Alkaabi". Two pastes in a day
+  // matched no one for this. Long surnames only; the firm on the page still has
+  // to match before a paste is stored (notThisPerson).
+  const joined = (x) => x.words.slice(1).join('');
+  const surname = head.last === k.last || head.words.includes(k.last) || k.words.includes(head.last)
+    || joined(head) === joined(k)
+    || (head.last.length >= 6 && k.last.length >= 6 && oneEditApart(head.last, k.last));
   const first = [k.first, k.alias].filter(Boolean)
     .some((a) => [head.first, head.alias].filter(Boolean).some((b) => sameFirst(a, b)));
   return surname && first;
