@@ -1,4 +1,6 @@
-# draft-cold-note — v49, 2026-11-16
+# draft-cold-note — v50, 2026-11-17
+
+*v50: the build covers the reader's whole span. After v49 the example became one narrow checker ("flags one supplier slipping", "reads maintenance and inspection reports to flag faults"), and the grader flagged "below their level" on 6 of 23 connection notes drafted 2026-11-16–17, against 0 of 52 on 2026-11-12–14: a group procurement director, a state chief data officer and a private-equity operating partner were each offered a tool for one of their teams. The operator asked whether the notes should be written to the prospect's level. The fix keeps the one concrete build and states it across what the reader runs: supplier updates across all the group's businesses, data shared across the state's agencies, faults across the fund's portfolio companies.*
 
 *v49: who he is before what he builds, and what he builds catches a problem while it can still be fixed. Under v47–v48 a connection note ran lede, what he builds, credential: the offer came before the reader knew who was offering, and the operator flipped the order by hand on every note drafted 2026-11-16 ("the offer comes before i explain what i do, which seems somewhat backwards"). The same day a note to a logistics director whose post was about what happens when third-party logistics controls are not set up right offered AI that reads the partners' invoices and shipment data "to show what each partner costs and where service slips": a report on what already went wrong. The operator: "ai to improve visibility into issues seems mundane, most people would rather have ai to mitigate issues before they bubble up". The version he preferred flags a delivery at risk while there is still time to act.*
 
@@ -343,6 +345,16 @@ would rather head the problem off than read about it. Say what the AI flags
 and when, never that it prevents the problem: whether it can is not known
 until the data is seen.
 
+**One build, across their whole span.** *(v50.)* The example is still one
+build, but it covers what the reader runs: the group, the portfolio, the
+agencies, the region, every site, not one team's task inside it. A group
+procurement director hears AI that reads supplier updates across all the
+group's businesses and flags a delivery slipping before it holds up a project,
+not one that flags a supplier. Name the span in the reader's own terms (their
+firm's businesses, their state's agencies, their fund's portfolio companies).
+Do not make the offer bigger to fit the seat: it stays one build, saying what
+it flags and when.
+
 ## Never suggest their house is a mess
 
 *A circumstance is not a judgment (v28).* A turnaround after a bankruptcy, an
@@ -420,7 +432,7 @@ more than "an independent AI consultant who builds custom AI". It is still not
 the offer: no price, no package, no ask.
 **What he builds, not what they must need** *(v47)*. The sentence after it is
 one concrete thing he builds, offered as an example of his work, and it
-catches something early (v49): "I could build AI that reads supplier
+catches something early (v49) across the reader's whole span (v50): "I could build AI that reads supplier
 contracts and flags tariff exposure before a renewal locks it in", "I could
 build an agent that works the exceptions your bots hand back before they
 queue up". Never a guess at
