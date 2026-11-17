@@ -2310,6 +2310,18 @@ document.addEventListener('click', (e) => {
   // for this local page, which he has set.
   const w = window.open(s.href, '_blank');
   if (w) try { w.opener = null; } catch {}
+  // A BLOCKED POP-UP SAYS SO (2026-11-17). On an address the browser has not
+  // been told to trust, Open all opened one tab and nothing said why.
+  else if (!document.getElementById('popnote')) {
+    const n = document.createElement('div');
+    n.id = 'popnote';
+    n.style.cssText = 'position:fixed;top:12px;right:12px;z-index:100;max-width:380px;padding:10px 14px;'
+      + 'font:14px system-ui;border-radius:6px;background:#b3261e;color:#fff;cursor:pointer';
+    n.textContent = 'The browser blocked the other tabs. Click the blocked pop-up icon at the right end '
+      + 'of the address bar, choose Always allow for this site, then click again. (Click to close.)';
+    n.onclick = () => n.remove();
+    document.body.appendChild(n);
+  }
 });
 // Open all: each name's own click, last name first, so that with every tab
 // placed next to this page the first name ends up leftmost.
