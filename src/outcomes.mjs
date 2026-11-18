@@ -92,7 +92,7 @@ const daysAgo = (n) => new Date(Date.now() - n * 86_400_000).toLocaleDateString(
  * the judge's rating when it went, and what came back.
  */
 export function sends(db) {
-  const rows = db.prepare(`SELECT o.id, o.channel, o.sent_at, o.status, o.service_pitched, o.warm, o.person_id,
+  const rows = db.prepare(`SELECT o.id, o.channel, o.sent_at, o.status, o.service_pitched, o.warm, o.person_id, o.org_id,
       p.name, p.title, g.name AS org_name, g.segment
     FROM outreach o LEFT JOIN people p ON p.id = o.person_id LEFT JOIN orgs g ON g.id = o.org_id
     WHERE o.seeded = 0 AND o.sent_at IS NOT NULL ORDER BY o.sent_at`).all();

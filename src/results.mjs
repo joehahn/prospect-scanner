@@ -22,7 +22,8 @@ export const BRIEFS = [
   ['inbound', 'How many new cards reach the board each day, how many rate 4 or 5, and did a missed or failed run cause a dip?', 'Where to fix or widen discovery.'],
   ['weekly', 'Is outreach volume holding, and is anything coming back?', 'How much to send each week.'],
   ['channels', 'Which channel is the best place to start a conversation?', 'Connection request, message, InMail or email.'],
-  ['segments', 'Which industries and offers accept connection requests?', 'Where discovery looks, and which offer leads.'],
+  ['segments', 'Which industries accept connection requests?', 'Where discovery looks.'],
+  ['offers', 'Which offers accept connection requests?', 'Which offer leads.'],
   ['roles', 'Which functions accept?', 'Which seats to aim at.'],
   ['levels', 'Which levels of seniority accept?', 'How senior to aim.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
@@ -196,17 +197,23 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     scripts.push(`rateDots('c-channels', ${J(groups)}, null, 'share of people');`);
   }
 
-  // 4. Industries and offers.
+  // 4. Industry, and 5. offer: two panels, independent splits like function
+  // and level (the operator, 2026-11-18).
   {
-    const seg = rates(reqs, (r) => r.segment, (r) => r.accepted, { label: (k) => SEGMENTS[k] ?? 'Other' }).map((g) => ({ ...g, group: 0 }));
-    const off = rates(reqs, (r) => r.offer, (r) => r.accepted, { label: (k) => offerLabel(k) })
-      .map((g) => ({ ...g, label: `Offer: ${g.label}`, group: 1 }));
+    const seg = byRate(rates(reqs, (r) => r.segment, (r) => r.accepted, { label: (k) => SEGMENTS[k] ?? 'Other' }));
     panels.segments = {
-      title: 'Connection requests accepted, by industry and by offer',
-      caption: `Blue rows are the firm's industry, orange rows the offer the note made. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}. Groups under ${MIN_GROUP} requests are folded into Other, and requests count once they are ${MATURE_DAYS} days old. Bars show where the true rate likely lies (90% range, computed from the counts).`,
-      height: 60 + 34 * (seg.length + off.length),
+      title: 'Connection requests accepted, by industry',
+      caption: `The industry of each person's firm. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}, and groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * seg.length,
     };
-    scripts.push(`rateDots('c-segments', ${J([...byRate(seg), ...byRate(off)])}, ${overall}, 'accepted');`);
+    scripts.push(`rateDots('c-segments', ${J(seg)}, ${overall}, 'accepted');`);
+    const off = byRate(rates(reqs, (r) => r.offer, (r) => r.accepted, { label: (k) => offerLabel(k) }));
+    panels.offers = {
+      title: 'Connection requests accepted, by offer',
+      caption: `The offer each request's note made. The dashed line is all requests, and offers with under ${MIN_GROUP} requests are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * off.length,
+    };
+    scripts.push(`rateDots('c-offers', ${J(off)}, ${overall}, 'accepted');`);
   }
 
   // 5. Function, and 6. level: two panels, since they are independent

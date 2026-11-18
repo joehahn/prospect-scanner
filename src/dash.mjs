@@ -32,6 +32,7 @@ import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mj
 import { upcomingTalks } from './events.mjs';
 import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 import { resultsPage } from './results.mjs';
+import { sends, matureRequests } from './outcomes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = resolve(ROOT, 'data/dash');
@@ -188,130 +189,75 @@ function statTitle(st, outcomes = true) {
   return ` title="${esc(base)} — ${esc(verdict)}"`;
 }
 
-function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal = false,
-  unattributed = null, retired = null, retiredSvc = null) {
-  // Composed once so the heading can carry it; empty when nothing is missing.
-  const offerNote = (retiredSvc ?? []).length
-    ? `${retiredSvc.reduce((a, r) => a + r.sent, 0)} send(s) went to an offer since retired (`
-      + retiredSvc.map((r) => `${r.name}, ${r.sent}`).join('; ') + '), which has no chip'
-    : '';
-  const sectorNote = [
-    unattributed?.sectors ? `${unattributed.sectors} send(s) went to a firm under none of the targets`
-      : '',
-    (retired ?? []).length
-      ? `${retired.reduce((a, r) => a + r.sent, 0)} went to a thesis since retired (`
-        + retired.map((r) => r.name).join('; ') + '), which has no chip'
-      : '',
-  ].filter(Boolean).join('. ');
-  // A CONFIG PAGE HAS NOTHING TO SLICE. The slicing columns exist to filter a
-  // shortlist, and on a page that renders offers.yml there is no shortlist —
-  // twenty-five chips there are navigation debris that make the page harder to
-  // read, which is the one thing these pages were split out to fix.
+// THE BUTTONS, REBUILT (2026-11-18). The operator: "make the remaining buttons
+// more actionable or else drop them", and order them by their %. Pages are
+// grouped by what they are for. The offer and geography filters are gone:
+// their counts were the whole book, not the page, and their rate was replies
+// per send, which is noise at these numbers (Results, Figure 3). Targets show
+// the cards waiting under each, ordered by how often connection requests there
+// were accepted, the one rate with a real spread; a target with nothing
+// waiting is hidden by the page script. "Your call" is the send list.
+//
+// THE ASSISTANT SEES THE SAME BUTTONS ("dont hide buttons from michele ... grey
+// out anything she doesnt need. i would like her view to match mine"). Those
+// she has no use for carry data-his and are dimmed in her view only
+// (inbox.mjs); they still work, since a filter changes nothing but the view.
+const PAGE_GROUPS = [
+  ['work', ['index', 'ready', 'topaste', 'outreach']],
+  ['how it is going', ['results', 'funnel', 'scoreboard']],
+  ['setup', ['searches', 'spend', 'gates', 'inputs']],
+];
+const HIS_PAGES = new Set(['outreach', 'results', 'funnel', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
+// Set by the build: connection-request accepts per target, and accepts due a note.
+let TARGET_ACCEPT = new Map();
+let FOLLOWUP_DUE = 0;
+let HAS_EMAIL = new Set();
+const emailOf = (pid) => (HAS_EMAIL.has(pid) ? 'yes' : 'no');
+
+function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal = false) {
+  const byId = new Map(pages.map((p) => [p.id, p]));
+  const his = (on) => (on ? ' data-his="1"' : '');
+  const pageLink = (p) => `<a href="${p.file}"${p.id === currentId ? ' class="here"' : ''}${his(HIS_PAGES.has(p.id))}>${esc(p.label)}</a>`;
+  const pageCols = PAGE_GROUPS.map(([h, ids]) => `<div class="col"><span class="grp">${h}</span>${
+    ids.map((i) => byId.get(i)).filter(Boolean).map(pageLink).join('')}</div>`).join('');
+  // A config page has nothing to filter.
   if (minimal) {
-    return '<nav class="tabs">' +
-      `<div class="col"><span class="grp">overall</span>${pages.filter((p) => !p.group)
-        .map((p) => `<a href="${p.file}"${p.id === currentId ? ' class="here"' : ''}>${esc(p.label)}</a>`)
-        .join('')}</div>` +
-      '<div class="col"><span class="grp">configuration</span>' +
-      `<a href="inputs.html">&larr; all config files</a></div></nav>`;
+    return `<nav class="tabs">${pageCols}<div class="col"><span class="grp">configuration</span>`
+      + '<a href="inputs.html">&larr; all config files</a></div></nav>';
   }
-  // On the shortlist a chip is a filter, not a destination. "Pilot read AND
-  // hedge funds AND Texas" is a question the page has to be able to answer, and
-  // separate pages cannot express a combination — 7 services x 7 sectors x 5
-  // geographies is 245 files nobody is going to generate or find. So the three
-  // slicing columns toggle instead of navigating, ANDing across columns and
-  // ORing within one.
-  //
-  // The href stays the single-axis page regardless, because it is still a real
-  // URL: a middle-click or cmd-click opens it, and with JS off the nav still
-  // works as it always did.
-  // Ready filters too (2026-09-27), on targets, offers and geography; the
-  // status column is the old ranker's and stays on All prospects only.
   const filtering = currentId === 'index' || currentId === 'ready';
+  if (!filtering) return `<nav class="tabs">${pageCols}</nav>`;
   const here = currentId === 'ready' ? 'ready.html' : 'index.html';
-  const link = (p) => {
-    const axis = filtering ? AXIS_OF[p.group] : null;
-    const val = axis ? axisValue(p) : null;
-    // TWO KINDS OF CHIP, AND THEY MUST NOT LOOK ALIKE. A filter chip toggles
-    // what this page shows; a page chip leaves for another page. They were
-    // styled identically, and worse, the current page carried `.on` — the same
-    // token an active filter uses — so "Shortlist" on the shortlist read as a
-    // filter that was switched on. `.f` marks a filter, `.here` marks where you
-    // already are, and only `.f.on` gets the accent fill.
-    const cls = axis && val ? 'f' : (p.id === currentId ? 'here' : '');
-    // The count belongs on every filter chip, not just one column. It is worth
-    // most on the chips that can be empty: "Austin metro 0" answers the question
-    // before the click, where an empty page answers it after.
-    // An empty bucket still answers the question, and answers it BEFORE the
-    // click where an empty page answers it after. A missing cell is zero, not
-    // absent, so the chip renders "0" rather than falling silent.
-    const st = axis && val ? ((counts[axis] ?? {})[val] ?? ZERO) : null;
-    return `<a href="${p.file}"${axis && val
-      ? ` data-axis="${axis}" data-val="${esc(val)}"` : ''}${
-      cls ? ` class="${cls}"` : ''}${statTitle(st)}>${esc(p.label)}${statSpan(st)}</a>`;
-  };
-  // A column is dropped entirely when it is empty rather than left as a bare
-  // heading: a "pitches" label over nothing reads as a page that failed to load.
-  // A heading may carry a note. Used for one thing only: the sector column
-  // under-reports, because some sends belong to no sector and some to a thesis
-  // since retired, and without saying so a quiet segment and a gap in the
-  // record look identical on a chip. It was a paragraph in the footer; it is a
-  // tooltip now, which costs no visible prose and loses no fact.
-  const col = (heading, items, note = '') => (items.length
-    ? `<div class="col"><span class="grp"${note ? ` title="${esc(note)}"` : ''}>${heading}${
-      note ? ' <span class="dim">*</span>' : ''}</span>${items.map(link).join('')}</div>`
-    : '');
-  // NO "found via" COLUMN, DELIBERATELY. Which retrieval path produced a
-  // prospect is a question about the SYSTEM; this page answers a question about
-  // the PERSON. The data is still on every card as data-channel.
-  // YOUR CALL: the operator's latest verdict. "Write first, not yet sent" is his
-  // send list. Counted by the page itself from the cards it shows, so each
-  // number is exactly what the chip filters to.
-  const callCol = filtering ? `<div class="col"><span class="grp">your call &middot; filter</span>` +
-    CALLS.map(([id, label]) =>
-      `<a href="${here}" class="f" data-axis="call" data-val="${id}">${label} <span class="n" data-count-call="${id}"></span></a>`).join('')
-    + '</div>' : '';
-  const ownerCol = filtering ? `<div class="col"><span class="grp">who decides &middot; filter</span>` +
-    OWNERS.map(([id, label]) =>
-      `<a href="${here}" class="f" data-axis="owner" data-val="${id}">${label} <span class="n" data-count-owner="${id}"></span></a>`).join('')
-    + '</div>' : '';
-  const pastedCol = filtering ? `<div class="col"><span class="grp">profile &middot; filter</span>` +
-    PASTED.map(([id, label]) =>
-      `<a href="${here}" class="f" data-axis="pasted" data-val="${id}">${label} <span class="n" data-count-pasted="${id}"></span></a>`).join('')
-    + '</div>' : '';
-  const statusCol = currentId === 'index' ? `<div class="col"><span class="grp">status &middot; filter</span>` +
+  // A chip's count is the cards on this page it would show, filled in by the
+  // page script; a value list ("first,write") is one chip for several values.
+  const chip = (axis, val, label, { mine = false, title = '', extra = '' } = {}) =>
+    `<a href="${here}" class="f" data-axis="${axis}" data-val="${esc(val)}"${his(!mine)}${title ? ` title="${esc(title)}"` : ''}>${
+      esc(label)}${extra} <span class="n"></span></a>`;
+  const col = (heading, body) => `<div class="col"><span class="grp">${heading}</span>${body}</div>`;
+  const rateOf = (a) => (a.n >= 15 ? a.k / a.n : -1);
+  const targets = pages.filter((p) => p.group === 'sector')
+    .map((p) => ({ p, a: TARGET_ACCEPT.get(p.vertical.id) ?? { k: 0, n: 0 } }))
+    .sort((x, y) => rateOf(y.a) - rateOf(x.a) || y.a.n - x.a.n);
+  const targetChips = targets.map(({ p, a }) => chip('sectors', p.vertical.id, p.label, {
+    extra: a.n >= 15 ? ` <span class="dim">${Math.round((100 * a.k) / a.n)}%</span>` : '',
+    title: a.n ? `${a.k} of ${a.n} connection requests accepted, counting those at least 14 days old${a.n < 15 ? '; too few to show a rate' : ''}`
+      : 'No connection requests here old enough to count yet' })).join('');
+  const statusCol = currentId === 'index' ? col('status &middot; filter',
     [['open', 'Open'], ['cooling', 'Cooling off'], ['in_flight', 'In flight']]
-      .map(([id, label]) =>
-        `<a href="index.html" class="f" data-axis="status" data-val="${id}"` +
-        `${statTitle((counts.status ?? {})[id] ?? ZERO, false)}>${label}` +
-        `${statSpan((counts.status ?? {})[id] ?? ZERO, false)}</a>`)
-      .join('') + '</div>' : '';
-  const stateBox = filtering ? `<div class="col fstate"><span class="fcount" id="fcount"></span>
-      <a href="${here}" id="fclear" hidden>clear filters</a></div>` : '';
-  return `<nav class="tabs"${filtering ? ' data-filter="1"' : ''}>` +
-    col(filtering ? 'overall &middot; pages' : 'overall',
-      pages.filter((p) => !p.group)) +
-    // "offers", not "what to sell". The file is offers.yml, the code says
-    // offer, the blocker says pitch-but-no-offer — the nav was the last place
-    // still using a different word for the same thing.
-    // YOUR CALL STACKS UNDER OFFERS, STATUS UNDER TARGETS (the operator,
-    // 2026-09-27), so the nav stays a single row of columns.
-    '<div class="stack">' +
-    col(filtering ? 'offers &middot; filter' : 'offers',
-      pages.filter((p) => p.group === 'service'), offerNote) +
-    callCol + stateBox +
-    '</div>' +
-    // No "what the work is" column since 2026-09-27: it was the old capability
-    // catalogue, which the redesign does not keep (see the pages list).
-    '<div class="stack">' +
-    col(filtering ? 'targets &middot; filter' : 'targets',
-      pages.filter((p) => p.group === 'sector'), sectorNote) +
-    statusCol + '</div>' +
-    '<div class="stack">' +
-    col(filtering ? 'geography &middot; filter' : 'geography',
-      pages.filter((p) => p.group === 'geo')) +
-    ownerCol + pastedCol + '</div>' +
-    '</nav>';
+      .map(([id, label]) => `<a href="index.html" class="f" data-axis="status" data-val="${id}" data-his="1"${
+        statTitle((counts.status ?? {})[id] ?? ZERO, false)}>${label}${statSpan((counts.status ?? {})[id] ?? ZERO, false)}</a>`).join('')) : '';
+  const due = `<a href="index.html#accepted" data-his="1" title="Accepted a connection request a day or more ago, and not yet written to">Follow-up due <span class="n">${FOLLOWUP_DUE}</span></a>`
+    + chip('email', 'yes', 'Has email', { mine: true, title: 'Cards with an email address on file' });
+  return '<nav class="tabs" data-filter="1">' + pageCols
+    + '<div class="stack">'
+    + col('to do', due)
+    + col('your call &middot; filter', chip('call', 'first,write', 'To send', { title: 'Write first and Would write, not yet sent' })
+      + chip('call', 'none', 'Undecided'))
+    + `<div class="col fstate"><span class="fcount" id="fcount"></span><a href="${here}" id="fclear" hidden>clear filters</a></div>`
+    + '</div>'
+    + `<div class="stack">${col('targets &middot; accepted % &middot; cards waiting', targetChips)}${statusCol}</div>`
+    + `<div class="stack">${col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}</div>`
+    + '</nav>';
 }
 
 /**
@@ -996,18 +942,21 @@ const layoutFor = (extra) => Object.assign({
   if (!bar) return;
   // PERSON HAS NO CHIP (2026-10-29): it is for a hand-picked list sent as a
   // link, e.g. the ten whose profile is likeliest to move a 3 to a 4.
-  const AXES = ['service', 'capability', 'form', 'sectors', 'geo', 'status', 'channel', 'call', 'owner', 'pasted', 'person'];
+  const AXES = ['service', 'capability', 'form', 'sectors', 'geo', 'status', 'channel', 'call', 'owner', 'pasted', 'person', 'email'];
   const cards = Array.from(document.querySelectorAll('article.card[data-service]'));
   const count = document.getElementById('fcount');
   const clear = document.getElementById('fclear');
-  for (const n of bar.querySelectorAll('[data-count-call]')) {
-    n.textContent = String(cards.filter((c) => c.dataset.call === n.dataset.countCall).length);
-  }
-  for (const n of bar.querySelectorAll('[data-count-owner]')) {
-    n.textContent = String(cards.filter((c) => c.dataset.owner === n.dataset.countOwner).length);
-  }
-  for (const n of bar.querySelectorAll('[data-count-pasted]')) {
-    n.textContent = String(cards.filter((c) => c.dataset.pasted === n.dataset.countPasted).length);
+  // Each chip counts the cards on this page it would show. A chip may stand for
+  // several values (To send is first and write); a card may carry several
+  // (targets). A target with nothing waiting is hidden: it would empty the page.
+  const valsOf = (a) => a.dataset.val.split(',');
+  for (const a of bar.querySelectorAll('a.f[data-axis]')) {
+    const n = a.querySelector('.n');
+    if (!n) continue;
+    const want = valsOf(a);
+    const k = cards.filter((c) => (c.dataset[a.dataset.axis] || '').split(',').some((v) => want.indexOf(v.trim()) !== -1)).length;
+    n.textContent = String(k);
+    if (a.dataset.axis === 'sectors' && !k) a.hidden = true;
   }
 
   const read = () => {
@@ -1062,7 +1011,7 @@ const layoutFor = (extra) => Object.assign({
       }
     }
     for (const a of bar.querySelectorAll('a.f[data-axis]')) {
-      a.classList.toggle('on', sel[a.dataset.axis].has(a.dataset.val));
+      a.classList.toggle('on', valsOf(a).every((v) => sel[a.dataset.axis].has(v)));
     }
     // A section whose every card is filtered out is hidden with it, so the page
     // never shows a heading and a paragraph of explanation over nothing.
@@ -1098,8 +1047,9 @@ const layoutFor = (extra) => Object.assign({
       e.preventDefault();
       const sel = read();
       const set = sel[chip.dataset.axis];
-      if (set.has(chip.dataset.val)) set.delete(chip.dataset.val);
-      else set.add(chip.dataset.val);
+      const vals = valsOf(chip);
+      const on = vals.every((v) => set.has(v));
+      for (const v of vals) { if (on) set.delete(v); else set.add(v); }
       const q = AXES.filter((a) => sel[a].size)
         .map((a) => a + '=' + Array.from(sel[a]).join(',')).join('&');
       // Assigning the hash rather than replaceState: it keeps back/forward
@@ -1397,9 +1347,10 @@ function draftPanel(p, d) {
 // sent or the draft is dropped (one fell off two days after it was drafted).
 const ACCEPTED_WINDOW_DAYS = 14;
 
-function acceptedPanel(db, d) {
+/** Accepted a request in the window, or have a note drafted since, and have had nothing since. */
+function acceptedRows(db) {
   const since = new Date(Date.now() - ACCEPTED_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
-  const rows = db.prepare(`
+  return db.prepare(`
     SELECT p.id AS person_id, p.name, p.title, p.profile_url, g.name AS org_name,
            x.sent_at, MAX(r.responded_at) AS accepted_at
       FROM responses r JOIN outreach x ON x.id = r.outreach_id
@@ -1415,6 +1366,10 @@ function acceptedPanel(db, d) {
        -- written to at quarter's end, and still showed here as a message due.
        AND NOT EXISTS (SELECT 1 FROM hold h WHERE h.person_id = p.id AND h.release_after > ?)
      GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since, new Date().toISOString().slice(0, 10));
+}
+
+function acceptedPanel(db, d) {
+  const rows = acceptedRows(db);
   if (!rows.length) return '';
   // NOT A CONNECTION NOTE. Someone who accepted never gets another, and an
   // unused earlier version of the note they accepted showed here as the message
@@ -1456,7 +1411,7 @@ function acceptedPanel(db, d) {
       <td>${esc(r.org_name)}<br>${searchLink(r.name, r.org_name, r.profile_url)}</td>
       <td>${draft}</td></tr>`;
   }).join('\n');
-  return `<section class="panel"><h2>Accepted, not yet written to</h2>
+  return `<section class="panel" id="accepted"><h2>Accepted, not yet written to</h2>
 <p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days, or have a note drafted since, and have had
 nothing since. Each gets one plain note (who you are, why them, an open door) and nothing after it: silence
 is not something to fix, and what they hear from you next is your posts and your comments on theirs. Each row
@@ -1951,7 +1906,7 @@ ${balanceForm}</section>`;
   const svcOf = (p) => d.offerId((firmOf.get(p.person_id) ?? orgFirm.get(p.org_id))?.package_id ?? 'none');
   const readyAxes = (p) => ` data-sectors="${esc(d.tgt.of(p.person_id, p.org_id).join(','))}"`
     + ` data-service="${esc(svcOf(p))}" data-geo="${esc(p.geo_bucket ?? 'unknown')}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"`
-    + ` data-person="${esc(p.person_id)}"`;
+    + ` data-email="${emailOf(p.person_id)}" data-person="${esc(p.person_id)}"`;
   // The chips' counts on this page are of this page's cards; what was sent and
   // replied stays the whole record, since a segment's history is the same.
   d.readyCounts = (all) => {
@@ -2083,7 +2038,11 @@ ${balanceForm}</section>`;
       ? `<p class="lead"><b>${n} people at ${esc(c.p.org_name ?? '')}</b>: you would write to one of them.</p>` : '';
     return lead + (BLIND ? blindCard(c) : openCard(c));
   }).join('');
-  const doneAll = cards.filter((c) => decided(c))
+  // WOULDN'T LEAVES READY (2026-11-18): a card he decided not to write to is
+  // not work. It stays on All prospects, where the call can be changed.
+  const wouldnt = (c) => { const m = decided(c); return m && !m.first && m.verdict !== 'write'; };
+  const nWouldnt = cards.filter(wouldnt).length;
+  const doneAll = cards.filter((c) => decided(c) && !wouldnt(c))
     .sort((a, b) => b.rating - a.rating || Number(b.pick.value) - Number(a.pick.value)
       || (a.pick.timing_days ?? 9e9) - (b.pick.timing_days ?? 9e9));
   const done = [];
@@ -2119,7 +2078,8 @@ ${b.cs.map((c) => (BLIND && !decided(c) ? blindCard(c) : openCard(c))).join('')}
 ${below ? `<p class="lead dim">${below} more the judge rated 1 or 2 are on <a href="index.html">All prospects</a>.</p>` : ''}
 ${blindList || '<p class="callout">Nothing waiting. Run <code>npm run judge -- --queue</code> for more.</p>'}</section>`
     + (done.length ? `<section class="panel"><details><summary><b>${doneAll.length} decided</b> at `
-      + `${done.length} firms, highest-rated first</summary>${done.map(withColleagues).join('')}</details></section>` : '');
+      + `${done.length} firms, highest-rated first</summary>${done.map(withColleagues).join('')}</details>`
+      + `${nWouldnt ? `<p class="lead dim">${nWouldnt} you wouldn't write to are on <a href="index.html">All prospects</a>.</p>` : ''}</section>` : '');
 }
 
 // SEARCHES, down the funnel (measures.mjs, shared with `queries --yield`).
@@ -3087,7 +3047,7 @@ function cards(list, cfg, d) {
       ` data-form="${esc(p.firm?.work_form ?? 'none')}"` +
       ` data-geo="${esc(p.geo_bucket ?? 'unknown')}"` +
       ` data-status="${status}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"` +
-      ` data-person="${esc(p.person_id)}"`;
+      ` data-email="${emailOf(p.person_id)}" data-person="${esc(p.person_id)}"`;
     return `<article class="card" id="p-${esc(p.person_id)}" data-name="${esc(p.name)}"${axes}>
       <header><h3>${status === 'in_flight' ? '<span class="rank flag">sent</span>'
         : j ? `<span class="rank rating ${j.rating >= 3 ? '' : 'flag'}">judge: ${j.rating}/5${j.spread >= 2 ? ' ±' : ''}</span>`
@@ -3443,6 +3403,16 @@ function buildAll(db, cfg, targeting) {
     out.push(f);
   };
 
+  // What the buttons need (see nav): who has an email, accepts per target,
+  // and accepts from before today with no note yet.
+  HAS_EMAIL = new Set(db.prepare(`SELECT id FROM people WHERE COALESCE(email, '') <> ''`).all().map((r) => r.id));
+  { const m = new Map();
+    for (const r of matureRequests(sends(db))) {
+      for (const t of d.tgt.of(r.person_id, r.org_id)) { const a = m.get(t) ?? { k: 0, n: 0 }; a.n++; if (r.accepted) a.k++; m.set(t, a); }
+    }
+    TARGET_ACCEPT = m; }
+  { const today = new Date().toLocaleDateString('en-CA');
+    FOLLOWUP_DUE = acceptedRows(db).filter((r) => String(r.accepted_at).slice(0, 10) < today).length; }
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
   write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
@@ -3506,7 +3476,7 @@ ${acceptedPanel(db, d)}
 ${commentsPanel(db)}
 <section class="panel"><h2>Everyone in the book</h2>
 <p class="lead">${openAll.length} people not yet written to, ${nJudged} of them rated by the judge, best
-first; the rest follow, not yet judged. Filter by offer, target, geography or status above. The
+first; the rest follow, not yet judged. Filter by target, your call, who decides or status above. The
 <b>Ready</b> page is the day's short list; this is everyone behind it.</p>
 <p class="lead dim">${new Set(d.noAuthority.map((p) => p.person_id)).size} further named people at these firms are not listed: their
 titles matched no seat that buys this work (controllers, counsel, associates and the like).</p>

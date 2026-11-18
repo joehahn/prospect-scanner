@@ -122,7 +122,10 @@ and can paste profiles, and the buttons that record decisions are disabled for h
 - **Funnel, Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
 
 Each prospect is a **card**, and the working pages filter cards in place by target,
-offer, geography, the operator's call, who decides, and whether a profile is pasted.
+the operator's call, who decides, and whether there is an email address. Each target
+button shows the cards waiting under it, ordered by how often connection requests
+there were accepted. The assistant's view has the same buttons, with the ones she
+has no use for dimmed.
 
 ### What a card shows
 

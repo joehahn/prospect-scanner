@@ -48,7 +48,9 @@ const LOCAL_HOST = `http://127.0.0.1:${PORT}`;
 const OPERATOR_NAME = (() => { try { return loadConfig()?.inbox?.operator_name || 'the operator'; } catch { return 'the operator'; } })();
 const fromAssistant = (req) => !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(String(req.socket.localAddress ?? ''));
 // Her pages: every form but a paste box disabled, with the reason on hover.
-const ASSISTANT_VIEW = `<script>(() => {
+// Buttons she has no use for are dimmed, not hidden: her view matches his
+// (the operator, 2026-11-18). They still work; a filter only changes the view.
+const ASSISTANT_VIEW = `<style>nav.tabs [data-his]{opacity:.38}</style><script>(() => {
   const why = 'Only the operator records this. Paste boxes work.';
   for (const f of document.querySelectorAll('form')) {
     if (f.classList.contains('pb')) continue;
