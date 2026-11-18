@@ -44,6 +44,8 @@ const PORT = Number(process.env.INBOX_PORT ?? 8787);
 // stored --via assistant so her connection degree is never recorded as his.
 const REMOTE = (() => { try { return loadConfig()?.inbox?.remote_listen || null; } catch { return null; } })();
 const LOCAL_HOST = `http://127.0.0.1:${PORT}`;
+// How her pages name the operator ("Note to ..."); config, never code.
+const OPERATOR_NAME = (() => { try { return loadConfig()?.inbox?.operator_name || 'the operator'; } catch { return 'the operator'; } })();
 const fromAssistant = (req) => !/^(::ffff:)?127\.0\.0\.1$|^::1$/.test(String(req.socket.localAddress ?? ''));
 // Her pages: every form but a paste box disabled, with the reason on hover.
 const ASSISTANT_VIEW = `<script>(() => {
@@ -60,7 +62,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 
-function page(db, { note = '', text = '', err = '' } = {}) {
+function page(db, { note = '', text = '', err = '', extra = '' } = {}) {
   // THE MORNING'S PASTE LIST, LONGER (2026-11-14). This read the old ranker's
   // scores, so it offered people the operator had skipped, people already
   // written to, and people the judge rates 2. Now the same rule as the paste
@@ -83,6 +85,7 @@ function page(db, { note = '', text = '', err = '' } = {}) {
 </style>
 <h1>Paste a profile</h1>
 ${err ? `<p class="err">${esc(err)}</p>` : ''}
+${extra}
 ${note ? `<p class="ok">${esc(note)}</p>` : ''}
 <form method="post" action="/">
   <label>Profile text — paste the whole page, chrome and all</label>
@@ -130,15 +133,30 @@ function serveDash(req, res, url, assistant = false) {
     'content-type': MIME[ext] ?? 'application/octet-stream',
     'cache-control': 'no-store, must-revalidate',
     pragma: 'no-cache',
-  }).end(ext === '.html' ? forViewer(withAutoPaste(readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner)), assistant)
+  }).end(ext === '.html' ? forViewer(withAutoPaste(readFileSync(file, 'utf8').replace(/<body[^>]*>/, (m) => m + banner)), assistant, rel)
     : readFileSync(file));
   return true;
 }
 
 // Her copy: the pages' absolute links to this server point at her own laptop's
 // 127.0.0.1, so they become relative; and the decision buttons are disabled.
-const forViewer = (html, assistant) => (!assistant ? html
-  : html.split(LOCAL_HOST).join('').replace(/<\/body>(?![\s\S]*<\/body>)/, `${ASSISTANT_VIEW}</body>`));
+// HIS COPY LINKS TO HERS (2026-11-18, the operator: "add link to my db so i can
+// see what she sees"): the same page on the private address, which this machine
+// can open too, so what he sees there is exactly her view.
+const theirViewLink = (rel) => `<a href="http://${REMOTE}:${PORT}/${encodeURI(rel)}" target="_blank" rel="noopener"
+  title="This page as the assistant sees it: decision buttons disabled, paste boxes live"
+  style="position:fixed;top:6px;right:10px;z-index:9999;font:12px system-ui,sans-serif;padding:3px 8px;border-radius:4px;background:#eef2f8;color:#2a4a7f;border:1px solid #c8d3e6;text-decoration:none">Assistant's view &#8599;</a>`;
+// HER VIEW IS TINTED (2026-11-18, the operator: "give [her address] a faint
+// background color ... so i can tell at a glance which I'm looking at").
+const ASSISTANT_TINT = `<style>html,body{background:#eefaf3 !important}
+@media (prefers-color-scheme: dark){html,body{background:#14241b !important}}</style>`;
+const forViewer = (html, assistant, rel = 'ready.html') => (!assistant
+  ? (REMOTE ? html.replace(/<body[^>]*>/, (m) => m + notesPanel(`/${rel}`) + refusalPanel(`/${rel}`))
+    .replace(/<\/body>(?![\s\S]*<\/body>)/, `${theirViewLink(rel)}</body>`) : html)
+  // Her note box goes at the TOP: at the bottom it sat under every card, ~45 MB
+  // down index.html, where no one would ever reach it (2026-11-18).
+  : html.split(LOCAL_HOST).join('').replace(/<body[^>]*>/, (m) => m + herNotes(rel))
+    .replace(/<\/body>(?![\s\S]*<\/body>)/, `${ASSISTANT_TINT}${ASSISTANT_VIEW}</body>`));
 
 // The script goes last in the body, where the body it appends to exists.
 const withAutoPaste = (html) => (html.includes('</body>')
@@ -180,6 +198,16 @@ async function awaitBackgroundRead(person) {
 }
 
 function ingest(fields, assistant = false) {
+  try { return ingestOne(fields, assistant); }
+  catch (e) {
+    // Who and where ride on the refusal, so a refused paste can be kept.
+    e.personId ??= (fields.person ?? '').trim() || null;
+    e.url ??= (fields.url ?? '').trim() || urlFrom(fields.text ?? '') || null;
+    throw e;
+  }
+}
+
+function ingestOne(fields, assistant = false) {
   const text = (fields.text ?? '').trim();
   if (!text) throw new Error('Nothing pasted.');
   let personId = (fields.person ?? '').trim();
@@ -191,6 +219,7 @@ function ingest(fields, assistant = false) {
     }
     personId = hits[0].id;
   }
+  fields.person = personId;
   const file = join(tmp, `${personId}.txt`);
   writeFileSync(file, text);
   // --extract IS THE POINT OF THE PASTE. Without it, from 2026-09-23 to 09-25,
@@ -213,6 +242,8 @@ function ingest(fields, assistant = false) {
   }
   // Her page shows HER degree to them; lead keeps the one on file.
   if (assistant) args.push('--via', 'assistant');
+  // Only from the operator's Refused pastes panel, on a refusal he has read.
+  if (fields.force) args.push('--force');
   // A paste IS the page, so the title it carries is confirmed by definition.
   if (!(fields.confirmed ?? '').trim()) args.push('--confirmed', 'confirmed');
   // ONLY THE REFUSALS ARE WAITED ON (2026-10-20). Store, extract, re-judge,
@@ -292,6 +323,11 @@ function queuePaste(personId, args) {
   }).catch((e) => {
     const msg = String(e.stderr || e.message).trim().slice(-600);
     pasteFailures.push({ personId, at: Date.now(), msg });
+    if (args.includes('assistant')) {
+      const at = args.indexOf('--file'), u = args.indexOf('--url');
+      try { keepRefusal({ personId, url: u >= 0 ? args[u + 1] : null, text: readFileSync(args[at + 1], 'utf8'), reason: msg }); }
+      catch {}
+    }
     console.log(`  paste failed for ${personId}: ${msg.slice(0, 200)}`);
   }).then(async () => {
     pasteCount -= 1;
@@ -325,6 +361,106 @@ function pasteBanner() {
   const fails = failed.map((f) => `<div><b>Paste for ${esc(f.personId)} failed:</b> ${esc(f.msg)}</div>`).join('');
   return `<div style="position:sticky;top:0;z-index:98;padding:8px 16px;font-size:13px;white-space:pre-wrap;${
     failed.length ? 'background:#b3261e;color:#fff' : 'background:#fdf3d0;color:#3d3200'}">${line}${fails}</div>`;
+}
+
+// HER REFUSED PASTES REACH HIM (2026-11-18, the operator: "she is also going
+// to hit snags when her db refuses profiles, i would like to be able to address
+// that"). A paste refused on her view is kept with its text and the reason; she
+// is told it has gone to him and moves on. His pages carry a Refused pastes
+// panel while any wait: store it on that card anyway, store it on another card
+// (pasted on the wrong one), or dismiss it. Nothing is pasted twice.
+const REFUSAL_KEPT = `This paste has been kept and sent to ${OPERATOR_NAME} to sort out. Nothing more to do here: go on to the next profile.`;
+let lastRefusalId = null;
+function keepRefusal({ personId, url, text, reason }) {
+  if (!(text ?? '').trim()) return null;
+  lastRefusalId = db.prepare(`INSERT INTO paste_refusals (person_id, url, text, reason, via, created_at) VALUES (?, ?, ?, ?, 'assistant', ?)`)
+    .run(personId || null, url || null, String(text).trim(), String(reason).trim().slice(-2000), new Date().toISOString()).lastInsertRowid;
+  console.log(`  refused (kept for the operator): ${personId ?? 'no match'}`);
+  return lastRefusalId;
+}
+
+// HER NOTES (2026-11-18, the operator: "if she has a pasting issue, we dont want
+// to give her a box to discuss that"). A note on a refused paste, or a note
+// about anything she hits, is stored and logged as ASSISTANT NOTE, which a
+// watching session picks up. Replies show on her pages; his pages list what is
+// open. A note changes nothing by itself.
+const noteForm = (refusalId, back, placeholder) => `<form method="post" action="/assistant-note" class="pb" style="margin:.6rem 0">
+<input type="hidden" name="refusal" value="${refusalId ?? ''}"><input type="hidden" name="back" value="${esc(back)}">
+<textarea name="note" rows="3" style="width:100%;height:auto;font:14px system-ui" placeholder="${esc(placeholder)}"></textarea>
+<button type="submit" style="margin-top:.3rem">Send to ${esc(OPERATOR_NAME)}</button></form>`;
+const refusalNoteBox = (id) => (id ? `<p><b>Anything to add for ${esc(OPERATOR_NAME)}?</b> Optional. For example: the name is spelled differently on LinkedIn, or this person has moved firms.</p>${noteForm(id, '/ready.html', 'Optional note about this paste')}` : '');
+
+function keepNote({ refusalId, page: pg, text }) {
+  const t = String(text ?? '').trim().slice(0, 4000);
+  if (!t) return null;
+  const id = db.prepare('INSERT INTO assistant_notes (refusal_id, page, text, created_at) VALUES (?, ?, ?, ?)')
+    .run(refusalId || null, pg || null, t, new Date().toISOString()).lastInsertRowid;
+  console.log(`  ASSISTANT NOTE #${id}${refusalId ? ` (refused paste #${refusalId})` : ''}: ${t.replace(/\s+/g, ' ').slice(0, 200)}`);
+  return id;
+}
+
+// On her pages: her notes from the last week, with any reply, then a box.
+function herNotes(rel) {
+  const rows = db.prepare(`SELECT * FROM assistant_notes WHERE created_at >= datetime('now', '-7 days') ORDER BY id DESC LIMIT 8`).all();
+  const list = rows.map((n) => `<div style="border-top:1px solid #b9dcc6;padding:6px 0"><div style="white-space:pre-wrap">${esc(n.text)}</div>
+<div style="margin-top:3px;${n.reply ? '' : 'opacity:.7'}">${n.reply ? `<b>${esc(n.reply_by === 'claude' ? `Claude (for ${OPERATOR_NAME})` : OPERATOR_NAME)}:</b> <span style="white-space:pre-wrap">${esc(n.reply)}</span>` : (n.done_at ? 'Done.' : 'Waiting for a reply.')}</div></div>`).join('');
+  return `<details style="margin:8px 16px 12px;padding:10px 14px;border:1px solid #b9dcc6;border-radius:6px;background:#f7fdf9;font:14px system-ui,sans-serif"${rows.some((n) => n.reply && !n.done_at) ? ' open' : ''}>
+<summary style="cursor:pointer;font-weight:600">Note to ${esc(OPERATOR_NAME)}${rows.length ? ` (${rows.length} this week${rows.filter((n) => n.reply).length ? `, ${rows.filter((n) => n.reply).length} answered` : ''})` : ''}</summary>
+<div style="opacity:.75;font-size:13px;margin:4px 0">Goes to ${esc(OPERATOR_NAME)}. Paste problems may be answered right away by Claude, the AI tool ${esc(OPERATOR_NAME)} uses to run this; anything else waits for ${esc(OPERATOR_NAME)}.</div>
+${list}${noteForm(null, `/${rel}`, 'A snag, a question, a card that looks wrong ...')}</details>`;
+}
+
+// On his pages: her notes still open.
+function notesPanel(back) {
+  const rows = db.prepare(`SELECT n.*, r.person_id FROM assistant_notes n LEFT JOIN paste_refusals r ON r.id = n.refusal_id
+      WHERE n.done_at IS NULL ORDER BY n.id DESC LIMIT 20`).all();
+  if (!rows.length) return '';
+  return `<div style="margin:0;padding:10px 16px;background:#eaf6ee;color:#173b26;font:13px system-ui,sans-serif;border-bottom:2px solid #7cbf94">
+<b>Notes from the assistant: ${rows.length}</b>
+${rows.map((n) => `<div style="border-top:1px solid #b9dcc6;padding:8px 0">
+<span style="opacity:.7">#${n.id} · ${esc(new Date(n.created_at).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }))}${n.refusal_id ? ` · on refused paste #${n.refusal_id}${n.person_id ? ` (${esc(n.person_id)})` : ''}` : ''}${n.page ? ` · from ${esc(n.page)}` : ''}</span>
+<div style="white-space:pre-wrap;margin:3px 0">${esc(n.text)}</div>
+<form method="post" action="/assistant-note-reply"><input type="hidden" name="id" value="${n.id}"><input type="hidden" name="back" value="${esc(back)}">
+<input name="reply" value="${esc(n.reply ?? '')}" placeholder="Reply she will see" style="width:28em">
+<button name="do" value="reply">Reply</button> <button name="do" value="done">Done</button></form></div>`).join('')}</div>`;
+}
+
+function refusalPanel(back) {
+  const rows = db.prepare(`SELECT r.*, p.name FROM paste_refusals r LEFT JOIN people p ON p.id = r.person_id
+      WHERE r.resolved_at IS NULL ORDER BY r.id DESC LIMIT 20`).all();
+  if (!rows.length) return '';
+  const item = (r) => `<div style="border-top:1px solid #e3c9a8;padding:8px 0">
+<b>${esc(r.name ?? r.person_id ?? 'no name matched')}</b> <span style="opacity:.7">· ${esc(new Date(r.created_at).toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short' }))}${r.url ? ` · ${esc(r.url)}` : ''}</span>
+<div style="white-space:pre-wrap;margin:4px 0">${esc(r.reason.split('\n').filter((l) => l.trim() && !/^\s*at |npm (ERR|error)|^>/.test(l)).slice(-4).join('\n'))}</div>
+<details><summary style="cursor:pointer">What she pasted</summary><pre style="white-space:pre-wrap;max-height:16em;overflow:auto;font-size:12px">${esc(r.text.slice(0, 6000))}</pre></details>
+<form method="post" action="/refusal" style="margin-top:6px">
+<input type="hidden" name="id" value="${r.id}"><input type="hidden" name="back" value="${esc(back)}">
+Card (person id): <input name="person" value="${esc(r.person_id ?? '')}" style="width:16em" placeholder="the right person's id">
+<label style="display:inline"><input type="checkbox" name="force" value="1"> it is them; skip the name check</label>
+<button name="do" value="store">Store</button> <button name="do" value="dismiss">Dismiss</button>
+</form></div>`;
+  return `<div style="margin:0;padding:10px 16px;background:#fbf0e2;color:#3d2a12;font:13px system-ui,sans-serif;border-bottom:2px solid #d9a35b">
+<b>Refused pastes from the assistant: ${rows.length}</b> <span style="opacity:.75">Store one on its card anyway (tick the box when the page names them differently), store it on another card, or dismiss it.</span>
+${rows.map(item).join('')}</div>`;
+}
+
+// PASTE THESE TOO (2026-11-18, the operator: "show me 5 more cards to paste").
+// The next five the paste list would have offered, asked for exactly as
+// `lead paste-ask` asks, so they sit at the top until a profile arrives.
+async function moreToPaste(assistant) {
+  const asked = new Set(db.prepare(`SELECT a.person_id FROM paste_asks a
+      WHERE NOT EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = a.person_id
+                          AND e.kind = 'operator_profile' AND e.retrieved_at >= a.asked_at)
+        AND a.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)`).pluck().all());
+  const shown = new Set(pasteQueue(db).filter((p) => !asked.has(p.person_id)).map((p) => p.person_id));
+  const next = pasteQueue(db, 80).filter((p) => !asked.has(p.person_id) && !shown.has(p.person_id)).slice(0, 5);
+  const at = new Date().toISOString();
+  const ins = db.prepare(`INSERT INTO paste_asks (person_id, asked_at, note) VALUES (?, ?, ?)
+      ON CONFLICT(person_id) DO UPDATE SET asked_at = excluded.asked_at, note = excluded.note`);
+  for (const p of next) ins.run(p.person_id, at, `5 more, from the page${assistant ? ' (assistant)' : ''}`);
+  console.log(`  5 more to paste: ${next.map((p) => p.person_id).join(', ') || 'none left'}`);
+  if (next.length) await rebuild();
+  return next.length;
 }
 
 // A PASTE INGESTS ITSELF (2026-10-29). The operator: "i'd like the make profile
@@ -583,8 +719,74 @@ function handle(req, res) {
   }
   // Verdicts, notes, sends, comments and balances are his: refused from her
   // address even if a disabled button is forced.
-  if (assistant && ['/note', '/comment', '/verdict', '/balance'].includes(url.pathname)) {
+  if (assistant && ['/note', '/comment', '/verdict', '/balance', '/refusal', '/assistant-note-reply'].includes(url.pathname)) {
     return send(page(db, { err: 'Only the operator records this. Pasting a profile works from here.' }), 403);
+  }
+
+  if (url.pathname === '/more-to-paste' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', async () => {
+      const back = (new URLSearchParams(raw).get('back') ?? '').trim() || '/';
+      try {
+        if (await moreToPaste(assistant)) return res.writeHead(303, { location: back }).end();
+        send(page(db, { note: 'Nothing more to paste right now: everyone rated 3 or higher already has a profile on file. '
+          + 'The morning run adds new people; check back after it.' }));
+      }
+      catch (e) { send(page(db, { err: `5 more failed:\n${String(e.stderr || e.message)}` })); }
+    });
+    return;
+  }
+
+  if (url.pathname === '/assistant-note' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', () => {
+      const f = Object.fromEntries(new URLSearchParams(raw));
+      const back = (f.back ?? '').trim() || '/';
+      keepNote({ refusalId: Number(f.refusal) || null, page: back, text: f.note });
+      res.writeHead(303, { location: back }).end();
+    });
+    return;
+  }
+
+  if (url.pathname === '/assistant-note-reply' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', () => {
+      const f = Object.fromEntries(new URLSearchParams(raw));
+      const now = new Date().toISOString();
+      const reply = (f.reply ?? '').trim();
+      if (reply) db.prepare("UPDATE assistant_notes SET reply = ?, replied_at = ?, reply_by = 'operator' WHERE id = ?").run(reply, now, Number(f.id));
+      if (f.do === 'done') db.prepare('UPDATE assistant_notes SET done_at = ? WHERE id = ?').run(now, Number(f.id));
+      res.writeHead(303, { location: (f.back ?? '').trim() || '/' }).end();
+    });
+    return;
+  }
+
+  if (url.pathname === '/refusal' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });
+    req.on('end', () => {
+      const f = Object.fromEntries(new URLSearchParams(raw));
+      const back = (f.back ?? '').trim() || '/';
+      const r = db.prepare('SELECT * FROM paste_refusals WHERE id = ? AND resolved_at IS NULL').get(Number(f.id));
+      if (!r) return res.writeHead(303, { location: back }).end();
+      const done = (what) => db.prepare('UPDATE paste_refusals SET resolved_at = ?, resolution = ? WHERE id = ?')
+        .run(new Date().toISOString(), what, r.id);
+      if (f.do === 'dismiss') { done('dismissed'); return res.writeHead(303, { location: back }).end(); }
+      const person = (f.person ?? '').trim() || r.person_id;
+      try {
+        // Stored as hers: her degree never becomes his.
+        const out = ingest({ text: r.text, url: r.url ?? '', person: person ?? '', force: f.force ? '1' : '' }, true);
+        done(`${f.force ? 'forced' : 'stored'} ${out.personId}`);
+        console.log(`  refused paste #${r.id} ${f.force ? 'forced onto' : 'stored on'} ${out.personId}`);
+        res.writeHead(303, { location: back }).end();
+      } catch (e) {
+        send(page(db, { err: `Still refused, so it stays on the list:\n${String(e.stderr || e.message)}` }));
+      }
+    });
+    return;
   }
 
   if (url.pathname === '/note') {
@@ -691,7 +893,12 @@ function handle(req, res) {
         res.writeHead(303, { location: `${back}${back.includes('#') ? '' : '#'}` }).end();
         console.log(`  queued ${r.personId}${r.url ? ` · ${r.url}` : ''}`);
       } catch (e) {
-        send(page(db, { text: f.text ?? '', err: String(e.stderr || e.message) }));
+        const err = String(e.stderr || e.message);
+        if (assistant) {
+          const rid = keepRefusal({ personId: e.personId, url: e.url, text: f.text, reason: err });
+          return send(page(db, { err: `${err}\n\n${REFUSAL_KEPT}`, extra: refusalNoteBox(rid) }));
+        }
+        send(page(db, { text: f.text ?? '', err }));
       }
     });
     return;
@@ -709,9 +916,11 @@ function handle(req, res) {
     if (!personId) {
       const hits = matchPerson(db, text);
       if (!hits.length) {
-        return send(page(db, { text, err:
-          'No one in the book matches a name in that text. Put the person id in the field below, '
-          + 'or add them first with `lead -- add-person`.' }));
+        const err = 'No one in the book matches a name in that text. Put the person id in the field below, '
+          + 'or add them first with `lead -- add-person`.';
+        if (assistant) { const rid = keepRefusal({ personId: null, url: (f.url ?? '').trim() || urlFrom(text), text, reason: err });
+          return send(page(db, { err: `${err}\n\n${REFUSAL_KEPT}`, extra: refusalNoteBox(rid) })); }
+        return send(page(db, { text, err }));
       }
       // AMBIGUITY IS SHOWN, NEVER GUESSED. Writing a profile onto the wrong
       // person is silent and hard to notice later.
@@ -739,7 +948,10 @@ function handle(req, res) {
       const who = db.prepare('SELECT name FROM people WHERE id = ?').get(personId)?.name ?? personId;
       send(page(db, { note: `Ingested for ${who} (${personId})${url ? `\n${url}` : ''}\n\n${out.trim()}` }));
     } catch (e) {
-      send(page(db, { text, err: `lead -- paste refused it:\n${e.stderr || e.message}` }));
+      const err = `lead -- paste refused it:\n${e.stderr || e.message}`;
+      if (assistant) { const rid = keepRefusal({ personId, url, text, reason: err });
+        return send(page(db, { err: `${err}\n\n${REFUSAL_KEPT}`, extra: refusalNoteBox(rid) })); }
+      send(page(db, { text, err }));
     }
   });
 }

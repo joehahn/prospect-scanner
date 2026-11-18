@@ -2356,7 +2356,12 @@ function selectInstead(b) {
 
 // ONE BUTTON OPENS THE WHOLE LIST (2026-11-17, his request): every name's card
 // and profile, as if he had clicked each name in turn.
-const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button></p>`;
+// "5 more" (2026-11-18): the next five the list would offer, asked for on the
+// server (inbox.mjs moreToPaste). Class pb, so it stays live on the assistant's view.
+const MORE_TO_PASTE = `<form method="post" action="${SERVER}/more-to-paste" class="pb inline" style="display:inline"><input type="hidden" name="back" value="/ready.html">
+<button type="submit" title="Adds the next five strongest people with no profile on file to this list">5 more to paste</button></form>`;
+const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button>
+${MORE_TO_PASTE}</p>`;
 
 // A paste-list name opens its card on the left and the profile on the right,
 // as the card's own arrow does (2026-11-14, his request).
@@ -2368,7 +2373,7 @@ function pastePanel(db) {
   const askedList = askedIds.size ? db.prepare(`SELECT p.id person_id, p.name, p.title, o.name org_name, p.org_id, p.profile_url
       FROM people p LEFT JOIN orgs o ON o.id = p.org_id WHERE p.id IN (${[...askedIds.keys()].map(() => '?').join(',')})`)
     .all(...askedIds.keys()).sort((a, b) => askedIds.get(a.person_id) - askedIds.get(b.person_id)) : [];
-  const askedHtml = askedList.length ? `<p class="lead"><b>You asked for these:</b></p>
+  const askedHtml = askedList.length ? `<p class="lead"><b>Asked for:</b></p>
 <ol>${askedList.map((p) => `<li>${pasteCardLink(p)} ·
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}
   <br>${copyLine(p.name, p.org_name)} ${searchLink(p.name, p.org_name, p.profile_url)}</li>`).join('')}</ol>` : '';
@@ -2378,7 +2383,7 @@ function pastePanel(db) {
   }
   if (!q.length) {
     return '<section class="panel"><h2>Profiles to paste</h2><p class="lead">None. Everyone rated 3+ '
-      + 'has a profile on file.</p></section>';
+      + `has a profile on file. The morning run adds new people; check back after it.</p><p>${MORE_TO_PASTE}</p></section>`;
   }
   return `<section class="panel"><h2>Profiles to paste today: ${askedList.length + q.length}</h2>${OPEN_ALL}${askedHtml}
 <p class="lead">The strongest rated 3+ with no profile on file, one per firm. A pasted profile gets

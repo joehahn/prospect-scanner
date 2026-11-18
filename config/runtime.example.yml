@@ -141,3 +141,4 @@ models:
 # are disabled and her pastes are stored --via assistant. Unset: 127.0.0.1 only.
 # inbox:
 #   remote_listen: "100.64.0.1"
+#   operator_name: "Sam"     # how her pages name you ("Note to Sam"); unset: "the operator"

@@ -361,6 +361,37 @@ CREATE TABLE IF NOT EXISTS paste_asks (
   note      TEXT
 );
 
+-- Pastes refused on the assistant's view (wrong person, name not on the page,
+-- profile already on another record), kept with their text so the operator can
+-- store one anyway, store it on another card, or dismiss it, without anyone
+-- pasting it again. Resolved rows stay as the record of what was decided.
+CREATE TABLE IF NOT EXISTS paste_refusals (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  person_id   TEXT,               -- the card it was pasted on; NULL when no name matched
+  url         TEXT,
+  text        TEXT NOT NULL,
+  reason      TEXT NOT NULL,
+  via         TEXT,               -- 'assistant'
+  created_at  TEXT NOT NULL,
+  resolved_at TEXT,
+  resolution  TEXT                -- 'stored <id>', 'forced <id>', 'dismissed'
+);
+
+-- Notes the assistant leaves from her view: on a refused paste, or about
+-- anything else she hits. Each new one is logged by the form server, so a
+-- watching session can pick it up; the reply shows on her pages.
+CREATE TABLE IF NOT EXISTS assistant_notes (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  refusal_id  INTEGER REFERENCES paste_refusals(id),
+  page        TEXT,               -- the page she wrote it from
+  text        TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  reply       TEXT,
+  replied_at  TEXT,
+  reply_by    TEXT,               -- 'operator', or 'claude' when a watching session answered
+  done_at     TEXT
+);
+
 -- Picks from the Worth a paste lists (funnel.mjs worthPasting), recorded the
 -- first time each is offered, so the lists' hit rate can be read later.
 CREATE TABLE IF NOT EXISTS paste_picks (
@@ -901,6 +932,7 @@ export function openDb(path = DB_PATH, { quiet = true } = {}) {
   addSizeProvenance(db);
   addAddressCheck(db);
   addCommentWhy(db);
+  addReplyBy(db);
   addNextStep(db);
   addVerdicts(db);
   addGradeClarity(db);
@@ -998,6 +1030,13 @@ function addAddressCheck(db) {
 // WHY THIS COMMENT, added 2026-10-21. `why` says why the post deserves one;
 // the operator also wants to know why the drafted comment says what it says,
 // without reading the post.
+// WHO ANSWERED (2026-11-18). A reply a watching session wrote showed under the
+// operator's name; she would read a tool's answer as his decision.
+function addReplyBy(db) {
+  const cols = db.prepare('PRAGMA table_info(assistant_notes)').all().map((c) => c.name);
+  if (cols.length && !cols.includes('reply_by')) db.exec('ALTER TABLE assistant_notes ADD COLUMN reply_by TEXT');
+}
+
 function addCommentWhy(db) {
   const cols = db.prepare('PRAGMA table_info(comments)').all().map((c) => c.name);
   if (cols.length && !cols.includes('draft_why')) db.exec('ALTER TABLE comments ADD COLUMN draft_why TEXT');
