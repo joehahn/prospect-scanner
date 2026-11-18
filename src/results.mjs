@@ -23,7 +23,8 @@ export const BRIEFS = [
   ['weekly', 'Is outreach volume holding, and is anything coming back?', 'How much to send each week.'],
   ['channels', 'Which channel is the best place to start a conversation?', 'Connection request, message, InMail or email.'],
   ['segments', 'Which industries and offers accept connection requests?', 'Where discovery looks, and which offer leads.'],
-  ['roles', 'Which seats accept, by function and level?', 'Who to aim at.'],
+  ['roles', 'Which functions accept?', 'Which seats to aim at.'],
+  ['levels', 'Which levels of seniority accept?', 'How senior to aim.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
   ['replies', 'Who answered, and how?', 'What the replies have in common.'],
 ];
@@ -84,7 +85,10 @@ const cfgP = {displayModeBar:false, responsive:true};
 function rateDots(id, groups, overall, xTitle) {
   const y = groups.map((g) => g.label + '  (' + g.k + ' of ' + g.n + ')');
   Plotly.newPlot(id, [{ type:'scatter', mode:'markers', orientation:'h', y, x: groups.map((g) => g.rate),
-    marker:{size:11, color: groups.map((g) => g.group === 1 ? pal[1] : pal[0])},
+    // A row may name its own palette color (\`color\`) and marker (\`symbol\`);
+    // otherwise blue for group 0, orange for group 1.
+    marker:{size:11, color: groups.map((g) => pal[g.color ?? (g.group === 1 ? 1 : 0)]),
+      symbol: groups.map((g) => g.symbol ?? 'circle'), line:{width:2, color: groups.map((g) => pal[g.color ?? (g.group === 1 ? 1 : 0)])}},
     error_x:{type:'data', symmetric:false, array: groups.map((g) => g.range[1] - g.rate),
       arrayminus: groups.map((g) => g.rate - g.range[0]), color: dark ? '#8f8e88' : '#a3a29c', thickness:1.5, width:0},
     hovertemplate:'%{y}<br>%{x:.0%}<extra></extra>' }],
@@ -169,21 +173,24 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     const rate = (k, n) => (n ? k / n : 0);
     for (const c of cs) {
       const request = c.channel === 'linkedin_connect_note';
-      if (request) groups.push({ label: 'Connection request: accepted', k: c.accepted, n: c.mature, rate: rate(c.accepted, c.mature), range: c.acceptRange, group: 1 });
+      // Color is the platform (LinkedIn blue, email red, as in Figure 2);
+      // the open circle marks the one row that counts accepts, not replies.
+      const color = c.channel === 'email' ? 3 : 0;
+      if (request) groups.push({ label: 'Connection request: accepted', k: c.accepted, n: c.mature, rate: rate(c.accepted, c.mature), range: c.acceptRange, color, symbol: 'circle-open' });
       // A first message on LinkedIn goes to someone already connected, mostly
       // people the operator knows: say so, or the row reads as a cold channel.
       const label = request ? 'Connection request: accepted, then replied'
         : c.channel === 'linkedin_message' ? 'Message to an existing connection: replied' : `${c.label}: replied`;
       groups.push({ label,
-        k: c.replied, n: c.mature, rate: rate(c.replied, c.mature), range: c.replyRange, group: 0 });
+        k: c.replied, n: c.mature, rate: rate(c.replied, c.mature), range: c.replyRange, color });
     }
     groups.sort((a, b) => b.rate - a.rate);
     const cr = cs.find((c) => c.channel === 'linkedin_connect_note');
-    const step = cr && cr.accepted ? ` ${cr.replied} of the ${cr.accepted} who accepted went on to reply (${pct(cr.replied / cr.accepted)}).` : '';
+    const step = cr && cr.accepted ? ` ${cr.replied} of the ${cr.accepted} who accepted went on to reply (${pct(cr.replied / cr.accepted)}).` : ' none accepted yet.';
     const bounced = cs.filter((c) => c.bounced).map((c) => `${c.bounced} people whose first ${c.label.toLowerCase()} bounced`).join('; ');
     panels.channels = {
       title: 'Reply rate by the channel a conversation started on',
-      caption: `People whose first send is at least ${MATURE_DAYS} days old, by the channel it went on, and how many ever wrote back, including to later follow-ups.${step} Bars show where the true rate likely lies (90% range, computed from the counts). ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)} are left out.` : ''}`,
+      caption: `People whose first send is at least ${MATURE_DAYS} days old, by the channel it went on (blue LinkedIn, red email), and how many ever wrote back, including to later follow-ups. The open circle is connection requests accepted;${step} Bars show where the true rate likely lies (90% range, computed from the counts). ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)} are left out.` : ''}`,
       height: 60 + 34 * groups.length,
     };
     scripts.push(`rateDots('c-channels', ${J(groups)}, null, 'share of people');`);
@@ -202,16 +209,24 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     scripts.push(`rateDots('c-segments', ${J([...byRate(seg), ...byRate(off)])}, ${overall}, 'accepted');`);
   }
 
-  // 5. Roles.
+  // 5. Function, and 6. level: two panels, since they are independent
+  // splits and one chart invited comparing a function row with a level row
+  // (the operator, 2026-11-18).
   {
-    const fn = rates(reqs, (r) => r.func, (r) => r.accepted).map((g) => ({ ...g, group: 0 }));
-    const lv = rates(reqs, (r) => r.level, (r) => r.accepted).map((g) => ({ ...g, label: `Level: ${g.label}`, group: 1 }));
+    const fn = byRate(rates(reqs, (r) => r.func, (r) => r.accepted));
     panels.roles = {
-      title: 'Connection requests accepted, by function and level',
-      caption: `Blue rows are the function in the title, orange rows the level, both read from the title in code. The dashed line is all requests. Groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
-      height: 60 + 34 * (fn.length + lv.length),
+      title: 'Connection requests accepted, by function',
+      caption: `The function in each person's title, read in code. The dashed line is all requests, and groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * fn.length,
     };
-    scripts.push(`rateDots('c-roles', ${J([...byRate(fn), ...byRate(lv)])}, ${overall}, 'accepted');`);
+    scripts.push(`rateDots('c-roles', ${J(fn)}, ${overall}, 'accepted');`);
+    const lv = byRate(rates(reqs, (r) => r.level, (r) => r.accepted));
+    panels.levels = {
+      title: 'Connection requests accepted, by level',
+      caption: `The seniority in each person's title, read in code. The dashed line is all requests, and groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * lv.length,
+    };
+    scripts.push(`rateDots('c-levels', ${J(lv)}, ${overall}, 'accepted');`);
   }
 
   // 6. Rating at send.
