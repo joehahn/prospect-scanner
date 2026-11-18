@@ -20,7 +20,21 @@ reflects a general preference becomes a new rule at the bottom, with its date.
 ## Numbers
 
 - **D4. A rate shows its count and its range.** "17 of 66", a dot at the rate,
-  and a bar for the 90% range. Never a bare percentage.
+  and a bar for the 90% range. Never a bare percentage. The caption says what
+  the bar means ("where the true rate likely lies"), not how it is computed.
+
+  The range is the Wilson score interval for k hits in n sends (`wilson()` in
+  `src/outcomes.mjs`): the true rates p for which the observed k sits within
+  1.645 binomial standard deviations, √(n·p·(1−p)), taken at p. It is inferred
+  from the two counts, not measured. Not ±1.645√k: that matches Wilson at tens
+  of hits but at 0 to 4 hits, where most reply counts are, it goes negative,
+  runs short on top, and shows no width at all for zero.
+
+  It assumes independent sends with one fixed rate. Sends are clustered (same
+  firm, same week, same offer) and the rate drifts as the notes and targets
+  change, so the real uncertainty is wider than the bar. Read the bar as the
+  least uncertainty there could be: overlapping bars cannot be told apart, and
+  a small gap is weak evidence.
 - **D5. Small groups fold.** A group under 15 sends goes into Other. Below
   that, a rate is noise.
 - **D6. Too few to rate means a list.** When the events are too few to split

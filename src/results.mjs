@@ -170,7 +170,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     const bounced = cs.filter((c) => c.bounced).map((c) => `${c.bounced} of ${c.sent} ${c.label.toLowerCase()}s bounced`).join('; ');
     panels.channels = {
       title: 'Reply rate by channel',
-      caption: `Share of sends at least ${MATURE_DAYS} days old that got a reply from the person; bars are the 90% range. The orange dot is connection requests accepted. ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)}, and are left out.` : ''}`,
+      caption: `Share of sends at least ${MATURE_DAYS} days old that got a reply from the person. Bars show where the true rate likely lies (90% range, computed from the counts). The orange dot is connection requests accepted. ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)}, and are left out.` : ''}`,
       height: 60 + 34 * groups.length,
     };
     scripts.push(`rateDots('c-channels', ${J(groups)}, null, 'share of sends');`);
@@ -183,7 +183,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
       .map((g) => ({ ...g, label: `Offer: ${g.label}`, group: 1 }));
     panels.segments = {
       title: 'Connection requests accepted, by industry and by offer',
-      caption: `Blue rows are the firm's industry, orange rows the offer the note made. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}. Groups under ${MIN_GROUP} requests are folded into Other. Requests count once they are ${MATURE_DAYS} days old.`,
+      caption: `Blue rows are the firm's industry, orange rows the offer the note made. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}. Groups under ${MIN_GROUP} requests are folded into Other, and requests count once they are ${MATURE_DAYS} days old. Bars show where the true rate likely lies (90% range, computed from the counts).`,
       height: 60 + 34 * (seg.length + off.length),
     };
     scripts.push(`rateDots('c-segments', ${J([...seg, ...off])}, ${overall}, 'accepted');`);
@@ -195,7 +195,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     const lv = rates(reqs, (r) => r.level, (r) => r.accepted).map((g) => ({ ...g, label: `Level: ${g.label}`, group: 1 }));
     panels.roles = {
       title: 'Connection requests accepted, by function and level',
-      caption: `Blue rows are the function in the title, orange rows the level, both read from the title in code. The dashed line is all requests. Groups under ${MIN_GROUP} are folded into Other.`,
+      caption: `Blue rows are the function in the title, orange rows the level, both read from the title in code. The dashed line is all requests. Groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
       height: 60 + 34 * (fn.length + lv.length),
     };
     scripts.push(`rateDots('c-roles', ${J([...fn, ...lv])}, ${overall}, 'accepted');`);
@@ -207,7 +207,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
       .sort((a, b) => (b.key ?? '0').localeCompare(a.key ?? '0')).map((g) => ({ ...g, label: g.key == null ? 'Unrated or 1 to 2' : g.label, group: 0 }));
     panels.rating = {
       title: 'Connection requests accepted, by rating when sent',
-      caption: `The judge's rating on the day each request went. The dashed line is all requests. If 3s accept about as often as 4s, sending them costs little.`,
+      caption: `The judge's rating on the day each request went. The dashed line is all requests. Bars show where the true rate likely lies (90% range, computed from the counts).`,
       height: 60 + 34 * rt.length,
     };
     scripts.push(`rateDots('c-rating', ${J(rt)}, ${overall}, 'accepted');`);
