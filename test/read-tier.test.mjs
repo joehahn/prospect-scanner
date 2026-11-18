@@ -27,11 +27,15 @@ test('the reduced kind takes its share, and is read when nothing else waits', ()
   assert.deepEqual(pickToRead([rows[0], rows[1]], mech, 5, today).map((r) => r.id), [2]);
 });
 
-test('an agenda more than a year past is set aside', () => {
+test('an agenda more than six months past is set aside', () => {
   const today = '2026-11-10';
   assert.equal(longPast(ev(1, 'AMS Annual Meeting', 'January 2017'), today), true);
   assert.equal(longPast(ev(2, 'Agenda 2020'), today), true);
-  assert.equal(longPast(ev(3, '2025 Agenda 25 March 2025'), today), false); // last year is still read
+  assert.equal(longPast(ev(3, '2025 Agenda 25 March 2025'), today), true);
+  assert.equal(longPast(ev(6, 'Summit', 'March 5, 2026'), today), true);   // eight months past
+  assert.equal(longPast(ev(7, 'Summit', 'June 10, 2026'), today), false);  // five months past is still read
+  assert.equal(longPast(ev(8, 'Forum 2025'), today), true);                // 2025 ended over ten months ago
+  assert.equal(longPast(ev(9, 'Forum 2026'), today), false);
   assert.equal(longPast(ev(4, 'Summit', 'October 1, 2026'), today), false);
   assert.equal(longPast(ev(5, 'Summit'), today), false);
 });

@@ -463,13 +463,16 @@ export function pickToRead(rows, mech = {}, limit = 3, today) {
 
 // AN AGENDA FROM A PAST YEAR IS NOT A REASON TO WRITE (2026-11-10). The finder
 // handed in a 2017 meteorology meeting and agendas from 2020 to 2024, and each
-// was fetched and read. An event that ended more than a year ago, or whose name
-// carries a year before last, is set aside without a fetch.
+// was fetched and read. SIX MONTHS, NOT A YEAR (2026-11-18): the judge rated
+// speakers from talks 247 and 504 days old as stale and none above 3, so an
+// event more than six months past, or one named only by a year that ended more
+// than six months ago, is set aside without a fetch.
+export const PAST_DAYS = 182;
 export function longPast(c, today = new Date().toISOString().slice(0, 10)) {
   const d = eventDateFrom(c.when_text ?? '');
-  if (d) return (Date.parse(today) - Date.parse(d.starts_on)) / 86_400_000 > 365;
+  if (d) return (Date.parse(today) - Date.parse(d.starts_on)) / 86_400_000 > PAST_DAYS;
   const years = [...`${c.name ?? ''} ${c.when_text ?? ''}`.matchAll(/\b(20\d\d)\b/g)].map((m) => Number(m[1]));
-  return years.length > 0 && Math.max(...years) < Number(today.slice(0, 4)) - 1;
+  return years.length > 0 && (Date.parse(today) - Date.parse(`${Math.max(...years)}-12-31`)) / 86_400_000 > PAST_DAYS;
 }
 
 async function read(db, cfg, b, args) {
@@ -484,10 +487,10 @@ async function read(db, cfg, b, args) {
   const past = db.prepare(`UPDATE conferences SET status = 'past', reason = ?, read_at = ? WHERE id = ?`);
   const current = [];
   for (const r of waiting) {
-    if (!ids && longPast(r)) past.run('held more than a year ago; not read', new Date().toISOString(), r.id);
+    if (!ids && longPast(r)) past.run('held more than six months ago; not read', new Date().toISOString(), r.id);
     else current.push(r);
   }
-  if (current.length < waiting.length) console.log(dim(`  ${waiting.length - current.length} set aside as more than a year past`));
+  if (current.length < waiting.length) console.log(dim(`  ${waiting.length - current.length} set aside as more than six months past`));
   const rows = ids ? current : pickToRead(current, mech, limit);
   if (!rows.length) { console.log('no conferences waiting. Run with --find first.'); return; }
   const runId = startRun(db, 'conferences-read', { model: cfg.models?.cheap });
