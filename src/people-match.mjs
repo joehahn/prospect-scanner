@@ -60,6 +60,11 @@ export function pageNames(text, name) {
   if (!parts) return true;
   const t = String(text ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (t.includes(parts.last)) return true;
+  // A surname spelled with a space, hyphen or apostrophe on one side and run
+  // together on the other is one name: "Al Mazrouei" is the page of a card
+  // that says "Almazrouei" (2026-11-18).
+  const squash = (s) => s.replace(/[\s'’-]+/g, '');
+  if (squash(t).includes(squash(parts.last))) return true;
   // A preferred or native name in parentheses can sit between first name and
   // initial: "Richard (Tzuulin) Y." is the page of Richard Y.
   const bare = t.replace(/\([^)]*\)/g, ' ').replace(/[ \t]+/g, ' ');

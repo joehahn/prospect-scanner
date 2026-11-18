@@ -48,4 +48,6 @@ test('a page names the person by surname, or as LinkedIn shows a stranger: first
   assert.equal(pageNames('Omar (Ozzie) H.\n· 2nd', 'Omar Haddad'), true);
   assert.equal(pageNames('Omar (Ozzie) K.\n· 2nd', 'Omar Haddad'), false);
   assert.equal(pageNames('Jane Smith, CFO', 'Omar Haddad'), false);
+  assert.equal(pageNames('Omar Al Haddad · 3rd', 'Omar Alhaddad'), true);
+  assert.equal(pageNames('Omar El-Haddad · 3rd', 'Omar Elhaddad'), true);
 });
