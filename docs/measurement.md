@@ -32,11 +32,11 @@ judge rated 3+ in both runs while sending 113 and 117 on; Haiku 4.5 kept 35 and 
 sending 135 and 129, at ten times the cost per person ($0.0039 against $0.0004). The
 screen runs on Haiku 5.5, and the check is re-run as judgments accumulate.
 
-**The daily funnel.** Every day is counted stage by stage: found, screened, judged,
-rated 3+, still writable, profile pasted, drafted, draft passed grading, sent,
-connection accepted, replied, and set against the operator's two daily goals from config. A second table
-counts the same stages by where each person was first found, so a source that finds
-many people and rates few can be seen. The Funnel page; no model, no cost.
+**The daily funnel.** The Results page counts new cards per day (rated 3, and 4
+or 5 against a goal), profiles pasted, drafted and sent per day, so a step where work
+piles up can be seen, and for each source where its people end up: rated 3+, sent,
+accepted, replied. Sends per week are set against the operator's goal from config.
+No model, no cost.
 
 **Which model drafts, and which grades.** A model change for a step is tested on the
 same people before it is made. Drafting: ten people drafted on each of two models and

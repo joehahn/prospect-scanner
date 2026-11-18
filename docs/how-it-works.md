@@ -119,7 +119,7 @@ and can paste profiles, and the buttons that record decisions are disabled for h
 - **To paste:** promising people whose profile the operator has not read yet.
 - **Results:** how discovery and outreach are doing, one question per panel, ordered
   by which panels the operator actually looks at ([rules](dataviz.md)).
-- **Funnel, Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
+- **Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
 
 Each prospect is a **card**, and the working pages filter cards in place by target,
 the operator's call, who decides, and whether there is an email address. Each target

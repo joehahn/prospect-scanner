@@ -30,7 +30,7 @@ import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { upcomingTalks } from './events.mjs';
-import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
+import { pasteQueue, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 import { resultsPage } from './results.mjs';
 import { sends, matureRequests } from './outcomes.mjs';
 
@@ -204,10 +204,10 @@ function statTitle(st, outcomes = true) {
 // (inbox.mjs); they still work, since a filter changes nothing but the view.
 const PAGE_GROUPS = [
   ['work', ['index', 'ready', 'topaste', 'outreach']],
-  ['how it is going', ['results', 'funnel', 'scoreboard']],
+  ['how it is going', ['results', 'scoreboard']],
   ['setup', ['searches', 'spend', 'gates', 'inputs']],
 ];
-const HIS_PAGES = new Set(['outreach', 'results', 'funnel', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
+const HIS_PAGES = new Set(['outreach', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
 // Set by the build: connection-request accepts per target, and accepts due a note.
 let TARGET_ACCEPT = new Map();
 let FOLLOWUP_DUE = 0;
@@ -2354,40 +2354,8 @@ seat the judge doubts owns the work: the profile decides whether they are the ri
   ${esc(p.title ?? '')}, ${esc(p.org_name ?? p.org_id)}${p.seat_unclear ? ' · <i>settle the seat</i>' : ''}</li>`).join('')}</ol></section>`;
 }
 
-// THE FUNNEL, added 2026-10-02: the operator's two daily goals as numbers.
-// Counts come from funnel.mjs, computed from the book with no model.
-function funnelPage(db, cfg) {
-  const goals = cfg.daily_goals ?? {};
-  const days = funnelDays(db, 14);
-  const week = days.slice(0, 7);
-  const avg = (k) => (week.reduce((a, d) => a + d[k], 0) / week.length).toFixed(1);
-  const goal = (v, g) => (g ? `${v} <span class="dim">of ${g}</span>` : String(v));
-  const cols = [['found', 'found'], ['screened', 'screened'], ['judged', 'judged'], ['strong', 'rated 3+'],
-    ['writable', 'writable now'], ['pasted', 'profile pasted'], ['drafted', 'drafted'],
-    ['clean', 'draft passed grading'], ['sent', 'sent'], ['accepted', 'connection accepted'], ['replied', 'replied']];
-  const src = sourceYield(db, 30);
-  return `<section class="panel"><h2>The two daily goals</h2>
-<table><thead><tr><th></th><th>today</th><th>7-day average</th><th>goal</th></tr></thead><tbody>
-<tr><td>People judged that day and rated 3+</td><td>${days[0].strong}</td><td>${avg('strong')}</td><td>${goals.strong_prospects ?? '—'}</td></tr>
-<tr><td>Notes sent</td><td>${days[0].sent}</td><td>${avg('sent')}</td><td>${goals.notes_sent ?? '—'}</td></tr>
-</tbody></table>
-<p class="dim">Goals are <code>daily_goals</code> in config/me.yml.</p></section>
-<section class="panel"><h2>Each stage, by day</h2>
-<p class="lead">How many people reached each stage on each day. <b>Rated 3+</b> and <b>writable now</b>
-count the people judged that day by where they stand today: writable means a note could still go to
-them (not written to, an offer fits, not recruiting for the skill sold).</p>
-<table><thead><tr><th>day</th>${cols.map(([, l]) => `<th>${l}</th>`).join('')}</tr></thead><tbody>
-${days.map((d) => `<tr><td>${esc(d.day)}</td>${cols.map(([k]) => `<td>${
-    k === 'strong' ? goal(d[k], goals.strong_prospects) : k === 'sent' ? goal(d[k], goals.notes_sent) : d[k]}</td>`).join('')}</tr>`).join('')}
-</tbody></table></section>
-<section class="panel"><h2>What each source yields</h2>
-<p class="lead">People first found in the last 30 days, by where they were first found, and how far
-each source's people got. A source that finds many and rates few is costing judging time.</p>
-<table><thead><tr><th>source</th><th>found</th><th>judged</th><th>rated 3+</th><th>writable now</th><th>sent</th><th>accepted</th><th>replied</th></tr></thead><tbody>
-${src.map((r) => `<tr><td>${esc(r.source)}</td><td>${r.found}</td><td>${r.judged}</td><td>${r.strong}</td>
-  <td>${r.writable}</td><td>${r.sent}</td><td>${r.accepted}</td><td>${r.replied}</td></tr>`).join('')}
-</tbody></table></section>`;
-}
+// THE FUNNEL PAGE was merged into Results on 2026-11-18 (the operator): its
+// stage table became Figure 10 and its source table Figure 11.
 
 function scoreboardPage(db) {
   const has = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judgments'`).get();
@@ -3223,7 +3191,6 @@ function buildAll(db, cfg, targeting) {
     // this already, but a reminder has to be in sight to remind.
     { id: 'topaste', file: 'ready.html#call=first,write,none&pasted=no', label: 'To paste', shortcut: true },
     { id: 'results', file: 'results.html', label: 'Results' },
-    { id: 'funnel', file: 'funnel.html', label: 'Funnel' },
     { id: 'outreach', file: 'outreach.html', label: 'Sent' },
     { id: 'searches', file: 'searches.html', label: 'Searches' },
     { id: 'scoreboard', file: 'scoreboard.html', label: 'Scoreboard' },
@@ -3419,10 +3386,9 @@ function buildAll(db, cfg, targeting) {
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('searches'), 'Searches', searchesPage(db));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
-  { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null,
+  { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
       offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' ') });
     write(pageOf('results'), 'Results', r.html, r.script); }
-  write(pageOf('funnel'), 'Funnel', funnelPage(db, cfg));
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }
 
   // ---- 1. index: everyone, in the judge's order ------------------------------

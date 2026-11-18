@@ -10,7 +10,7 @@
 // UNSEEN_RETIRE days is retired, and one click brings a retired one back. A
 // new panel stays on top for its first NEW_DAYS days so it gets a fair look.
 
-import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
+import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, sourceYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
 
 export const NEW_DAYS = 14;
 export const UNSEEN_FOLD = 30;
@@ -28,6 +28,8 @@ export const BRIEFS = [
   ['levels', 'Which levels of seniority accept?', 'How senior to aim.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
   ['replies', 'Who answered, and how?', 'What the replies have in common.'],
+  ['work', 'Where is work piling up: pasting, drafting or sending?', 'Which step to speed up.'],
+  ['sources', 'Which discovery sources lead to accepts and replies?', 'Where discovery spends.'],
 ];
 
 export function seedBriefs(db) {
@@ -104,7 +106,7 @@ function rateDots(id, groups, overall, xTitle) {
 const byRate = (gs) => [...gs].sort((a, b) => b.rate - a.rate || b.n - a.n);
 
 /** {html, script} for the page. `offerLabel(id)` names an offer from config. */
-export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, server = '' } = {}) {
+export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, sendGoal = null, server = '' } = {}) {
   seedBriefs(db);
   const placed = placeBriefs(db);
   const rows = sends(db);
@@ -152,7 +154,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     const avg = last4.length ? (last4.reduce((a, w) => a + w.sent, 0) / last4.length).toFixed(0) : '0';
     panels.weekly = {
       title: 'Sends per week, and what came back',
-      caption: `Bars are sends, by channel. The line is how many of that week's connection requests were accepted; dots are replies from people. The last four full weeks averaged ${avg} sends; the last bar is this week so far.`,
+      caption: `Bars are sends, by channel. The line is how many of that week's connection requests were accepted; dots are replies from people. The last four full weeks averaged ${avg} sends${sendGoal ? `, against a goal of ${sendGoal * 5} a week (dashed)` : ''}; the last bar is this week so far.`,
       height: 320,
     };
     scripts.push(`{ const wk = ${J(wk)}, chans = ${J(chans)}, names = ${J(CHANNELS)};
@@ -161,6 +163,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     hovertemplate:'week of %{x}<br>' + names[c] + ': %{y}<extra></extra>' }));
   traces.push({ type:'scatter', mode:'lines+markers', name:'accepted', x, y: wk.map((w) => w.accepted), line:{width:2.5, color: dark ? '#e8e6dc' : '#1f1e1c'}, marker:{size:6},
     hovertemplate:'week of %{x}<br>accepted: %{y}<extra></extra>' });
+  ${sendGoal ? `traces.push({ type:'scatter', mode:'lines', name:'goal', x:[x[0], x.at(-1)], y:[${sendGoal * 5}, ${sendGoal * 5}], line:{dash:'dash', width:2.5, color: dark ? '#f2f0e6' : '#1f1e1c'}, hoverinfo:'skip' });` : ''}
   traces.push({ type:'scatter', mode:'markers', name:'replied', x, y: wk.map((w) => w.replied || null), marker:{size:12, symbol:'star', color:'#c0392b'},
     hovertemplate:'week of %{x}<br>replied: %{y}<extra></extra>' });
   Plotly.newPlot('c-weekly', traces, layoutFor({ barmode:'stack', margin:{l:44, r:16, t:10, b:40}, legend:legendTop, bargap:0.2,
@@ -280,6 +283,33 @@ ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? ''
 <td>${esc(CHANNELS[r.channel] ?? r.channel)}${r.warm ? ' <span class="dim">(warm)</span>' : ''}</td><td>${esc(SEGMENTS[r.segment] ?? '')}</td>
 <td>${esc(r.reply_sentiment ?? '')}${r.reply_note ? `<div class="dim">${esc(String(r.reply_note).length > 140 ? `${String(r.reply_note).slice(0, 137)}...` : r.reply_note)}</div>` : ''}</td>
 <td>${esc(since(r))}</td></tr>`).join('')}</tbody></table>`,
+    };
+  }
+
+  // 10. Pasted, drafted, sent per day (replaces the Funnel page's stage table).
+  {
+    const w = workDaily(db, 30);
+    const tot = (a) => a.reduce((x, y) => x + y, 0);
+    panels.work = {
+      title: 'Profiles pasted, drafted and sent, per day',
+      caption: `People whose profile was first pasted, first drafted to, and first sent a note, each day. Over ${w.days.length} days: ${tot(w.pasted)} pasted, ${tot(w.drafted)} drafted, ${tot(w.sent)} sent. Pasted runs above drafted because a paste often shows someone is not worth a note; when drafted runs above sent, notes are waiting on you.`,
+      height: 300,
+    };
+    scripts.push(`{ const w = ${J(w)};
+  const tr = [['pasted', w.pasted, pal[2]], ['drafted', w.drafted, pal[1]], ['sent', w.sent, pal[0]]].map(([n, y, c]) => ({ type:'scatter', mode:'lines+markers', name:n, x:w.days, y,
+    line:{width:2, color:c}, marker:{size:5}, hovertemplate:'%{x}<br>' + n + ': %{y}<extra></extra>' }));
+  Plotly.newPlot('c-work', tr, layoutFor({ margin:{l:44, r:16, t:10, b:40}, legend:legendTop, hovermode:'x',
+    yaxis:{gridcolor:grid, rangemode:'tozero', title:{text:'people'}}, xaxis:{gridcolor:'rgba(0,0,0,0)'} }), cfgP); }`);
+  }
+
+  // 11. Where each source's people end up (replaces the Funnel page's source table).
+  {
+    const src = sourceYield(db, 60).filter((r) => r.strong || r.sent).sort((a, b) => b.accepted - a.accepted || b.replied - a.replied || b.sent - a.sent || b.strong - a.strong);
+    panels.sources = {
+      title: "Where each source's people end up",
+      caption: 'People first found in the last 60 days, by where they were found: how many the judge rates 3 or more, and how many were sent a note, accepted and replied. Sorted by accepts. Sends from the last two weeks have not had time to be accepted.',
+      table: `<table><thead><tr><th>source</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
+${src.map((r) => `<tr><td>${esc(r.source)}</td><td class="num">${r.strong}</td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b></td><td class="num">${r.replied}</td></tr>`).join('')}</tbody></table>`,
     };
   }
 

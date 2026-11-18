@@ -10,7 +10,8 @@
 // carries its count and a 90% range, and a group under MIN_GROUP sends is
 // folded into "Other".
 
-import { stages } from './funnel.mjs';
+import { stages, sourceYield } from './funnel.mjs';
+export { sourceYield };
 
 export const SEGMENTS = {
   banking_credit: 'Banking and credit',
@@ -301,4 +302,17 @@ export function inboundDaily(db, days = 60) {
   // The 3s too, as one band: with them, a bar is every new card that day.
   const threes = dayList.map((d) => recent.filter((p) => p.rating === 3 && p.judged === d).length);
   return { days: dayList, series, threes, marks: uniq };
+}
+
+/**
+ * Per local day over the last `days`: people whose profile was first pasted,
+ * first drafted to, and first sent to that day. Where work piles up between
+ * the assistant's pasting, drafting and the operator's sending.
+ */
+export function workDaily(db, days = 30) {
+  const ps = stages(db);
+  const dayList = [];
+  for (let i = days - 1; i >= 0; i--) dayList.push(daysAgo(i));
+  const per = (k) => dayList.map((d) => ps.filter((p) => p[k] === d).length);
+  return { days: dayList, pasted: per('pasted'), drafted: per('drafted'), sent: per('sent') };
 }

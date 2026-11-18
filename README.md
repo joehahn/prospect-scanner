@@ -134,8 +134,7 @@ Claude Code sessions are billed separately and not included.
   research covers what third parties publish about them (news, interviews, podcasts,
   directories), every fact with its page, LinkedIn blocked. Those people are judged
   again on what it found, and the run ends with a short list of profiles for me to
-  paste. The Funnel page counts each day against two goals: strong prospects found,
-  and notes sent.
+  paste.
 - **I open the Ready page.** It's a short list, best first. Each card says who the
   person is, what their firm does, what just happened that makes now a good time to
   write (with sources), whether they hold the budget, and the cheapest way to reach
@@ -147,8 +146,10 @@ Claude Code sessions are billed separately and not included.
   for changes in plain words until it sounds like me, send it myself, and press
   Sent. Each draft is graded on the spot.
 - **I log replies.** The Results page shows at a glance how it's going: people rated
-  4 or 5 found each day, with missed runs marked, and accept and reply rates by
-  channel, industry, offer, role and rating, each with its count and range. Panels I
+  4 or 5 found each day against a goal, with missed runs marked; sends per week
+  against a goal; where work piles up between pasting, drafting and sending; which
+  sources lead to accepts; and accept and reply rates by channel, industry, offer,
+  role and rating, each with its count and range. Panels I
   look at rise and ones I never look at fold away ([chart rules](docs/dataviz.md)).
   The Scoreboard, Searches and Spend pages show what's working and what it costs.
 - **My assistant pastes profiles too,** from her own laptop. The form server stays
