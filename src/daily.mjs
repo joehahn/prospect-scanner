@@ -3,6 +3,7 @@
 // Each step is an existing stage, run in order, so this adds no logic of its
 // own beyond deciding what each step should cover:
 //
+//   0. network    wait up to an hour for the model API to answer; stop if it never does
 //   1. searches   the measured search list, --save, but only on Monday (it
 //                 costs a search credit per search, and the news does not turn
 //                 over daily); --searches forces it
@@ -180,6 +181,33 @@ function draftPicks(n) {
 const localStart = new Date().toLocaleString('sv-SE', { hour12: false }).slice(0, 16);
 console.log(heading(`daily · ${localStart}${dry ? ' · dry run' : ''}`));
 
+// WAIT FOR THE NETWORK (2026-11-18). One morning every outside call timed out,
+// and the run went on to screen, judge and research nobody, so the day's list
+// was empty. Now the run first checks it can reach the model API; while it
+// cannot, it waits and asks again, for up to an hour, and gives up without
+// running anything if the network never comes back. Any HTTP answer counts as
+// reachable. The error code is logged, so a failed name lookup (ENOTFOUND,
+// EAI_AGAIN: DNS) can be told from a dead connection (a timeout).
+const NET_WAIT_MS = 60 * 60_000, NET_EVERY_MS = 2 * 60_000;
+async function reachable() {
+  try { await fetch('https://api.anthropic.com/', { method: 'HEAD', signal: AbortSignal.timeout(15_000) }); return null; }
+  catch (e) { return e?.cause?.code || e?.cause?.name || e?.name || String(e); }
+}
+if (!dry) {
+  const t0 = Date.now();
+  let why = await reachable();
+  while (why && Date.now() - t0 < NET_WAIT_MS) {
+    console.log(dim(`  network: model API unreachable (${why}) at ${new Date().toLocaleTimeString('en-US', { hour12: false })}; trying again in 2 minutes`));
+    await new Promise((r) => setTimeout(r, NET_EVERY_MS));
+    why = await reachable();
+  }
+  if (why) {
+    console.log(`\n${bold('stopped')}: the model API was unreachable for an hour (${why}). Nothing ran; the Ready page is unchanged. Run \`npm run daily\` once the network is back.`);
+    process.exit(1);
+  }
+  if (Date.now() - t0 > 1000) console.log(dim(`  network: back after ${Math.round((Date.now() - t0) / 60_000)} minute(s)`));
+}
+
 // THE WEEKLY STEPS RUN ON MONDAY (2026-11-10). They used to run on the first
 // weekday six days after the last run, which drifted them onto Tuesday. Monday
 // starts the week on a full week's news. A Monday the laptop slept through is
@@ -203,7 +231,9 @@ if (args.includes('--searches') || weeklyDue(ageDays)) {
 
 // 1b. conference agendas, weekly. The stage loads speakers with their firm's
 // kind already set, so rank and the judge's queue meet them without a vet.
-const lastEv = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'events'`)[0]?.t;
+// Only a run that finished counts (2026-11-18): a stage that failed leaves
+// ended_at empty, and counting it skipped the re-run the same morning.
+const lastEv = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'events' AND ended_at IS NOT NULL`)[0]?.t;
 const evAge = lastEv ? (Date.now() - Date.parse(lastEv)) / 86_400_000 : Infinity;
 let agendas = false;
 if (args.includes('--events') || weeklyDue(evAge)) {
@@ -222,7 +252,7 @@ if (args.includes('--events') || weeklyDue(evAge)) {
 // 1c. conferences nobody configured (added 2026-09-30): find new ones weekly,
 // read two waiting agendas every weekday so the list moves without anyone
 // asking. Speakers arrive through the same path as 1b, so gate runs after.
-const lastFind = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'conferences-find'`)[0]?.t;
+const lastFind = q(`SELECT MAX(started_at) t FROM runs WHERE stage = 'conferences-find' AND ended_at IS NOT NULL`)[0]?.t;
 const findAge = lastFind ? (Date.now() - Date.parse(lastFind)) / 86_400_000 : Infinity;
 // DAILY since 2026-10-02 (it was weekly): new people arrived in bursts --
 // 160, 99, then 12, 15, 13 a day -- and the goal is a daily one. Eight search
