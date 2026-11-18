@@ -264,10 +264,13 @@ if (args.includes('--conferences') || findAge >= 0.5) {
 } else {
   console.log(`\n${bold('1c. find conferences')} ${dim(`skipped: last run ${findAge.toFixed(1)} days ago, daily (--conferences to force)`)}`);
 }
-// FIFTEEN A DAY since 2026-10-30 (it was four): finding ran daily while reading
-// took four, and 183 found events had piled up unread. A read is one cheap call.
+// THIRTY A DAY since 2026-11-18 (fifteen from 2026-10-30, four before that):
+// agendas are where most people the judge rates 4-5 come from, 116 found
+// conferences sat unread, and at fifteen a day finding kept pace with reading,
+// so some passed before anyone read them. A read is one cheap call. Fifteen
+// took up to ten minutes, the default step limit, so the step gets 45, as 1b does: its batch is waited on for up to 40.
 {
-  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '15']);
+  const out = run('1c. read conference agendas', ['conferences', '--', '--read', '--limit', '30'], { limitMs: 45 * 60_000 });
   const w = out.match(/wrote (\d+) people/);
   if (w) { agendas = true; console.log(`  ${w[1]} people from new agendas`); }
 }
