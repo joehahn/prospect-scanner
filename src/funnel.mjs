@@ -201,7 +201,7 @@ const localDay = (iso) => (!iso ? null : /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso
  * Per person: the day each stage was first reached. One pass over the book,
  * shared by the daily table and the per-source table.
  */
-function stages(db) {
+export function stages(db) {
   const first = (sql) => new Map(db.prepare(sql).all().map((r) => [r.person_id, r.t]));
   const tableExists = (t) => db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(t);
   const found = db.prepare(`SELECT e.person_id, e.retrieved_at t, e.kind, e.provenance FROM evidence e
@@ -225,12 +225,16 @@ function stages(db) {
       JOIN (SELECT person_id, MAX(batch) b FROM judgments GROUP BY person_id) l ON l.person_id = j.person_id AND l.b = j.batch`).all();
   const runs = new Map();
   for (const r of latest) { if (!runs.has(r.person_id)) runs.set(r.person_id, []); runs.get(r.person_id).push(r.compelling ?? 0); }
-  for (const [id, c] of runs) { c.sort((a, b) => a - b); if (c[Math.floor(c.length / 2)] >= 3) strongNow.add(id); }
+  const ratingNow = new Map();
+  for (const [id, c] of runs) {
+    c.sort((a, b) => a - b); ratingNow.set(id, c[Math.floor(c.length / 2)]);
+    if (ratingNow.get(id) >= 3) strongNow.add(id);
+  }
   const writable = new Set(strongWritable(db).map((p) => p.person_id));
   return found.map((f) => ({
     id: f.person_id, source: f.provenance === 'operator_supplied' ? 'added by hand' : sourceOf(f.kind),
     found: localDay(f.t), screened: localDay(screened.get(f.person_id)), judged: localDay(judged.get(f.person_id)),
-    strong: strongNow.has(f.person_id), writable: writable.has(f.person_id),
+    strong: strongNow.has(f.person_id), rating: ratingNow.get(f.person_id) ?? null, writable: writable.has(f.person_id),
     pasted: localDay(pasted.get(f.person_id)), drafted: localDay(drafted.get(f.person_id)),
     clean: localDay(clean.get(f.person_id)), sent: localDay(sent.get(f.person_id)),
     accepted: localDay(accepted.get(f.person_id)), replied: localDay(replied.get(f.person_id)),

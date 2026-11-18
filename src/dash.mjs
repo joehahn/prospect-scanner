@@ -31,6 +31,7 @@ import { noteOnly, isDeclined } from './note-text.mjs';
 import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mjs';
 import { upcomingTalks } from './events.mjs';
 import { pasteQueue, funnelDays, sourceYield, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
+import { resultsPage } from './results.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = resolve(ROOT, 'data/dash');
@@ -3261,6 +3262,7 @@ function buildAll(db, cfg, targeting) {
     // profile, leaving out the ones he would not write to. The profile filter did
     // this already, but a reminder has to be in sight to remind.
     { id: 'topaste', file: 'ready.html#call=first,write,none&pasted=no', label: 'To paste', shortcut: true },
+    { id: 'results', file: 'results.html', label: 'Results' },
     { id: 'funnel', file: 'funnel.html', label: 'Funnel' },
     { id: 'outreach', file: 'outreach.html', label: 'Sent' },
     { id: 'searches', file: 'searches.html', label: 'Searches' },
@@ -3447,6 +3449,9 @@ function buildAll(db, cfg, targeting) {
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('searches'), 'Searches', searchesPage(db));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
+  { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null,
+      offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' ') });
+    write(pageOf('results'), 'Results', r.html, r.script); }
   write(pageOf('funnel'), 'Funnel', funnelPage(db, cfg));
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }
 

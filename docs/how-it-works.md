@@ -117,6 +117,8 @@ and can paste profiles, and the buttons that record decisions are disabled for h
 - **All prospects:** everyone not yet written to, in the judge's order.
 - **Ready:** the short list, rated 3 and up.
 - **To paste:** promising people whose profile the operator has not read yet.
+- **Results:** how discovery and outreach are doing, one question per panel, ordered
+  by which panels the operator actually looks at ([rules](dataviz.md)).
 - **Funnel, Sent, Searches, Scoreboard, Spend, Gate log, Inputs.**
 
 Each prospect is a **card**, and the working pages filter cards in place by target,

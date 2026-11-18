@@ -10,6 +10,7 @@
     "seed": "node --env-file-if-exists=.env src/seed.mjs",
     "rank": "node --env-file-if-exists=.env src/rank.mjs",
     "dash": "node --env-file-if-exists=.env src/dash.mjs",
+    "segments": "node --env-file-if-exists=.env src/segments.mjs",
     "draft": "node --env-file-if-exists=.env src/draft.mjs",
     "enrich": "node --env-file-if-exists=.env src/enrich.mjs",
     "gate": "node --env-file-if-exists=.env src/gate.mjs",

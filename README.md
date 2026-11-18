@@ -146,8 +146,11 @@ Claude Code sessions are billed separately and not included.
   browser into the card, which gives the AI more to go on. Then I press Draft, ask
   for changes in plain words until it sounds like me, send it myself, and press
   Sent. Each draft is graded on the spot.
-- **I log replies.** The Scoreboard, Searches and Spend pages show what's working and
-  what it costs.
+- **I log replies.** The Results page shows at a glance how it's going: people rated
+  4 or 5 found each day, with missed runs marked, and accept and reply rates by
+  channel, industry, offer, role and rating, each with its count and range. Panels I
+  look at rise and ones I never look at fold away ([chart rules](docs/dataviz.md)).
+  The Scoreboard, Searches and Spend pages show what's working and what it costs.
 - **My assistant pastes profiles too,** from her own laptop. The form server stays
   running on my Mac and also answers on its [Tailscale](https://tailscale.com) address,
   which only devices I share it with can reach (`inbox.remote_listen` in

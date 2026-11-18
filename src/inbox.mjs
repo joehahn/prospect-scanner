@@ -723,6 +723,38 @@ function handle(req, res) {
     return send(page(db, { err: 'Only the operator records this. Pasting a profile works from here.' }), 403);
   }
 
+  // RESULTS PAGE VIEWS (2026-11-18). The page reports each panel he looks at,
+  // so panels he uses rise and ones he never looks at fold away. Only his:
+  // a view from her address is dropped without a word.
+  if (url.pathname === '/chart-view' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 2e3) req.destroy(); });
+    req.on('end', () => {
+      const f = new URLSearchParams(raw);
+      const id = (f.get('id') ?? '').trim();
+      if (!assistant && /^[a-z0-9_-]{1,40}$/.test(id)) {
+        db.prepare('INSERT INTO chart_views (brief_id, at, ms, how) VALUES (?, ?, ?, ?)')
+          .run(id, new Date().toISOString(), Number(f.get('ms')) || null, f.get('how') === 'opened' ? 'opened' : 'seen');
+      }
+      res.writeHead(204).end();
+    });
+    return;
+  }
+  if (url.pathname === '/chart-revive' && req.method === 'POST') {
+    if (assistant) return send(page(db, { err: 'Only the operator records this.' }), 403);
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 2e3) req.destroy(); });
+    req.on('end', async () => {
+      const id = (new URLSearchParams(raw).get('id') ?? '').trim();
+      const now = new Date().toISOString();
+      db.prepare(`UPDATE chart_briefs SET status = 'approved', approved_at = ?, retired_at = NULL, retired_why = NULL WHERE id = ?`).run(now, id);
+      db.prepare(`INSERT INTO chart_feedback (brief_id, at, call, note) VALUES (?, ?, 'keep', 'brought back from retired')`).run(id, now);
+      try { await rebuild(); } catch { /* the page still loads; it updates on the next build */ }
+      res.writeHead(303, { location: '/results.html' }).end();
+    });
+    return;
+  }
+
   if (url.pathname === '/more-to-paste' && req.method === 'POST') {
     let raw = '';
     req.on('data', (c) => { raw += c; if (raw.length > 1e5) req.destroy(); });

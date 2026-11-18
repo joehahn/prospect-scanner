@@ -44,6 +44,7 @@ outreach_budget_per_month:
 # What a good day looks like. The Funnel page measures each day against these:
 # people judged that day whom the judge rates 3+, and notes sent.
 daily_goals:
+  top_prospects: 2        # people rated 4 or 5 per day; the Results page draws it as a line
   strong_prospects: 20
   notes_sent: 3
 

@@ -33,6 +33,7 @@
 //                 one is flagged on its card with the words that failed
 //   4d. addresses for the firms of writable people rated 4+ where nobody has
 //                 one, read off the firm's own pages (up to --addresses firms)
+//   4e. segments  an industry for each firm newly written to (Results page)
 //   5. dash       rebuild the pages
 //
 // Every stage records its own cost in `runs`; the summary at the end adds them
@@ -405,6 +406,10 @@ if (addrN > 0 && !dry) {
     console.log(`  ${got ? `${got} address(es) on file` : 'none usable'}`);
   }
 }
+
+// 4e. an industry segment for any firm written to that has none, for the
+// Results page (one cheap call per new firm, a cent or so a week).
+run('4e. segments', ['segments']);
 
 // 5. pages
 run('5. dash', ['dash']);

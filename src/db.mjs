@@ -392,6 +392,40 @@ CREATE TABLE IF NOT EXISTS assistant_notes (
   done_at     TEXT
 );
 
+-- THE RESULTS PAGE'S CHARTS (2026-11-18). Each panel starts as a one-line
+-- brief (the question it answers, the decision it informs), and only an
+-- approved brief is drawn. The operator's calls on a panel are kept, so a
+-- correction that reflects a general preference becomes a numbered rule in
+-- docs/dataviz.md. Views are recorded from his browser, so panels he looks at
+-- rise, ones he passes over sink, and ones unseen for a month fold away.
+CREATE TABLE IF NOT EXISTS chart_briefs (
+  id          TEXT PRIMARY KEY,   -- stable key, also the panel's element id
+  question    TEXT NOT NULL,      -- what the panel answers, in his words where possible
+  decision    TEXT NOT NULL,      -- what it informs
+  status      TEXT NOT NULL DEFAULT 'approved',  -- proposed | approved | retired
+  version     INTEGER NOT NULL DEFAULT 1,
+  created_at  TEXT NOT NULL,
+  approved_at TEXT,
+  retired_at  TEXT,
+  retired_why TEXT
+);
+CREATE TABLE IF NOT EXISTS chart_feedback (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  brief_id    TEXT NOT NULL REFERENCES chart_briefs(id),
+  at          TEXT NOT NULL,
+  call        TEXT NOT NULL,      -- keep | change | cut
+  note        TEXT,
+  rule        TEXT                -- the docs/dataviz.md rule it became, if any
+);
+CREATE TABLE IF NOT EXISTS chart_views (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  brief_id    TEXT NOT NULL,
+  at          TEXT NOT NULL,
+  ms          INTEGER,            -- time on screen
+  how         TEXT                -- seen | opened
+);
+CREATE INDEX IF NOT EXISTS chart_views_brief ON chart_views(brief_id, at);
+
 -- Picks from the Worth a paste lists (funnel.mjs worthPasting), recorded the
 -- first time each is offered, so the lists' hit rate can be read later.
 CREATE TABLE IF NOT EXISTS paste_picks (
@@ -933,6 +967,7 @@ export function openDb(path = DB_PATH, { quiet = true } = {}) {
   addAddressCheck(db);
   addCommentWhy(db);
   addReplyBy(db);
+  addSegment(db);
   addNextStep(db);
   addVerdicts(db);
   addGradeClarity(db);
@@ -1030,6 +1065,15 @@ function addAddressCheck(db) {
 // WHY THIS COMMENT, added 2026-10-21. `why` says why the post deserves one;
 // the operator also wants to know why the drafted comment says what it says,
 // without reading the post.
+// ONE INDUSTRY SEGMENT PER FIRM (2026-11-18), set by `npm run segments`.
+function addSegment(db) {
+  const cols = db.prepare('PRAGMA table_info(orgs)').all().map((c) => c.name);
+  if (!cols.length) return;
+  for (const [c, t] of [['segment', 'TEXT'], ['segment_basis', 'TEXT'], ['segment_at', 'TEXT']]) {
+    if (!cols.includes(c)) db.exec(`ALTER TABLE orgs ADD COLUMN ${c} ${t}`);
+  }
+}
+
 // WHO ANSWERED (2026-11-18). A reply a watching session wrote showed under the
 // operator's name; she would read a tool's answer as his decision.
 function addReplyBy(db) {
