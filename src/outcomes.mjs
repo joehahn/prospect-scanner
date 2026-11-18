@@ -113,7 +113,9 @@ export function sends(db) {
   return rows.map((o) => {
     const rs = resp.get(o.id) ?? [];
     const bounce = (r) => r.sentiment === 'bounced' || /bounced|undeliverable/i.test(r.outcome ?? '');
-    const human = rs.filter((r) => !bounce(r) && r.sentiment !== 'accepted');
+    // Latest first: the reply that says where things stand, not the first one.
+    const human = rs.filter((r) => !bounce(r) && r.sentiment !== 'accepted')
+      .sort((a, b) => String(b.responded_at).localeCompare(String(a.responded_at)));
     // The judge's rating when the send went: the middle of its latest batch
     // made on or before that day.
     const js = (judged.get(o.person_id) ?? []).filter((j) => j.created_at.slice(0, 10) <= o.sent_at);
@@ -182,6 +184,46 @@ export function channelScores(rows) {
     by.set(r.channel, c);
   }
   return [...by.values()].sort((a, b) => b.sent - a.sent)
+    .map((c) => ({ ...c, replyRange: wilson(c.replied, c.mature), acceptRange: wilson(c.accepted, c.mature) }));
+}
+
+/**
+ * Per channel a conversation STARTED on: people whose first send went that
+ * way, and how many ever wrote back, on any later send. Counted by person.
+ *
+ * WHY BY PATH (2026-11-18). Counted by send, a connection request that was
+ * accepted and then answered on the follow-up message showed up as a reply to
+ * "LinkedIn message", and connection requests looked like they almost never
+ * drew a reply (3 of 211) when 6 of the 8 people who ever replied came in
+ * through one. The decision the chart informs is where to start.
+ *
+ * A request's reply counts only after an accept, which is how every one so far
+ * has gone ("accepted, then replied"). A person whose first send bounced is
+ * left out, as is one whose first send is under MATURE_DAYS old.
+ */
+export function paths(rows) {
+  const byPerson = new Map();
+  for (const r of rows) {
+    const k = r.person_id ?? `o${r.id}`;
+    if (!byPerson.has(k)) byPerson.set(k, []);
+    byPerson.get(k).push(r);
+  }
+  const by = new Map();
+  for (const rs of byPerson.values()) {
+    rs.sort((a, b) => a.sent_at.localeCompare(b.sent_at) || a.id - b.id);
+    const first = rs[0];
+    const c = by.get(first.channel) ?? { channel: first.channel, label: CHANNELS[first.channel] ?? first.channel,
+      people: 0, bounced: 0, mature: 0, accepted: 0, replied: 0 };
+    by.set(first.channel, c);
+    c.people++;
+    if (first.bounced) { c.bounced++; continue; }
+    if (!first.mature) continue;
+    c.mature++;
+    const isRequest = first.channel === 'linkedin_connect_note';
+    if (isRequest && first.accepted) c.accepted++;
+    if (rs.some((r) => r.replied) && (!isRequest || first.accepted)) c.replied++;
+  }
+  return [...by.values()].sort((a, b) => b.people - a.people)
     .map((c) => ({ ...c, replyRange: wilson(c.replied, c.mature), acceptRange: wilson(c.accepted, c.mature) }));
 }
 

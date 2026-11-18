@@ -84,3 +84,10 @@ From dashboards built before these rules.
 
 *(Each correction to a panel becomes a rule here, so it is not needed twice.
 The call itself is kept in `chart_feedback`.)*
+
+- **D14. Rows run high to low.** In a chart of rates, rows are sorted by rate,
+  highest first, within each color group: the blue rows, then the orange.
+  Ordered scales (a rating) keep their own order. (2026-11-18)
+- **D15. A list of events says where each one stands now**: the latest event
+  for each person, and what has happened since, so a thread that went quiet
+  does not read as live. (2026-11-18)

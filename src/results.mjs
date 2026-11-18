@@ -10,7 +10,7 @@
 // UNSEEN_RETIRE days is retired, and one click brings a retired one back. A
 // new panel stays on top for its first NEW_DAYS days so it gets a fair look.
 
-import { sends, rates, matureRequests, channelScores, weekly, inboundDaily, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
+import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
 
 export const NEW_DAYS = 14;
 export const UNSEEN_FOLD = 30;
@@ -21,7 +21,7 @@ const HALF_LIFE = 30;
 export const BRIEFS = [
   ['inbound', 'How many new cards reach the board each day, how many rate 4 or 5, and did a missed or failed run cause a dip?', 'Where to fix or widen discovery.'],
   ['weekly', 'Is outreach volume holding, and is anything coming back?', 'How much to send each week.'],
-  ['channels', 'Which channel deserves the next send?', 'Connection request, message, InMail or email.'],
+  ['channels', 'Which channel is the best place to start a conversation?', 'Connection request, message, InMail or email.'],
   ['segments', 'Which industries and offers accept connection requests?', 'Where discovery looks, and which offer leads.'],
   ['roles', 'Which seats accept, by function and level?', 'Who to aim at.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
@@ -94,6 +94,10 @@ function rateDots(id, groups, overall, xTitle) {
       shapes: overall == null ? [] : [{type:'line', x0:overall, x1:overall, yref:'paper', y0:0, y1:1, line:{dash:'dash', width:1.5, color: dark ? '#c3c2b7' : '#52514e'}}] }), cfgP);
 }`;
 
+// Rows high to low within their color: blue rows first, then orange (the
+// operator, 2026-11-18). Other sorts with the rest; its label says what it is.
+const byRate = (gs) => [...gs].sort((a, b) => b.rate - a.rate || b.n - a.n);
+
 /** {html, script} for the page. `offerLabel(id)` names an offer from config. */
 export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, server = '' } = {}) {
   seedBriefs(db);
@@ -158,22 +162,31 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
     yaxis:{gridcolor:grid, rangemode:'tozero', title:{text:'sends'}}, xaxis:{gridcolor:'rgba(0,0,0,0)', title:{text:'week starting'}} }), cfgP); }`);
   }
 
-  // 3. Channels.
+  // 3. Channels, by the channel a conversation started on (outcomes.mjs paths).
   {
-    const cs = channelScores(rows).filter((c) => c.sent >= 5);
+    const cs = paths(rows).filter((c) => c.people >= 5);
     const groups = [];
+    const rate = (k, n) => (n ? k / n : 0);
     for (const c of cs) {
-      groups.push({ label: `${c.label}: any reply`, k: c.replied, n: c.mature, rate: c.mature ? c.replied / c.mature : 0, range: c.replyRange, group: 0 });
+      const request = c.channel === 'linkedin_connect_note';
+      if (request) groups.push({ label: 'Connection request: accepted', k: c.accepted, n: c.mature, rate: rate(c.accepted, c.mature), range: c.acceptRange, group: 1 });
+      // A first message on LinkedIn goes to someone already connected, mostly
+      // people the operator knows: say so, or the row reads as a cold channel.
+      const label = request ? 'Connection request: accepted, then replied'
+        : c.channel === 'linkedin_message' ? 'Message to an existing connection: replied' : `${c.label}: replied`;
+      groups.push({ label,
+        k: c.replied, n: c.mature, rate: rate(c.replied, c.mature), range: c.replyRange, group: 0 });
     }
+    groups.sort((a, b) => b.rate - a.rate);
     const cr = cs.find((c) => c.channel === 'linkedin_connect_note');
-    if (cr) groups.unshift({ label: 'Connection request: accepted', k: cr.accepted, n: cr.mature, rate: cr.mature ? cr.accepted / cr.mature : 0, range: cr.acceptRange, group: 1 });
-    const bounced = cs.filter((c) => c.bounced).map((c) => `${c.bounced} of ${c.sent} ${c.label.toLowerCase()}s bounced`).join('; ');
+    const step = cr && cr.accepted ? ` ${cr.replied} of the ${cr.accepted} who accepted went on to reply (${pct(cr.replied / cr.accepted)}).` : '';
+    const bounced = cs.filter((c) => c.bounced).map((c) => `${c.bounced} people whose first ${c.label.toLowerCase()} bounced`).join('; ');
     panels.channels = {
-      title: 'Reply rate by channel',
-      caption: `Share of sends at least ${MATURE_DAYS} days old that got a reply from the person. Bars show where the true rate likely lies (90% range, computed from the counts). The orange dot is connection requests accepted. ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)}, and are left out.` : ''}`,
+      title: 'Reply rate by the channel a conversation started on',
+      caption: `People whose first send is at least ${MATURE_DAYS} days old, by the channel it went on, and how many ever wrote back, including to later follow-ups.${step} Bars show where the true rate likely lies (90% range, computed from the counts). ${bounced ? `${bounced[0].toUpperCase()}${bounced.slice(1)} are left out.` : ''}`,
       height: 60 + 34 * groups.length,
     };
-    scripts.push(`rateDots('c-channels', ${J(groups)}, null, 'share of sends');`);
+    scripts.push(`rateDots('c-channels', ${J(groups)}, null, 'share of people');`);
   }
 
   // 4. Industries and offers.
@@ -186,7 +199,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
       caption: `Blue rows are the firm's industry, orange rows the offer the note made. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}. Groups under ${MIN_GROUP} requests are folded into Other, and requests count once they are ${MATURE_DAYS} days old. Bars show where the true rate likely lies (90% range, computed from the counts).`,
       height: 60 + 34 * (seg.length + off.length),
     };
-    scripts.push(`rateDots('c-segments', ${J([...seg, ...off])}, ${overall}, 'accepted');`);
+    scripts.push(`rateDots('c-segments', ${J([...byRate(seg), ...byRate(off)])}, ${overall}, 'accepted');`);
   }
 
   // 5. Roles.
@@ -198,7 +211,7 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
       caption: `Blue rows are the function in the title, orange rows the level, both read from the title in code. The dashed line is all requests. Groups under ${MIN_GROUP} are folded into Other. Bars show where the true rate likely lies (90% range, computed from the counts).`,
       height: 60 + 34 * (fn.length + lv.length),
     };
-    scripts.push(`rateDots('c-roles', ${J([...fn, ...lv])}, ${overall}, 'accepted');`);
+    scripts.push(`rateDots('c-roles', ${J([...byRate(fn), ...byRate(lv)])}, ${overall}, 'accepted');`);
   }
 
   // 6. Rating at send.
@@ -226,13 +239,25 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, serve
       if (!cur || (!!r.replied_at > cur.dated) || (!!r.replied_at === cur.dated && at > cur.at)) byPerson.set(k, { ...r, at, dated: !!r.replied_at });
     }
     const reps = [...byPerson.values()].sort((a, b) => b.at.localeCompare(a.at));
+    // WHAT HAPPENED AFTER (2026-11-18, the operator, on a call that was held
+    // and then went quiet: the row "should indicate that we met but no
+    // followup steps after that"). Sends to the person after their latest
+    // reply, and whether any was answered.
+    const since = (r) => {
+      // Same day counts: a thank-you after a call goes out the day of the call.
+      const later = rows.filter((x) => x.person_id === r.person_id && x.sent_at >= r.at.slice(0, 10) && x.id !== r.id);
+      if (!later.length) return 'nothing sent since';
+      const answered = later.some((x) => x.replied && (x.replied_at ?? '') > r.at);
+      return `${later.length} sent since (${later.map((x) => x.sent_at.slice(5)).join(', ')}), ${answered ? 'answered' : 'no reply'}`;
+    };
     panels.replies = {
       title: 'Replies from people',
-      caption: `Everyone who replied, newest first: ${reps.length} people from ${rows.length} sends. Too few to turn into a rate per group, so they are listed.`,
-      table: `<table><thead><tr><th>replied</th><th>who</th><th>firm</th><th>channel</th><th>industry</th><th>how</th></tr></thead><tbody>
+      caption: `Everyone who replied, newest first, with their latest reply and what has been sent to them since: ${reps.length} people from ${rows.length} sends. Too few to turn into a rate per group, so they are listed.`,
+      table: `<table><thead><tr><th>replied</th><th>who</th><th>firm</th><th>channel</th><th>industry</th><th>their latest reply</th><th>since</th></tr></thead><tbody>
 ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? '' : '<div class="dim">sent</div>'}</td><td>${esc(r.name ?? '')}<div class="dim">${esc(r.title ?? '')}</div></td><td>${esc(r.org_name ?? '')}</td>
 <td>${esc(CHANNELS[r.channel] ?? r.channel)}${r.warm ? ' <span class="dim">(warm)</span>' : ''}</td><td>${esc(SEGMENTS[r.segment] ?? '')}</td>
-<td>${esc(r.reply_sentiment ?? '')}${r.reply_note ? `<div class="dim">${esc(String(r.reply_note).length > 140 ? `${String(r.reply_note).slice(0, 137)}...` : r.reply_note)}</div>` : ''}</td></tr>`).join('')}</tbody></table>`,
+<td>${esc(r.reply_sentiment ?? '')}${r.reply_note ? `<div class="dim">${esc(String(r.reply_note).length > 140 ? `${String(r.reply_note).slice(0, 137)}...` : r.reply_note)}</div>` : ''}</td>
+<td>${esc(since(r))}</td></tr>`).join('')}</tbody></table>`,
     };
   }
 
