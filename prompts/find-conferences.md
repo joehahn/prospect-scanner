@@ -1,4 +1,6 @@
-# find-conferences — v4, 2026-11-10
+# find-conferences — v5, 2026-11-19
+
+*v5: a floor for every target. Leaning on the events that answered (v3) fed the targets that had answered and starved the rest: in 30 days one target drew 323 people from agendas and a newer one 4, and 587 people judged fitted no target at all. The input now names the three targets with the fewest people in two weeks, and each gets one search; the other searches still lean on what answered.*
 
 *v4: named series. The input may list event series worth finding by name; two or three searches look up this year's or next year's agenda for some of them, a different few each day.*
 
@@ -38,6 +40,11 @@ operator wants more of, with what he said about them.
   the same audience and seniority, the same series in other cities, other
   organizers of the same kind of summit. Kinds listed as sparing get one search
   at most.
+- **One search for each starving target.** When the input lists targets the
+  agendas are starving, write one search aimed at each: an event where that
+  target's people speak, in the months ahead (for a target running one kind
+  of system, that system's user group). These come before the searches that
+  lean on events that answered.
 - **Named series, a few a day.** When the input lists event series worth
   finding, two or three searches ask for the current agenda or speaker list of
   some of them by name. Pick different ones on different days.

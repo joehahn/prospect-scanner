@@ -200,13 +200,27 @@ async function find(db, cfg, b, args) {
   const lookFor = discMech.look_for ?? [];
   const lookText = lookFor.length
     ? `\n\n## Event series worth finding this year's or next year's agenda for\n${lookFor.map((x) => `- ${x}`).join('\n')}` : '';
+  // THE LEAST-FED TARGETS GET A SEARCH EACH (2026-11-19). Agendas fill nearly
+  // every target, and the finder leaned on events whose speakers had answered,
+  // which were PE and state events: in 30 days PE drew 323 people and a
+  // week-old target 4. A target with no answered event yet was never
+  // searched for. The three with the fewest people judged in two weeks are
+  // named, and the prompt gives each one search; the number of searches is
+  // unchanged, so this costs nothing more.
+  const fed = new Map(db.prepare(`SELECT target, COUNT(DISTINCT person_id) n FROM judgments
+      WHERE created_at >= datetime('now', '-14 days') GROUP BY target`).all().map((r) => [r.target, r.n]));
+  const starved = [...(b.targets ?? [])].sort((x, y) => (fed.get(x.name) ?? 0) - (fed.get(y.name) ?? 0))
+    .slice(0, Math.min(3, n));
+  const starvedText = starved.length
+    ? `\n\n## Targets the agendas are starving, fewest people in two weeks first\n`
+      + starved.map((t) => `- ${t.name} (${fed.get(t.name) ?? 0} people in 14 days)`).join('\n') : '';
   // Searches written from the targets and their examples.
   const examples = (b.targets ?? []).filter((t) => t.exemplars?.length)
     .map((t) => `\n## Examples for "${t.name}"\n${exemplarText(db, t, { full: false })}`).join('\n');
   const q = own.length ? { data: { queries: [] } } : await complete(db, runId, { model: cfg.models?.default, system: promptBody(FIND_FILE),
     schema: QUERIES_SCHEMA, effort: 'low', thinking: false, maxTokens: 1500, messages: [{ role: 'user',
       content: `## The operator's targets\n${(b.targets ?? []).map((t) => `- ${t.name}: ${t.description}`).join('\n')}\n`
-        + `${examples}${answeredText}${lookText}${lastText}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
+        + `${examples}${answeredText}${starvedText}${lookText}${lastText}\n\nToday is ${new Date().toISOString().slice(0, 10)}. Write ${n} searches.` }] });
   for (const query of (q.data?.queries ?? []).slice(0, n)) searches.push({ query, via: 'search' });
 
   if (args.compare) return compare(db, cfg, b, runId, searches, hosts, c0);
