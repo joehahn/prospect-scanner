@@ -336,6 +336,7 @@ export function routeOf(personSource, firmSource) {
   if (personSource === 'conference agendas') return 'Conference agenda speakers';
   if (personSource === 'added by hand') return 'People added by hand';
   if (personSource === 'public utterance') return 'Weekly searches';
+  if (personSource === 'regulatory filing') return 'SEC 8-K filings';
   return FIRM_ROUTES.find(([re]) => re.test(firmSource ?? ''))?.[1] ?? 'Other';
 }
 

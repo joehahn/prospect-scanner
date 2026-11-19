@@ -280,7 +280,7 @@ if (args.includes('--conferences') || findAge >= 0.5) {
 // that just closed the purchase of an operating company. Four days back, so a
 // Monday covers the weekend; a filing seen twice is deduplicated by the book.
 // Free data, one cheap read per filing in the band (about two a week).
-run('1d. SEC acquisitions', ['lead', '--', 'edgar', '--days', '4']);
+run('1d. SEC acquisitions and new officers', ['lead', '--', 'edgar', '--days', '4']);
 
 // 2. vet what the searches and the SEC feed added
 const unvetted = () => q(`SELECT id, name, domain FROM orgs WHERE (source LIKE 'intake search:%' OR source LIKE 'SEC 8-K%') AND kind IS NULL`);

@@ -108,6 +108,9 @@ sources:
     full_text_queries:
       - "artificial intelligence center of excellence"
       - "inference cost"
+    # Item 5.02 (new officers): keep only titles matching this pattern, case-insensitive.
+    # Unset: every newly appointed officer.
+    # appointment_titles: "operat|financ|technolog"
 
 
 models:

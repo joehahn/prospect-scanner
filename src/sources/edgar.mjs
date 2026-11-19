@@ -1,5 +1,6 @@
 /**
- * SEC EDGAR: public companies that just completed an acquisition.
+ * SEC EDGAR: public companies that just completed an acquisition, or just
+ * appointed an officer.
  *
  * WHY (2026-11-12). Both outside reviewers named EDGAR as a free source this
  * book never built: it was declared in runtime.yml in September, and no module
@@ -37,20 +38,20 @@ async function secFetch(url, ua, { json = true } = {}) {
 }
 
 /**
- * 8-K filings under Item 2.01 between two dates, one per company, newest first.
+ * 8-K filings under one item between two dates, one per company, newest first.
  * Amendments (8-K/A) are left out: they refile the same event, usually to add
  * the acquired firm's financial statements.
  */
-export async function acquisitionFilings(ua, startdt, enddt, { max = 300 } = {}) {
+export async function itemFilings(ua, item, startdt, enddt, { max = 300 } = {}) {
   const out = new Map();
   for (let from = 0; from < max; from += 100) {
-    const url = 'https://efts.sec.gov/LATEST/search-index?q=%22Item%202.01%22&forms=8-K'
+    const url = `https://efts.sec.gov/LATEST/search-index?q=%22Item%20${encodeURIComponent(item)}%22&forms=8-K`
       + `&dateRange=custom&startdt=${startdt}&enddt=${enddt}&from=${from}`;
     const d = await secFetch(url, ua);
     const hits = d?.hits?.hits ?? [];
     for (const h of hits) {
       const s = h._source ?? {};
-      if (s.form !== '8-K' || !(s.items ?? []).includes('2.01')) continue;
+      if (s.form !== '8-K' || !(s.items ?? []).includes(item)) continue;
       const cik = String(s.ciks?.[0] ?? '').replace(/^0+/, '');
       if (!cik || out.has(cik)) continue;
       const [adsh, file] = String(h._id).split(':');
@@ -66,6 +67,17 @@ export async function acquisitionFilings(ua, startdt, enddt, { max = 300 } = {})
   }
   return [...out.values()];
 }
+
+/** Completed acquisitions and disposals (Item 2.01). */
+export const acquisitionFilings = (ua, startdt, enddt, opts) => itemFilings(ua, '2.01', startdt, enddt, opts);
+
+/**
+ * Officers appointed or departing (Item 5.02), added 2026-11-18: a company
+ * must name a new principal executive, financial, accounting or operating
+ * officer within four business days. A new officer in the seat is a dated
+ * reason to write, and the filing names them.
+ */
+export const appointmentFilings = (ua, startdt, enddt, opts) => itemFilings(ua, '5.02', startdt, enddt, opts);
 
 const REVENUE_TAGS = ['Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax', 'SalesRevenueNet'];
 
@@ -83,11 +95,11 @@ export async function annualRevenue(ua, cik) {
   return best;
 }
 
-/** The Item 2.01 passage of a filing, as plain text, for a reader to judge. */
-export async function itemText(ua, url, { chars = 7000 } = {}) {
+/** One item's passage of a filing, as plain text, for a reader to judge. */
+export async function itemText(ua, url, { chars = 7000, item = '2.01' } = {}) {
   const html = await secFetch(url, ua, { json: false });
   if (!html) return null;
   const text = extractText(html);
-  const at = text.search(/Item\s*2\.01/i);
+  const at = text.search(new RegExp(`Item\\s*${item.replace('.', '\\.')}`, 'i'));
   return (at >= 0 ? text.slice(at, at + chars) : text.slice(0, chars)).trim();
 }

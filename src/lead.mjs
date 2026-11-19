@@ -2373,7 +2373,6 @@ async function edgar(db, cfg, args) {
     else console.log(dim(`  out of band: ${f.name} (${r ? `$${(r.usd / 1e6).toFixed(0)}M` : 'no revenue reported'})`));
   }
   console.log(dim(`${pass1.length} US and not financial; ${sized.length} inside $${floor / 1e6}M to $${ceiling / 1e9}bn revenue.`));
-  if (!sized.length) return;
 
   const SCHEMA = { type: 'object', additionalProperties: false,
     required: ['role', 'operating_company', 'what', 'closed_on', 'claim'],
@@ -2415,8 +2414,74 @@ async function edgar(db, cfg, args) {
     filed += 1;
   }
   if (runId) finishRun(db, runId, { cost_usd: cost });
-  console.log(dim(`\n${filed} filed${args.dry ? ' (DRY RUN, nothing written)' : ''} · reader $${cost.toFixed(3)}. `
+  console.log(dim(`\n${filed} acquisition(s) filed${args.dry ? ' (DRY RUN, nothing written)' : ''} · reader $${cost.toFixed(3)}. `
     + 'New firms carry no `kind` until vetted: npm run lead -- vet --candidates'));
+  if (!args['no-appointments']) await edgarAppointments(db, cfg, args, { ua, start, end, floor, ceiling, targeting, seen, key, usState, financial });
+}
+
+/**
+ * NEW OFFICERS, from 8-K Item 5.02 (added 2026-11-18). The operator asked to
+ * boost the 8-K source after it rated 3 or better more often than any
+ * firm-first route but one. A public company names a new principal executive,
+ * financial or operating officer within four business days, and the filing
+ * names the person and the date. Which titles count is one business's call,
+ * so it is config: sources.sec_edgar.appointment_titles, a pattern; unset,
+ * every officer. Interim and acting officers are left out: they hold a chair,
+ * they do not set its priorities. Each person is stored with the filing as
+ * their evidence, and the judge reads it like any other.
+ */
+async function edgarAppointments(db, cfg, args, { ua, start, end, floor, ceiling, targeting, seen, key, usState, financial }) {
+  const { appointmentFilings, annualRevenue, itemText } = await import('./sources/edgar.mjs');
+  const titles = cfg.sources?.sec_edgar?.appointment_titles;
+  const wanted = titles ? new RegExp(titles, 'i') : null;
+  const apps = (await appointmentFilings(ua, start, end, { max: 500 })).filter((f) => usState(f.state) && !financial(f.sic));
+  console.log(heading(`SEC 8-K Item 5.02 · ${start} to ${end}`));
+  const inBand = [];
+  for (const f of apps) {
+    const r = await annualRevenue(ua, f.cik);
+    if (r && r.usd >= floor && r.usd <= ceiling) inBand.push({ ...f, revenue: r });
+  }
+  console.log(dim(`${apps.length} US, non-financial companies filed officer changes; ${inBand.length} inside the revenue band.`));
+  const SCHEMA = { type: 'object', additionalProperties: false, required: ['appointed'],
+    properties: { appointed: { type: 'array', items: { type: 'object', additionalProperties: false,
+      required: ['name', 'title', 'interim', 'from_outside', 'effective_on', 'claim'],
+      properties: { name: { type: 'string' }, title: { type: 'string' }, interim: { type: 'boolean' },
+        from_outside: { type: 'boolean' }, effective_on: { type: 'string' }, claim: { type: 'string' } } } } } };
+  const runId = args.dry ? null : startRun(db, 'edgar-appointments', { model: cfg.models.cheap, notes: `${start}..${end}` });
+  const insEv = db.prepare(`INSERT INTO evidence (org_id, person_id, kind, claim, source_url, retrieved_at, provenance)
+    VALUES (?, ?, 'regulatory_filing', ?, ?, ?, 'retrieved') ON CONFLICT(org_id, kind, source_url, claim) DO NOTHING`);
+  let named = 0, cost = 0;
+  for (const f of inBand) {
+    const text = await itemText(ua, f.url, { item: '5.02' });
+    if (!text) continue;
+    const r = await complete(db, runId, { model: cfg.models.cheap, maxTokens: 1200, thinking: false, effort: 'low',
+      schema: SCHEMA, system: promptBody('prompts/read-appointment.md'),
+      messages: [{ role: 'user', content: `Filer: ${f.name}\nFiled: ${f.filed}\n\n${text}` }] });
+    cost += r.cost_usd ?? 0;
+    const keep = (r.data?.appointed ?? []).filter((a) => a.name?.trim() && !a.interim && (!wanted || wanted.test(a.title ?? '')));
+    for (const a of keep) {
+      console.log(`  ${bold('NAME')} ${a.name} · ${a.title} · ${f.name} · $${(f.revenue.usd / 1e6).toFixed(0)}M${a.from_outside ? ' · from outside' : ''}`);
+    }
+    if (!keep.length || args.dry) continue;
+    const orgId = seen.get(key(f.name)) ?? addOrg(db, cfg, targeting, {
+      name: f.name, id: slugify(f.name), revenue: String(f.revenue.usd), hq: f.location ?? f.state,
+      source: `SEC 8-K Item 5.02, filed ${f.filed}`, quiet: true });
+    seen.set(key(f.name), orgId);
+    for (const a of keep) {
+      const known = samePersonOnFile(db, { name: a.name, title: a.title, orgId });
+      const pid = known?.sameOrg ? known.id : slugify(a.name);
+      if (!known?.sameOrg) {
+        // The same slug already used by someone elsewhere: leave it, rather than file two people as one.
+        if (db.prepare('SELECT 1 FROM people WHERE id = ?').get(pid)) continue;
+        db.prepare('INSERT INTO people (id, org_id, name, title, notes) VALUES (?, ?, ?, ?, ?)')
+          .run(pid, orgId, a.name.trim(), a.title.trim(), `Named in an SEC 8-K (Item 5.02), filed ${f.filed}: ${f.url}`);
+      }
+      insEv.run(orgId, pid, a.claim, f.url, new Date().toISOString());
+      named += 1;
+    }
+  }
+  if (runId) finishRun(db, runId, { cost_usd: cost });
+  console.log(dim(`\n${named} officer(s) named${args.dry ? ' (DRY RUN, nothing written)' : ''} · reader $${cost.toFixed(3)}.`));
 }
 
 async function banks(db, cfg, args) {
