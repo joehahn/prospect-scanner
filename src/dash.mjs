@@ -2449,8 +2449,10 @@ function selectInstead(b) {
 // server (inbox.mjs moreToPaste). Class pb, so it stays live on the assistant's view.
 const MORE_TO_PASTE = `<form method="post" action="${SERVER}/more-to-paste" class="pb inline" style="display:inline"><input type="hidden" name="back" value="/ready.html">
 <button type="submit" title="Adds the next five strongest people with no profile on file to this list">5 more to paste</button></form>`;
-const OPEN_ALL = `<p><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button>
-${MORE_TO_PASTE}</p>`;
+// A div, not a p: a form cannot sit inside a p, so the browser closed the p
+// before it and "5 more" fell to its own line below Open all.
+const OPEN_ALL = `<div style="margin:.6em 0;display:flex;gap:.6em;align-items:center;flex-wrap:wrap"><button type="button" class="openall" title="Opens every card on this list and its profile, each in its own tab">Open all cards &amp; profiles</button>
+${MORE_TO_PASTE}</div>`;
 
 // A paste-list name opens its card on the left and the profile on the right,
 // as the card's own arrow does (2026-11-14, his request).
