@@ -10,7 +10,7 @@
 // UNSEEN_RETIRE days is retired, and one click brings a retired one back. A
 // new panel stays on top for its first NEW_DAYS days so it gets a fair look.
 
-import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, sourceYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
+import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, routeYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
 
 export const NEW_DAYS = 14;
 export const UNSEEN_FOLD = 30;
@@ -29,7 +29,7 @@ export const BRIEFS = [
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
   ['replies', 'Who answered, and how?', 'What the replies have in common.'],
   ['work', 'Where is work piling up: pasting, drafting or sending?', 'Which step to speed up.'],
-  ['sources', 'Which discovery sources lead to accepts and replies?', 'Where discovery spends.'],
+  ['sources', 'Which discovery routes lead to accepts and replies?', 'Where discovery spends.'],
 ];
 
 export function seedBriefs(db) {
@@ -302,14 +302,16 @@ ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? ''
     yaxis:{gridcolor:grid, rangemode:'tozero', title:{text:'people'}}, xaxis:{gridcolor:'rgba(0,0,0,0)'} }), cfgP); }`);
   }
 
-  // 11. Where each source's people end up (replaces the Funnel page's source table).
+  // 11. Where each discovery route's people end up (replaces the Funnel page's
+  // source table, now crediting people to how their firm was found).
   {
-    const src = sourceYield(db, 60).filter((r) => r.strong || r.sent).sort((a, b) => b.accepted - a.accepted || b.replied - a.replied || b.sent - a.sent || b.strong - a.strong);
+    const src = routeYield(db, 60).filter((r) => r.found >= 5 || r.sent);
+    const pc = (k, n) => (n ? `${Math.round((100 * k) / n)}%` : '');
     panels.sources = {
-      title: "Where each source's people end up",
-      caption: 'People first found in the last 60 days, by where they were found: how many the judge rates 3 or more, and how many were sent a note, accepted and replied. Sorted by accepts. Sends from the last two weeks have not had time to be accepted.',
-      table: `<table><thead><tr><th>source</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
-${src.map((r) => `<tr><td>${esc(r.source)}</td><td class="num">${r.strong}</td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b></td><td class="num">${r.replied}</td></tr>`).join('')}</tbody></table>`,
+      title: "Where each discovery route's people end up",
+      caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by accepts. Sends from the last two weeks have not had time to be accepted.',
+      table: `<table><thead><tr><th>route</th><th class="num">found</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
+${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td class="num">${r.strong} <span class="dim">${pc(r.strong, r.found)}</span></td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b></td><td class="num">${r.replied}</td></tr>`).join('')}</tbody></table>`,
     };
   }
 

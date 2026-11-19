@@ -10,8 +10,7 @@
 // carries its count and a 90% range, and a group under MIN_GROUP sends is
 // folded into "Other".
 
-import { stages, sourceYield } from './funnel.mjs';
-export { sourceYield };
+import { stages } from './funnel.mjs';
 
 export const SEGMENTS = {
   banking_credit: 'Banking and credit',
@@ -315,4 +314,45 @@ export function workDaily(db, days = 30) {
   for (let i = days - 1; i >= 0; i--) dayList.push(daysAgo(i));
   const per = (k) => dayList.map((d) => ps.filter((p) => p[k] === d).length);
   return { days: dayList, pasted: per('pasted'), drafted: per('drafted'), sent: per('sent') };
+}
+
+// HOW A PERSON WAS FOUND, by the route that found them (2026-11-18). Crediting
+// a person to the first record about them hid most searches: a news search
+// finds a FIRM, and its people are then read off the firm's staff page, so
+// about a thousand people from news searches showed as "firm staff pages",
+// mixed with firms added by hand and the bank register. A conference speaker
+// and a person added by hand are found as people, so they keep their own row.
+const FIRM_ROUTES = [
+  [/^conference/, 'Firms from conference agendas'],
+  [/^discovered by news/, 'News searches'],
+  [/^intake search/, 'Weekly searches'],
+  [/^portfolio of/, 'PE portfolio lists'],
+  [/^operator/, 'Firms added by hand'],
+  [/^FDIC/, 'FDIC bank register'],
+  [/^appointments column/, 'Appointments columns'],
+  [/^SEC /, 'SEC 8-K filings'],
+];
+export function routeOf(personSource, firmSource) {
+  if (personSource === 'conference agendas') return 'Conference agenda speakers';
+  if (personSource === 'added by hand') return 'People added by hand';
+  if (personSource === 'public utterance') return 'Weekly searches';
+  return FIRM_ROUTES.find(([re]) => re.test(firmSource ?? ''))?.[1] ?? 'Other';
+}
+
+/** Per route, over people found in the last `days`: found, rated 3+, sent, accepted, replied. */
+export function routeYield(db, days = 60) {
+  const since = daysAgo(days);
+  const firm = new Map(db.prepare('SELECT p.id, o.source FROM people p JOIN orgs o ON o.id = p.org_id').all().map((r) => [r.id, r.source]));
+  const by = new Map();
+  for (const p of stages(db).filter((x) => x.found && x.found >= since)) {
+    const route = routeOf(p.source, firm.get(p.id));
+    const r = by.get(route) ?? { route, found: 0, strong: 0, sent: 0, accepted: 0, replied: 0 };
+    r.found++;
+    if (p.strong) r.strong++;
+    if (p.sent) r.sent++;
+    if (p.accepted) r.accepted++;
+    if (p.replied) r.replied++;
+    by.set(route, r);
+  }
+  return [...by.values()].sort((a, b) => b.accepted - a.accepted || b.replied - a.replied || b.strong - a.strong || b.found - a.found);
 }
