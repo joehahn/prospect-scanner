@@ -203,11 +203,11 @@ function statTitle(st, outcomes = true) {
 // she has no use for carry data-his and are dimmed in her view only
 // (inbox.mjs); they still work, since a filter changes nothing but the view.
 const PAGE_GROUPS = [
-  ['work', ['index', 'ready', 'topaste', 'outreach']],
+  ['work', ['index', 'ready', 'topaste', 'events', 'outreach']],
   ['how it is going', ['results', 'scoreboard']],
   ['setup', ['searches', 'spend', 'gates', 'inputs']],
 ];
-const HIS_PAGES = new Set(['outreach', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
+const HIS_PAGES = new Set(['events', 'outreach', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
 // Set by the build: connection-request accepts per target, and accepts due a note.
 let TARGET_ACCEPT = new Map();
 let FOLLOWUP_DUE = 0;
@@ -248,7 +248,7 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
       .map(([id, label]) => `<a href="index.html" class="f" data-axis="status" data-val="${id}" data-his="1"${
         statTitle((counts.status ?? {})[id] ?? ZERO, false)}>${label}${statSpan((counts.status ?? {})[id] ?? ZERO, false)}</a>`).join('')) : '';
   const due = `<a href="index.html#accepted" data-his="1" title="Accepted a connection request a day or more ago, and not yet written to">Follow-up due <span class="n">${FOLLOWUP_DUE}</span></a>`
-    + `<a href="index.html#events" data-his="1" title="Accepted, got your note, stayed quiet, and something a note could answer happened in the last week">Event worth a note <span class="n">${FOLLOWUP_EVENTS}</span></a>`
+    + `<a href="${FOLLOWUP_EVENTS ? 'index.html#events' : 'events.html'}" data-his="1" title="Accepted, got your note, stayed quiet, and something a note could answer happened in the last week">Event worth a note <span class="n">${FOLLOWUP_EVENTS}</span></a>`
     + chip('email', 'yes', 'Has email', { mine: true, title: 'Cards with an email address on file' });
   return '<nav class="tabs" data-filter="1">' + pageCols
     + '<div class="stack">'
@@ -1516,21 +1516,37 @@ function eventsSinceAccept(db) {
   return out.sort((a, b) => (b.worth - a.worth) || b.events[0].day.localeCompare(a.events[0].day));
 }
 
-function eventsPanel(db) {
-  const rows = eventsSinceAccept(db);
-  const worthN = rows.filter((r) => r.worth).length;
-  const item = (e) => `<li${e.worth ? '' : ' class="dim"'}><span class="dim">${esc(e.day)}</span> ${e.worth ? '<b>Worth a note:</b> ' : ''}${esc(e.what)}${e.after ? ` <i>(live after ${esc(e.after)})</i>` : ''}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">source</a>` : ''}</li>`;
-  const body = rows.length ? `<table><thead><tr><th>Person</th><th>Accepted · your last note</th><th>What happened since</th></tr></thead><tbody>
-${rows.map((r) => `<tr${r.worth ? '' : ' style="opacity:.6"'}><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)} ${searchLink(r.name, r.org_name, r.profile_url)}</td>
-<td>${esc(String(r.accepted_at).slice(0, 10))}<br><span class="dim">${esc(r.last_sent)}</span></td>
-<td><ul>${r.events.map(item).join('')}</ul></td></tr>`).join('\n')}
-</tbody></table>` : '<p class="dim">Nothing has happened since your last note to anyone who accepted and stayed quiet.</p>';
+// TWO PLACES (2026-11-19, the operator: "put all events in a seperate tab and
+// make actionable events visible in All prospects"). All prospects carries only
+// the rows worth a note, and nothing at all when there are none; the Events
+// page carries every row, so a talk still ahead can be seen coming.
+function eventsPanel(db, { worthOnly = false, all = null } = {}) {
+  const every = all ?? eventsSinceAccept(db);
+  const rows = worthOnly ? every.filter((r) => r.worth) : every;
+  const worthN = every.filter((r) => r.worth).length;
+  if (worthOnly) {
+    if (!rows.length) return '';
+    const more = every.length - worthN;
+    return `<section class="panel" id="events"><h2>Event worth a note: ${worthN}</h2>
+<p class="lead">People who accepted, got your note, and stayed quiet, to whom something a note could answer happened in the
+last ${WORTH_DAYS} days. Nothing here is due.${more ? ` <a href="events.html">${more} more on the Events page</a>.` : ''}</p>
+${eventsTable(rows)}</section>`;
+  }
   return `<section class="panel" id="events"><h2>Event since their accept: ${worthN} worth a note${rows.length > worthN ? ` (${rows.length - worthN} more listed)` : ''}</h2>
 <p class="lead">People who accepted, got your note, and have not replied, to whom something has happened since your last
 note. <b>Worth a note</b> marks something that already happened in the last ${WORTH_DAYS} days and that a note could answer: a talk
 with a published title, a new role, a filing, a post. The rest are listed greyed: firm news, untitled talks, and talks
 still ahead, with the day they turn live. Nothing here is due.</p>
-${body}</section>`;
+${rows.length ? eventsTable(rows) : '<p class="dim">Nothing has happened since your last note to anyone who accepted and stayed quiet.</p>'}</section>`;
+}
+
+function eventsTable(rows) {
+  const item = (e) => `<li${e.worth ? '' : ' class="dim"'}><span class="dim">${esc(e.day)}</span> ${e.worth ? '<b>Worth a note:</b> ' : ''}${esc(e.what)}${e.after ? ` <i>(live after ${esc(e.after)})</i>` : ''}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">source</a>` : ''}</li>`;
+  return `<table><thead><tr><th>Person</th><th>Accepted · your last note</th><th>What happened since</th></tr></thead><tbody>
+${rows.map((r) => `<tr${r.worth ? '' : ' style="opacity:.6"'}><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)} ${searchLink(r.name, r.org_name, r.profile_url)}</td>
+<td>${esc(String(r.accepted_at).slice(0, 10))}<br><span class="dim">${esc(r.last_sent)}</span></td>
+<td><ul>${r.events.map(item).join('')}</ul></td></tr>`).join('\n')}
+</tbody></table>`;
 }
 
 // WORTH A COMMENT. Added 2026-10-17. A pasted profile sometimes carries a post
@@ -3302,6 +3318,7 @@ function buildAll(db, cfg, targeting) {
     // profile, leaving out the ones he would not write to. The profile filter did
     // this already, but a reminder has to be in sight to remind.
     { id: 'topaste', file: 'ready.html#call=first,write,none&pasted=no', label: 'To paste', shortcut: true },
+    { id: 'events', file: 'events.html', label: 'Events' },
     { id: 'results', file: 'results.html', label: 'Results' },
     { id: 'outreach', file: 'outreach.html', label: 'Sent' },
     { id: 'searches', file: 'searches.html', label: 'Searches' },
@@ -3492,11 +3509,13 @@ function buildAll(db, cfg, targeting) {
     TARGET_ACCEPT = m; }
   { const today = new Date().toLocaleDateString('en-CA');
     FOLLOWUP_DUE = acceptedRows(db).filter((r) => String(r.accepted_at).slice(0, 10) < today).length; }
-  FOLLOWUP_EVENTS = eventsSinceAccept(db).filter((r) => r.worth).length;
+  const EVENTS = eventsSinceAccept(db);
+  FOLLOWUP_EVENTS = EVENTS.filter((r) => r.worth).length;
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
   write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
+  write(pageOf('events'), 'Events', eventsPanel(db, { all: EVENTS }));
   write(pageOf('searches'), 'Searches', searchesPage(db));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
   { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
@@ -3552,7 +3571,7 @@ ${tile({ label: 'AI spend, all time', value: `$${Number(sp.total).toFixed(2)}`, 
   write(pageOf('index'), 'Prospects', `
 ${costTiles}
 ${acceptedPanel(db, d)}
-${eventsPanel(db)}
+${eventsPanel(db, { worthOnly: true, all: EVENTS })}
 ${commentsPanel(db)}
 <section class="panel"><h2>Everyone in the book</h2>
 <p class="lead">${openAll.length} people not yet written to, ${nJudged} of them rated by the judge, best
