@@ -218,8 +218,13 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
   const byId = new Map(pages.map((p) => [p.id, p]));
   const his = (on) => (on ? ' data-his="1"' : '');
   const pageLink = (p) => `<a href="${p.file}"${p.id === currentId ? ' class="here"' : ''}${his(HIS_PAGES.has(p.id))}>${esc(p.label)}</a>`;
-  const pageCols = PAGE_GROUPS.map(([h, ids]) => `<div class="col"><span class="grp">${h}</span>${
-    ids.map((i) => byId.get(i)).filter(Boolean).map(pageLink).join('')}</div>`).join('');
+  const groupCol = ([h, ids]) => `<div class="col"><span class="grp">${h}</span>${
+    ids.map((i) => byId.get(i)).filter(Boolean).map(pageLink).join('')}</div>`;
+  // `under` stacks filter columns beneath a page group (2026-11-19: the status
+  // buttons sit under "how it is going").
+  const pageColsWith = (under = {}) => PAGE_GROUPS.map((g) => (under[g[0]]
+    ? `<div class="stack">${groupCol(g)}${under[g[0]]}</div>` : groupCol(g))).join('');
+  const pageCols = pageColsWith();
   // A config page has nothing to filter.
   if (minimal) {
     return `<nav class="tabs">${pageCols}<div class="col"><span class="grp">configuration</span>`
@@ -238,7 +243,7 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
   const targets = pages.filter((p) => p.group === 'sector')
     .map((p) => ({ p, a: TARGET_ACCEPT.get(p.vertical.id) ?? { k: 0, n: 0 } }))
     .sort((x, y) => rateOf(y.a) - rateOf(x.a) || y.a.n - x.a.n);
-  const targetChips = targets.map(({ p, a }) => chip('sectors', p.vertical.id, p.label, {
+  const targetChips = (situation) => targets.filter(({ p }) => (p.vertical.kind === 'situation') === situation).map(({ p, a }) => chip('sectors', p.vertical.id, p.label, {
     extra: a.n >= 15 ? ` <span class="dim">${Math.round((100 * a.k) / a.n)}%</span>` : '',
     title: a.n ? `${a.k} of ${a.n} connection requests accepted, counting those at least 14 days old${a.n < 15 ? '; too few to show a rate' : ''}`
       : 'No connection requests here old enough to count yet' })).join('');
@@ -249,7 +254,7 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
   const due = `<a href="index.html#accepted" data-his="1" title="Accepted a connection request a day or more ago, and not yet written to">Follow-up due <span class="n">${FOLLOWUP_DUE}</span></a>`
     + `<a href="${FOLLOWUP_EVENTS ? 'index.html#events' : 'events.html'}" data-his="1" title="Accepted, got your note, stayed quiet, and something a note could answer happened in the last week">Event worth a note <span class="n">${FOLLOWUP_EVENTS}</span></a>`
     + chip('email', 'yes', 'Has email', { mine: true, title: 'Cards with an email address on file' });
-  return '<nav class="tabs" data-filter="1">' + pageCols
+  return '<nav class="tabs" data-filter="1">' + pageColsWith(statusCol ? { 'how it is going': statusCol } : {})
     + '<div class="stack">'
     + col('to do', due)
     // A sent card's call is "sent", so To send holds only notes still to go
@@ -258,8 +263,14 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
     + col('your call &middot; filter', chip('call', 'first,write', 'To send', { title: 'Write first and Would write, not yet sent' }))
     + `<div class="col fstate"><span class="fcount" id="fcount"></span><a href="${here}" id="fclear" hidden>clear filters</a></div>`
     + '</div>'
-    + `<div class="stack">${col('targets &middot; accepted % &middot; cards waiting', targetChips)}</div>`
-    + `<div class="stack">${col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}${statusCol}</div>`
+    // WHO, AND WHAT SITUATION (2026-11-19). Most targets say who the buyer is; a
+    // few say a state any firm can be in (people doing work by hand, a team short
+    // of hands), each leading to its own offer. `kind: situation` in business.yml.
+    + `<div class="stack">${col('who &middot; accepted % &middot; cards waiting', targetChips(false))}</div>`
+    // Who decides sits under situation (2026-11-19, his layout).
+    + `<div class="stack">${targets.some(({ p }) => p.vertical.kind === 'situation')
+      ? col('situation &middot; accepted % &middot; cards waiting', targetChips(true)) : ''}${
+      col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}</div>`
     + '</nav>';
 }
 

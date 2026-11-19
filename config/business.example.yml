@@ -102,6 +102,10 @@ where:
 targets:
   - name: "Software companies that just met a compliance requirement"
     label: "New compliance need"   # optional: the short name on a dashboard filter chip
+    # optional: `situation` when the target is a state a firm is in (just met a
+    # requirement, short of hands) rather than who the buyer is. The dashboard
+    # shows the two kinds in separate columns. Unset: who.
+    kind: situation
     # optional: countries this target may be written to in beyond `where.countries`
     # above. It files no firm under the target; it only says a firm there is not
     # abroad. (`where.countries` on a target files every firm in those countries.)
