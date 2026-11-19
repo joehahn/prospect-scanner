@@ -11,13 +11,21 @@ import { unconfirmedEmployer } from './employer.mjs';
 
 /**
  * Someone a note could go to today, apart from their rating: not written to,
- * firm not written to in 14 days, firm not killed, not suppressed, not marked
+ * firm not written to in FIRM_COOL_DAYS, firm not killed, not suppressed, not marked
  * "wouldn't" by the operator, an offer fits the firm, and rank does not block
  * them for recruiting the skill sold. `p` is the people row.
  */
+// A COLLEAGUE'S NOTE HOLDS A FIRM FOR DAYS, NOT WEEKS (2026-11-19). Fourteen
+// days refused a credit union's CEO three days after its CIO was written to;
+// the operator: "this should be relaxed". People at one firm are written to
+// separately, and a colleague's silence says nothing (his rule since 11-14).
+// Three days still stops two notes landing at one firm on the same morning,
+// the case an outside review found. The default for
+// ranking.thresholds.firm_cooling_days, which draft and rank read.
+export const FIRM_COOL_DAYS = 3;
 export const WRITABLE = `
        p.id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
-   AND p.org_id NOT IN (SELECT org_id FROM outreach WHERE sent_at >= date('now', '-14 days'))
+   AND p.org_id NOT IN (SELECT org_id FROM outreach WHERE sent_at > date('now', '-${FIRM_COOL_DAYS} days'))
    AND p.org_id NOT IN (SELECT org_id FROM gate_results WHERE outcome LIKE 'kill%')
    AND p.id NOT IN (SELECT person_id FROM do_not_contact WHERE person_id IS NOT NULL)
    AND p.org_id NOT IN (SELECT org_id FROM do_not_contact WHERE org_id IS NOT NULL)

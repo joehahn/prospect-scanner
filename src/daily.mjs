@@ -57,7 +57,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
-import { strongWritable, pasteQueue } from './funnel.mjs';
+import { strongWritable, pasteQueue, FIRM_COOL_DAYS } from './funnel.mjs';
 import { ratingOf } from './measures.mjs';
 import { heading, bold, dim } from './report.mjs';
 
@@ -159,7 +159,7 @@ function draftPicks(n) {
     .replace(/\b(holdings?|group|inc|incorporated|corp|corporation|co|company|llc|ltd|limited|plc|the)\b/g, ' ')
     .replace(/\s+/g, ' ').trim();
   const orgName = new Map(q('SELECT id, name FROM orgs').map((o) => [o.id, o.name]));
-  const recent = new Set(q(`SELECT DISTINCT org_id FROM outreach WHERE sent_at >= date('now', '-14 days')`)
+  const recent = new Set(q(`SELECT DISTINCT org_id FROM outreach WHERE sent_at > date('now', '-${FIRM_COOL_DAYS} days')`)
     .map((r) => firmKey(orgName.get(r.org_id))));
   const firms = new Set();
   const picks = [];

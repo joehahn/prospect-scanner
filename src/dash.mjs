@@ -4203,7 +4203,7 @@ ${group('Ranking thresholds', 'sectors.yml', [
   ['router_authority_cap', r.thresholds?.router_authority_cap ?? 0.5,
    'A capability hire inside <code>fresh_months</code> scores no higher than this — a router ' +
    'to reach through, not a buyer to sell to.'],
-  ['firm_cooling_days', r.thresholds?.firm_cooling_days ?? 21,
+  ['firm_cooling_days', r.thresholds?.firm_cooling_days ?? 3,
    'Do not surface a second person at a firm inside this many days of writing to the first.'],
   ['signature_threshold_usd', r.thresholds?.signature_threshold_usd ?? 5000,
    'At or below this, one person can sign alone. A materially easier sale.'],

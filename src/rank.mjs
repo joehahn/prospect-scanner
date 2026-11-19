@@ -259,7 +259,7 @@ const inHome = (c) => {
 // judgment the operator cannot see, argue with, or find again six weeks later.
 let K = {};
 const knobs = (targeting) => ({
-  ...{ router_authority_cap: 0.5, firm_cooling_days: 14, signature_threshold_usd: 5000,
+  ...{ router_authority_cap: 0.5, firm_cooling_days: 3, signature_threshold_usd: 5000,
        committee_threshold_usd: 15000, decayed_below: 0.5, persona_tier_penalty: 0.08 },
   ...(targeting?.ranking?.thresholds ?? {}),
   outside_home_factor: targeting?.ranking?.outside_home_factor ?? 0.55,

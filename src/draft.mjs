@@ -504,9 +504,9 @@ async function main() {
   // Not skipped by --force; --firm-ok (a box on the card) says he means it.
   // A revise of an existing draft is not a new approach and is not stopped.
   if (!args['firm-ok'] && !args.revise) {
-    const coolDays = Number(targeting?.ranking?.thresholds?.firm_cooling_days ?? 14);
+    const coolDays = Number(targeting?.ranking?.thresholds?.firm_cooling_days ?? 3);
     const last = db.prepare(`SELECT o.sent_at, p.name FROM outreach o JOIN people p ON p.id = o.person_id
-        WHERE o.org_id = ? AND o.person_id <> ? AND o.sent_at >= date('now', ?)
+        WHERE o.org_id = ? AND o.person_id <> ? AND o.sent_at > date('now', ?)
         ORDER BY o.sent_at DESC LIMIT 1`).get(person.org_id, person.id, `-${coolDays} days`);
     if (last) {
       db.close();

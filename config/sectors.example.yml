@@ -69,7 +69,7 @@ ranking:
   # not an implementation detail; the dashboard prints them with their values.
   thresholds:
     router_authority_cap: 0.5       # a capability hire under fresh_months scores no higher
-    firm_cooling_days: 14           # do not surface a second person at a firm inside this
+    firm_cooling_days: 3            # do not surface a second person at a firm inside this
     signature_threshold_usd: 5000   # at or below, one person can sign alone
     committee_threshold_usd: 15000  # above, it needs a committee and the sale is harder
     decayed_below: 0.5              # a trigger decayed past this reads as a con, not a pro
