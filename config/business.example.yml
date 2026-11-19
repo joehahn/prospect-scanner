@@ -136,6 +136,9 @@ targets:
 # thing in this file to grow over time.
 events:
   - name: "funding round"
+    # optional: searched with Exa beside Tavily in the weekly searches (needs
+    # EXA_API_KEY). For an event a firm shows on its own pages before the news.
+    # search_with: [tavily, exa]
     description: "Raised a priced round within the last six months"
     counts_for_days: 180
     does_not_count:

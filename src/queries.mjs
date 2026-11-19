@@ -39,6 +39,7 @@ import { loadBusiness } from './business.mjs';
 import { complete } from './models.mjs';
 import { searchFunnel } from './measures.mjs';
 import { searchNews, creditsUsed } from './sources/tavily.mjs';
+import { searchExa } from './sources/exa.mjs';
 import { fetchPage } from './sources/web.mjs';
 import { heading, bold, dim } from './report.mjs';
 
@@ -159,6 +160,10 @@ async function peopleFromRelease(db, runId, model, h) {
   return { people, viaBrowser: page.viaBrowser };
 }
 
+const withExa = (b, q) => {
+  const e = (b.events ?? []).find((x) => String(x.name).toLowerCase() === String(q.event ?? '').toLowerCase());
+  return (e?.search_with ?? []).map((s) => String(s).toLowerCase()).includes('exa');
+};
 const searchFor = (b, q) => q.searched_in === 'wires'
   ? { topic: 'wires', args: { topic: 'news', requireDate: true, includeDomains: WIRES } }
   : ((t) => ({ topic: t, args: { topic: t, requireDate: t === 'news' } }))(indexFor(b, q.event));
@@ -332,8 +337,20 @@ async function runList(cfg, b, { save = false, events = null, wires = false, tar
     const { topic, args } = searchFor(b, q);
     // A web search reaches sites a news search never did, job postings on the
     // forbidden hosts among them. Their pages are not ours to take, even second hand.
-    const { results = [] } = await searchNews(q.query, { sinceDate: since, maxResults: 6, ...args,
+    const { results: tav = [] } = await searchNews(q.query, { sinceDate: since, maxResults: 6, ...args,
       excludeDomains: forbidden });
+    // EXA BESIDE TAVILY, for an event that asks (`search_with: [tavily, exa]`,
+    // 2026-11-19). A firm launching support for AI agents says so on its own and
+    // its developers' pages before the news does, and Tavily leans to news. A
+    // test on one target's events first; the rest stay on Tavily alone.
+    const results = [...tav];
+    if (withExa(b, q)) {
+      const { results: ex = [], error } = await searchExa(q.query, { maxResults: 6, excludeDomains: forbidden,
+        withText: true, sinceDate: since });
+      if (error) console.log(dim(`  exa: ${error}`));
+      const urls = new Set(tav.map((r) => r.url));
+      results.push(...ex.filter((r) => !urls.has(r.url)));
+    }
     let hits = [];
     if (results.length) {
       const res = await complete(db, runId, { model, system, schema: QUALIFY_SCHEMA, effort: 'low', thinking: false,

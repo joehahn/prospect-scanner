@@ -18,7 +18,8 @@
 //   size        { revenue_min_usd, headcount_max, revenue_max_usd }
 //   where       { countries, home_metro, home_metro_towns, home_region }
 //   targets     [{ name, label?, description, examples, where?, size?, replaces? }]  (replaces: old thesis ids, a bridge)
-//   events      [{ name, description, counts_for_days?, does_not_count?, searched_in? }]
+//   events      [{ name, description, counts_for_days?, does_not_count?, searched_in?, search_with? }]
+//               (search_with: [tavily, exa] adds Exa beside Tavily for that event's weekly searches)
 //               (searched_in: web, for an event found in what people write and say
 //               themselves; news, the default, for one found in reporting)
 //   label: a short name for a filter chip; the name is used everywhere else

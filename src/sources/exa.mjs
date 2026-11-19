@@ -39,13 +39,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * Web results for `query`, shaped like searchNews's: { results: [{url, title,
  * published_date}], error }. results is [] on any failure.
  */
-export async function searchExa(query, { maxResults = 6, excludeDomains = null } = {}) {
+export async function searchExa(query, { maxResults = 6, excludeDomains = null, withText = false, sinceDate = null } = {}) {
   const key = process.env.EXA_API_KEY;
   if (!key) return { results: [], error: 'no EXA_API_KEY in .env' };
   const hosts = await forbidden();
   const exclude = [...new Set([...(excludeDomains ?? []), ...hosts])];
   const body = { query: String(query).slice(0, 400), type: 'auto', numResults: maxResults };
   if (exclude.length) body.excludeDomains = exclude;
+  // A filter that reads snippets needs one: `withText` asks for a short excerpt,
+  // shaped like Tavily's `snippet`, with the date as `published_on`.
+  if (withText) body.contents = { text: { maxCharacters: 600 } };
+  if (sinceDate) body.startPublishedDate = `${sinceDate}T00:00:00.000Z`;
 
   for (let attempt = 0; attempt < RETRIES; attempt++) {
     const wait = MIN_INTERVAL_MS - (Date.now() - lastCall);
@@ -76,7 +80,9 @@ export async function searchExa(query, { maxResults = 6, excludeDomains = null }
     dollars += Number(raw.costDollars?.total ?? 0);
     const results = (raw.results ?? [])
       .filter((r) => r?.url && !onHost(r.url, hosts))
-      .map((r) => ({ url: r.url, title: r.title ?? '', published_date: r.publishedDate ?? null }));
+      .map((r) => ({ url: r.url, title: r.title ?? '', published_date: r.publishedDate ?? null,
+        published_on: r.publishedDate ? String(r.publishedDate).slice(0, 10) : null,
+        snippet: String(r.text ?? '').trim().slice(0, 600) }));
     return { results, error: null };
   }
   return { results: [], error: 'Exa kept answering 429' };
