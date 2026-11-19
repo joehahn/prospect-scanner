@@ -248,7 +248,7 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
       .map(([id, label]) => `<a href="index.html" class="f" data-axis="status" data-val="${id}" data-his="1"${
         statTitle((counts.status ?? {})[id] ?? ZERO, false)}>${label}${statSpan((counts.status ?? {})[id] ?? ZERO, false)}</a>`).join('')) : '';
   const due = `<a href="index.html#accepted" data-his="1" title="Accepted a connection request a day or more ago, and not yet written to">Follow-up due <span class="n">${FOLLOWUP_DUE}</span></a>`
-    + `<a href="index.html#events" data-his="1" title="Accepted, got your note, stayed quiet, and something has happened since">Event since accept <span class="n">${FOLLOWUP_EVENTS}</span></a>`
+    + `<a href="index.html#events" data-his="1" title="Accepted, got your note, stayed quiet, and something a note could answer happened in the last week">Event worth a note <span class="n">${FOLLOWUP_EVENTS}</span></a>`
     + chip('email', 'yes', 'Has email', { mine: true, title: 'Cards with an email address on file' });
   return '<nav class="tabs" data-filter="1">' + pageCols
     + '<div class="stack">'
@@ -1440,6 +1440,15 @@ export function talkEnd(claim) {
   if (mon < 0) return null;
   return `${m[5]}-${String(mon + 1).padStart(2, '0')}-${String(m[4] ?? m[2]).padStart(2, '0')}`;
 }
+// WORTH A NOTE (2026-11-19). The operator asked how he would know which rows
+// need him. A row is marked only when it holds something already happened, in
+// the last week, that a note could answer: a talk with a published session
+// title, a new role, a filing, a post. A talk ahead is shown with the date it
+// turns live; firm news and untitled talks stay listed but unmarked. The nav
+// button counts marked rows only, so 0 means nothing needs him.
+const WORTH_DAYS = 7;
+const WORTH_KINDS = new Set(['employer_change', 'leadership_change', 'regulatory_filing']);
+const NO_SESSION = /no session title published/i;
 const PERSON_EVENTS = ['announcement', 'news_event', 'employer_change', 'leadership_change', 'regulatory_filing', 'public_utterance', 'article', 'board_seats'];
 function eventsSinceAccept(db) {
   const people = db.prepare(`
@@ -1467,6 +1476,7 @@ function eventsSinceAccept(db) {
   const talkKey = (claim) => String(claim).replace(/\([^)]*\)/g, '').replace(/\s+on:.*$/, '').replace(/\s+/g, ' ').trim().toLowerCase();
   const today = new Date().toLocaleDateString('en-CA');
   const recentCutoff = new Date(Date.now() - 14 * 864e5).toLocaleDateString('en-CA');
+  const worthCutoff = new Date(Date.now() - WORTH_DAYS * 864e5).toLocaleDateString('en-CA');
   const out = [];
   for (const p of people) {
     const events = [];
@@ -1478,39 +1488,48 @@ function eventsSinceAccept(db) {
       // A talk counts if it is ahead or was given in the last two weeks: "spoke
       // at" is an old event read late, and an agenda still says "is on the
       // agenda" after the event, so its own date decides.
-      let what = e.claim;
+      let what = String(e.claim).replace(/(\s*\(schedule\))+/g, '');
+      let worth = false;
+      let after = null;
       if (e.kind === 'announcement') {
         if (!UPCOMING_TALK.test(e.claim)) continue;
         const end = talkEnd(e.claim);
         if (end && end < recentCutoff) continue;
-        if (end && end < today) what = `Gave a talk (${end}): ${e.claim.replace(UPCOMING_TALK, 'was on the agenda')}`;
-      }
+        if (end && end < today) {
+          what = `Gave a talk (${end}): ${e.claim.replace(UPCOMING_TALK, 'was on the agenda')}`;
+          // Something to reply to: a titled session, given in the last week.
+          worth = end >= worthCutoff && !NO_SESSION.test(e.claim) && /\bon:\s*\S/.test(e.claim);
+        } else if (end) after = end;
+      } else if (WORTH_KINDS.has(e.kind)) worth = day >= worthCutoff;
       if (before.has(k)) continue;
       before.add(k);
-      events.push({ day, what, url: e.source_url });
+      events.push({ day, what, url: e.source_url, worth, after });
     }
     for (const s of sig.all(p.org_id, p.last_sent)) {
-      events.push({ day: String(s.detected_at).slice(0, 10), what: `At ${p.org_name}: ${s.claim ?? s.trigger_id.replace(/_/g, ' ')}`, url: s.source_url });
+      events.push({ day: String(s.detected_at).slice(0, 10), what: `At ${p.org_name}: ${s.claim ?? s.trigger_id.replace(/_/g, ' ')}`, url: s.source_url, worth: false });
     }
     for (const c of posts.all(p.id, p.last_sent)) {
-      events.push({ day: c.post_date, what: `Posted: ${String(c.post_excerpt ?? '').slice(0, 160)}`, url: c.source_url });
+      events.push({ day: c.post_date, what: `Posted: ${String(c.post_excerpt ?? '').slice(0, 160)}`, url: c.source_url, worth: c.post_date >= worthCutoff });
     }
-    if (events.length) out.push({ ...p, events: events.sort((a, b) => b.day.localeCompare(a.day)) });
+    if (events.length) out.push({ ...p, worth: events.some((e) => e.worth), events: events.sort((a, b) => (b.worth - a.worth) || b.day.localeCompare(a.day)) });
   }
-  return out.sort((a, b) => b.events[0].day.localeCompare(a.events[0].day));
+  return out.sort((a, b) => (b.worth - a.worth) || b.events[0].day.localeCompare(a.events[0].day));
 }
 
 function eventsPanel(db) {
   const rows = eventsSinceAccept(db);
+  const worthN = rows.filter((r) => r.worth).length;
+  const item = (e) => `<li${e.worth ? '' : ' class="dim"'}><span class="dim">${esc(e.day)}</span> ${e.worth ? '<b>Worth a note:</b> ' : ''}${esc(e.what)}${e.after ? ` <i>(live after ${esc(e.after)})</i>` : ''}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">source</a>` : ''}</li>`;
   const body = rows.length ? `<table><thead><tr><th>Person</th><th>Accepted · your last note</th><th>What happened since</th></tr></thead><tbody>
-${rows.map((r) => `<tr><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)} ${searchLink(r.name, r.org_name, r.profile_url)}</td>
+${rows.map((r) => `<tr${r.worth ? '' : ' style="opacity:.6"'}><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)} ${searchLink(r.name, r.org_name, r.profile_url)}</td>
 <td>${esc(String(r.accepted_at).slice(0, 10))}<br><span class="dim">${esc(r.last_sent)}</span></td>
-<td><ul>${r.events.map((e) => `<li><span class="dim">${esc(e.day)}</span> ${esc(e.what)}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">source</a>` : ''}</li>`).join('')}</ul></td></tr>`).join('\n')}
+<td><ul>${r.events.map(item).join('')}</ul></td></tr>`).join('\n')}
 </tbody></table>` : '<p class="dim">Nothing has happened since your last note to anyone who accepted and stayed quiet.</p>';
-  return `<section class="panel" id="events"><h2>Event since their accept${rows.length ? `: ${rows.length}` : ''}</h2>
-<p class="lead">People who accepted, got your note, and have not replied, to whom something has happened since: a talk
-they are giving, a new role, a filing, a post, or news at their firm, first seen after your last note. A reason to write
-again, if it is worth one; nothing here is due.</p>
+  return `<section class="panel" id="events"><h2>Event since their accept: ${worthN} worth a note${rows.length > worthN ? ` (${rows.length - worthN} more listed)` : ''}</h2>
+<p class="lead">People who accepted, got your note, and have not replied, to whom something has happened since your last
+note. <b>Worth a note</b> marks something that already happened in the last ${WORTH_DAYS} days and that a note could answer: a talk
+with a published title, a new role, a filing, a post. The rest are listed greyed: firm news, untitled talks, and talks
+still ahead, with the day they turn live. Nothing here is due.</p>
 ${body}</section>`;
 }
 
@@ -3473,7 +3492,7 @@ function buildAll(db, cfg, targeting) {
     TARGET_ACCEPT = m; }
   { const today = new Date().toLocaleDateString('en-CA');
     FOLLOWUP_DUE = acceptedRows(db).filter((r) => String(r.accepted_at).slice(0, 10) < today).length; }
-  FOLLOWUP_EVENTS = eventsSinceAccept(db).length;
+  FOLLOWUP_EVENTS = eventsSinceAccept(db).filter((r) => r.worth).length;
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
   write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,

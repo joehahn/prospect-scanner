@@ -140,9 +140,9 @@ const PUBLIC_NAMES = new Set(['Google', 'Microsoft', 'Amazon', 'AWS', 'Anthropic
   'LinkedIn', 'GitHub', 'Tavily', 'Guidewire', 'Cognizant', 'Accenture', 'Deloitte', 'Capgemini',
   'Salesforce', 'ServiceNow', 'Databricks', 'Snowflake', 'UiPath', 'Infosys', 'Wipro', 'EPAM', 'Genpact',
   'NVIDIA', 'Nvidia', 'IBM', 'SAP', 'Workday', 'Greenhouse', 'Lever', 'Ashby', 'Playwright',
-  'PR Newswire', 'Business Wire', 'GlobeNewswire', 'Gartner', 'McKinsey', 'FDIC', 'Coursera', 'ZoomInfo']);
+  'PR Newswire', 'Business Wire', 'GlobeNewswire', 'Gartner', 'McKinsey', 'FDIC', 'Coursera', 'ZoomInfo', 'Dropbox']);
 // Firms whose whole name is an ordinary word, which a comment uses as a word.
-const COMMON_WORDS = new Set(['Action', 'Enumerate', 'Frontier', 'Summit', 'Beacon', 'Pinnacle']);
+const COMMON_WORDS = new Set(['Action', 'Enumerate', 'Frontier', 'Summit', 'Beacon', 'Pinnacle', 'Fortune']);
 function bookFirms() {
   const db = resolve(ROOT, 'data/prospects.db');
   if (!existsSync(db)) return { names: [], domains: [] };

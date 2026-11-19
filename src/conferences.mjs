@@ -572,13 +572,17 @@ async function read(db, cfg, b, args) {
     // statement of the day, and the reader may not have been shown the headings.
     const cal = calendarSessions(page.html);
     const dayOf = (s) => (cal.length ? sessionDayFrom(cal, s.session) : null) ?? s.session_date;
-    all.push(...got.kept.map((s) => ({ ...s, session_date: dayOf(s), event: c.key, event_name: c.name, url: page.url, when })));
+    all.push(...got.kept.map((s) => ({ ...s, session_date: dayOf(s), event: c.key, event_name: String(c.name).replace(/(\s*\(schedule\))+$/, ''), url: page.url, when })));
     // A SPEAKER LIST IS NOT AN AGENDA (2026-10-30). One organizer's speaker
     // page carried names and titles but no sessions, its schedule page had a
     // session for every speaker, and a whole sector was nearly written off as
     // "agendas name nobody's topic". Queue the site's own schedule page.
     const sessionless = got.kept.length > 0 && !got.kept.some((s) => s.session);
-    const sibling = sessionless ? schedulePageOf(page) : null;
+    // Once only: a schedule page that is itself sessionless often names
+    // itself as its schedule page, and queuing it again grew a chain of
+    // "(schedule) (schedule)" rows for one URL, each read in turn.
+    const found = sessionless && !String(c.key).endsWith('_schedule') ? schedulePageOf(page) : null;
+    const sibling = found && found !== page.url && found !== c.url ? found : null;
     if (sibling) {
       db.prepare(`INSERT OR IGNORE INTO conferences (key, name, organizer, when_text, url, found_on, found_via, found_at)
         VALUES (?, ?, ?, ?, ?, ?, 'operator', ?)`).run(`${c.key}_schedule`, `${c.name} (schedule)`, c.organizer, c.when_text,

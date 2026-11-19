@@ -1,4 +1,6 @@
-# draft-cold-note — v50, 2026-11-17
+# draft-cold-note — v51, 2026-11-19
+
+*v51: the message after an accept never repeats the connection note. The rule against restating an offer the connection note already pitched was dated "notes sent before 2026-11-09 did", but since v46 every connection note again names a build and since v49 carries the credential. So the follow-up to a supply-chain head accepted 2026-11-18 restated both: the same credential and the same "flags where it is starting to slip" build, across purchase orders instead of expediting reports. The operator: "i feel like we are re-proposing something that the prospect didnt respond to after our earlier note". The check now applies to every follow-up: read the connection note in PRIOR CONTACT, and say nothing it said again.*
 
 *v50: the build covers the reader's whole span. After v49 the example became one narrow checker ("flags one supplier slipping", "reads maintenance and inspection reports to flag faults"), and the grader flagged "below their level" on 6 of 23 connection notes drafted 2026-11-16–17, against 0 of 52 on 2026-11-12–14: a group procurement director, a state chief data officer and a private-equity operating partner were each offered a tool for one of their teams. The operator asked whether the notes should be written to the prospect's level. The fix keeps the one concrete build and states it across what the reader runs: supplier updates across all the group's businesses, data shared across the state's agencies, faults across the fund's portfolio companies.*
 
@@ -487,10 +489,16 @@ When PRIOR CONTACT shows a connection note to this person with status
   and said what he builds; this is where the offer the storyline chooses
   appears: what they would get, sized to their seat (a COO hears about
   operations, not a field-level task), and how it is bought in a phrase (not
-  its price). One or two sentences, with the credential if it fits.
-  **If the accepted connection note already pitched an offer** (notes sent
-  before 2026-11-09 did), do not restate it or its use case: say the kind of
-  work he does at their level instead, broader than that note's example.
+  its price). One or two sentences.
+  **Never repeat the connection note.** *(v51.)* Read it in PRIOR CONTACT
+  first; most connection notes already name a build and the credential. Do
+  not restate either, or the same build in other words (the same "flags it
+  while there is time to act" over different documents is the same build).
+  Say something it did not: the kind of work he does at their level, broader
+  than that note's example, or a different problem their seat owns, and how
+  it is bought. A brief pointer back ("the reports I mentioned") is fine; a
+  second pitch of it is not. The credential appears only if the connection
+  note did not carry it.
 - **An open door, and nothing to do.** One sentence leaving it to them: if that
   kind of help is ever useful at their firm, he would be pleased to hear from
   them. The idea, not a formula; word it fresh each time, as with the opener.
