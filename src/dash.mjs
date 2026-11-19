@@ -24,7 +24,6 @@ import { CONNECT_NOTE_MAX, loadConfig, buyer as resolveBuyer, notSalesSql, geoBu
   evidenceClassesFor } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { scoreboard, searchFunnel, spend, draftArms, gradePredictsEdits, timingText } from './measures.mjs';
-import { channelResults } from './channel-test.mjs';
 import { loadBusiness, targetsOfPeople, inSeat, outsideCountries } from './business.mjs';
 import { historyFor, classify } from './suppression.mjs';
 import { noteOnly, isDeclined } from './note-text.mjs';
@@ -253,12 +252,14 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
   return '<nav class="tabs" data-filter="1">' + pageCols
     + '<div class="stack">'
     + col('to do', due)
-    + col('your call &middot; filter', chip('call', 'first,write', 'To send', { title: 'Write first and Would write, not yet sent' })
-      + chip('call', 'none', 'Undecided'))
+    // A sent card's call is "sent", so To send holds only notes still to go
+    // out (2026-11-19: in-flight cards under To send confused him). Undecided
+    // dropped the same day: it was 181 of 203 cards, a filter for nothing.
+    + col('your call &middot; filter', chip('call', 'first,write', 'To send', { title: 'Write first and Would write, not yet sent' }))
     + `<div class="col fstate"><span class="fcount" id="fcount"></span><a href="${here}" id="fclear" hidden>clear filters</a></div>`
     + '</div>'
-    + `<div class="stack">${col('targets &middot; accepted % &middot; cards waiting', targetChips)}${statusCol}</div>`
-    + `<div class="stack">${col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}</div>`
+    + `<div class="stack">${col('targets &middot; accepted % &middot; cards waiting', targetChips)}</div>`
+    + `<div class="stack">${col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}${statusCol}</div>`
     + '</nav>';
 }
 
@@ -2509,35 +2510,9 @@ the write above the skip. 1.00 is perfect, 0.50 a coin. Blind calls were made be
 <tbody>${row('all your calls since each judgment', sb.forward)}${row('blind calls only', sb.blind)}</tbody></table>
 <p class="dim">Changed your mind after seeing the judge: ${sb.changed}.</p></section>
 ${draftArmsPanel(db)}
-${gradePredictsPanel(db)}
-${channelPanel(db)}`;
-}
-
-// EMAIL OR LINKEDIN? (channel-test.mjs, 2026-10-08.) Replies only on sends old
-// enough to have had one; bounces apart, since a note that never arrived says
-// nothing about the channel. The test rows are the people assigned an arm, so
-// the two columns compare like with like; the record rows are everything, which
-// is not a fair comparison and is shown only for scale. The test STOPPED on
-// 2026-10-27 (operator: "stop the channel test"): eight joined in two weeks,
-// since few strong prospects have an address at their firm, and with replies
-// from strangers near zero on both channels thirty a side could not have told
-// them apart. Its rows stay as the record.
-function channelPanel(db) {
-  let cfg = null;
-  try { cfg = loadConfig(); } catch { /* no config: count every row */ }
-  const r = channelResults(db, { notSales: cfg ? notSalesSql(cfg, 'o.service_pitched') : undefined });
-  const pct = (x) => (x.mature ? `${Math.round((100 * x.replied) / x.mature)}%` : '—');
-  const row = (label, x) => `<tr><td>${label}</td><td>${x.sent}</td><td>${x.mature}</td><td>${x.replied}</td>
-    <td><b>${pct(x)}</b></td><td>${x.bounced}</td></tr>`;
-  return `<section class="panel"><h2>Email or LinkedIn?</h2>
-<p class="lead">The alternating test stopped on 2026-10-27: few strong prospects have an address at
-their firm, so it filled slowly, and with replies from strangers near zero on both channels it could not
-have told them apart. Its rows are kept as the record. Replies are counted on sends at least
-${r.matureDays} days old.</p>
-<table><thead><tr><th></th><th>sent</th><th>${r.matureDays}+ days old</th><th>replied</th><th>rate</th><th>bounced</th></tr></thead>
-<tbody>${row('<b>Test</b>: email', r.test.email)}${row('<b>Test</b>: LinkedIn', r.test.linkedin)}
-${row('Whole record: email', r.all.email)}${row('Whole record: LinkedIn', r.all.linkedin)}</tbody></table>
-<p class="dim">The whole record is not a fair comparison: email went where an address happened to be on file.</p></section>`;
+${gradePredictsPanel(db)}`;
+  // "Email or LinkedIn?" left this page 2026-11-19 (the channel-test record
+  // stays in src/channel-test.mjs): the test stopped on 10-27, and Results charts sends and replies by channel.
 }
 
 // FIXED EXAMPLES OR RECENT ONES? Each arm's drafts, by how much the operator
@@ -3144,7 +3119,7 @@ function cards(list, cfg, d) {
       ` data-capability="${esc(p.firm?.work_id ?? 'none')}"` +
       ` data-form="${esc(p.firm?.work_form ?? 'none')}"` +
       ` data-geo="${esc(p.geo_bucket ?? 'unknown')}"` +
-      ` data-status="${status}" data-call="${callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"` +
+      ` data-status="${status}" data-call="${status === 'in_flight' ? 'sent' : callOf(d, p.person_id)}" data-owner="${ownerOf(d, p.person_id)}" data-pasted="${pastedOf(d, p.person_id)}"` +
       ` data-email="${emailOf(p.person_id)}" data-person="${esc(p.person_id)}"`;
     return `<article class="card" id="p-${esc(p.person_id)}" data-name="${esc(p.name)}"${axes}>
       <header><h3>${status === 'in_flight' ? '<span class="rank flag">sent</span>'
@@ -3627,8 +3602,9 @@ A computed kill links the page it was derived from. One marked <span class="nosr
 file</span> is asserting a fact with nothing behind it, which this project treats as a defect
 rather than a detail — there are currently none.</p>
 <div id="c-kills" class="plot" style="height:${Math.max(220, d.killTally.length * 34 + 90)}px"></div>
+<details><summary>Every killed firm, with its gate and reason (${d.killedOrgs.size ?? [...d.killedOrgs].length})</summary>
 <table><thead><tr><th>Firm</th><th>Gate</th><th>Reason</th></tr></thead>
-<tbody>${killedRows}</tbody></table></section>
+<tbody>${killedRows}</tbody></table></details></section>
 
 <section class="panel"><h2>Did the triggers pay?</h2>
 <p class="lead">Each trigger is a hypothesis: that a specific public event marks a firm worth
