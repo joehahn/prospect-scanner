@@ -1,4 +1,6 @@
-# draft-cold-note — v51, 2026-11-19
+# draft-cold-note — v52, 2026-11-19
+
+*v52: plain words for the work. "Evals" reached four sent notes and two drafts on 2026-11-18–19 (extra hands "on evals that catch a model going wrong"); the operator: "its meaning is unclear to me, will it be clear to the readers?" A platform engineer knows the word; a product officer, a private-equity partner or a CIO may not, and it is not his word. The drafter learned it from his sent notes, so the word is also retired from the examples (business.yml superseded_wording).*
 
 *v51: the message after an accept never repeats the connection note. The rule against restating an offer the connection note already pitched was dated "notes sent before 2026-11-09 did", but since v46 every connection note again names a build and since v49 carries the credential. So the follow-up to a supply-chain head accepted 2026-11-18 restated both: the same credential and the same "flags where it is starting to slip" build, across purchase orders instead of expediting reports. The operator: "i feel like we are re-proposing something that the prospect didnt respond to after our earlier note". The check now applies to every follow-up: read the connection note in PRIOR CONTACT, and say nothing it said again.*
 
@@ -294,6 +296,12 @@ remit works with, at their altitude: a planning or network-strategy director
 works with the plan and the network, not the documents feeding it two rungs
 down. Where that is unclear, name the kind of work ("the work people still do
 by hand between the systems"), not a document.
+
+**Plain words for the work, never practitioners' shorthand.** *(v52.)* Say
+what checking or building AI means in words any manager uses: "tests that
+show how often it's right", not "evals"; the same for any term of art a
+non-engineer would have to look up. The note is his voice, and he does not
+use them either.
 
 Where you do take a view, take it about **the subject, not their situation**.
 "Sequencing usually comes down to which pressure is loudest that quarter" claims
