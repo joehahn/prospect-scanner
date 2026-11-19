@@ -110,9 +110,17 @@ function pastDecisions(db) {
     // answered, so 81 unanswered notes to public bodies taught the judge that
     // the operator writes to such people, and new ones kept coming out 3-4. An
     // outside review found it. Thirty days of silence is part of the example.
+    // AN ACCEPT IS NOT SILENCE (judge v7, 2026-11-19). Under v6 an accepted
+    // connection with no reply read "no reply after 30 days", like a note
+    // nobody opened: 230 of 238 sends old enough were marked so, and the judge
+    // cut most people it saw. The accept carries forward past a later
+    // follow-up that drew nothing, as a reply does.
+    const accepted = o.status === 'accepted' || Boolean(prev?.accepted);
     const quiet = !repliedHere && String(o.at) < new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-    out.set(o.person_id, { person_id: o.person_id, decision: 'write', at: o.at, replied: repliedHere,
-      strength: repliedHere ? 'wrote, and got a reply' : quiet ? 'wrote, no reply after 30 days' : 'wrote',
+    out.set(o.person_id, { person_id: o.person_id, decision: 'write', at: o.at, replied: repliedHere, accepted,
+      strength: repliedHere ? 'wrote, and got a reply'
+        : accepted ? 'wrote, accepted the connection, no reply yet'
+        : quiet ? 'wrote, no accept or reply after 30 days' : 'wrote',
       why: truncate(String(o.message_text ?? o.pitch_summary ?? '').replace(/\s+/g, ' ').trim(), 280) });
   }
   for (const v of db.prepare(`SELECT person_id, verdict, first, reason, created_at at FROM verdicts ORDER BY id`).all()) {
