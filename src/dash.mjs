@@ -687,12 +687,11 @@ a#totop{text-decoration:none}
 :root[data-theme="dark"] { --surface:#1a1a19; --card:#222220; --text:#ffffff; --text2:#c3c2b7;
   --grid:#33322f; --line:#33322f; --acc:#8aa4e8; --good:#6ec08d; --warn:#d59a52;
   --bad:#dd7f7f; --barbg:#2f2e2b; }
-/* All prospects on pale yellow, so it is never mistaken for Ready (2026-11-19, his
-   request). Dark mode gets a dim olive instead: a bright wash would glare, and
-   with none the page went back to plain when the Mac turned dark at evening. */
-body[data-page="index"] { --surface:#fffbe6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-page="index"] { --surface:#2a2716; } }
-:root[data-theme="dark"] body[data-page="index"] { --surface:#2a2716; }
+/* Every page on pale yellow (2026-11-19, his request). Dark mode gets a dim
+   olive instead: a bright wash would glare. */
+body { --surface:#fffbe6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { --surface:#2a2716; } }
+:root[data-theme="dark"] body { --surface:#2a2716; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--surface); color:var(--text);
   font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
