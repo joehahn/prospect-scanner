@@ -109,6 +109,7 @@ nav.tabs a.here { border-style:solid; font-weight:600; color:var(--text);
 nav.tabs .grp { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
   color:var(--acc); padding-left:2px; }
 nav.tabs .fcount { font-size:12.5px; padding:5px 2px; color:var(--text); white-space:nowrap; }
+nav.tabs .nocards { font-size:12px; padding:2px; max-width:16em; line-height:1.3; }
 nav.tabs .fstate a { border-style:dashed; }
 /* Cards are hidden by attribute rather than by class so the filter never has to
    know what display mode a card was using. */
@@ -266,10 +267,10 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
     // WHO, AND WHAT SITUATION (2026-11-19). Most targets say who the buyer is; a
     // few say a state any firm can be in (people doing work by hand, a team short
     // of hands), each leading to its own offer. `kind: situation` in business.yml.
-    + `<div class="stack">${col('who &middot; accepted % &middot; cards waiting', targetChips(false))}</div>`
+    + `<div class="stack">${col('buyer &middot; accepted % &middot; cards', targetChips(false))}</div>`
     // Who decides sits under situation (2026-11-19, his layout).
     + `<div class="stack">${targets.some(({ p }) => p.vertical.kind === 'situation')
-      ? col('situation &middot; accepted % &middot; cards waiting', targetChips(true)) : ''}${
+      ? col('situation &middot; accepted % &middot; cards', targetChips(true)) : ''}${
       col('who decides &middot; filter', OWNERS.map(([id, label]) => chip('owner', id, label)).join(''))}</div>`
     + '</nav>';
 }
@@ -686,6 +687,11 @@ a#totop{text-decoration:none}
 :root[data-theme="dark"] { --surface:#1a1a19; --card:#222220; --text:#ffffff; --text2:#c3c2b7;
   --grid:#33322f; --line:#33322f; --acc:#8aa4e8; --good:#6ec08d; --warn:#d59a52;
   --bad:#dd7f7f; --barbg:#2f2e2b; }
+/* All prospects on pale yellow, so it is never mistaken for Ready (2026-11-19, his
+   request). Light theme only: a yellow wash would glare in dark mode. */
+body[data-page="index"] { --surface:#fffbe6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-page="index"] { --surface:#1a1a19; } }
+:root[data-theme="dark"] body[data-page="index"] { --surface:#1a1a19; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--surface); color:var(--text);
   font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
@@ -931,7 +937,7 @@ document.addEventListener('submit', (e) => {
   tick.textContent = ' ' + says + '\u2026 this takes about half a minute; the page will come back here.';
   f.appendChild(tick);
 });
-</script></head><body><div class="wrap">
+</script></head><body data-page="${esc(currentId ?? '')}"><div class="wrap">
 <header><h1>${esc(h1)}</h1><p class="sub">${sub}</p></header>
 ${nav(pages, currentId, personas, counts, forms, minimal, unattributed, retired, retiredSvc)}
 ${body}
@@ -971,6 +977,16 @@ const layoutFor = (extra) => Object.assign({
     const k = cards.filter((c) => (c.dataset[a.dataset.axis] || '').split(',').some((v) => want.indexOf(v.trim()) !== -1)).length;
     n.textContent = String(k);
     if (a.dataset.axis === 'sectors' && !k) a.hidden = true;
+  }
+  // A hidden target is named under its column, so every target stays
+  // accounted for (2026-11-19): one that vanished read like one that never was.
+  for (const c of bar.querySelectorAll('.col')) {
+    const gone = Array.from(c.querySelectorAll('a.f[data-axis="sectors"]')).filter((a) => a.hidden);
+    if (!gone.length) continue;
+    const note = document.createElement('span');
+    note.className = 'dim nocards';
+    note.textContent = 'no cards here: ' + gone.map((a) => a.firstChild.textContent.trim()).join(', ');
+    c.appendChild(note);
   }
 
   const read = () => {
