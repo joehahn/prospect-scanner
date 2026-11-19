@@ -106,8 +106,8 @@ nav.tabs a.f { border-radius:20px; }
 nav.tabs a:not(.f) { border-radius:5px; border-style:dashed; }
 nav.tabs a.here { border-style:solid; font-weight:600; color:var(--text);
   box-shadow:inset 3px 0 0 var(--acc); }
-nav.tabs .grp { font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;
-  color:var(--acc); padding-left:2px; }
+nav.tabs .grp { font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--acc); padding-left:2px; border-bottom:2px solid var(--acc); margin-bottom:3px; }
 nav.tabs .fcount { font-size:12.5px; padding:5px 2px; color:var(--text); white-space:nowrap; }
 nav.tabs .nocards { font-size:12px; padding:2px; max-width:16em; line-height:1.3; }
 nav.tabs .fstate a { border-style:dashed; }
@@ -688,10 +688,11 @@ a#totop{text-decoration:none}
   --grid:#33322f; --line:#33322f; --acc:#8aa4e8; --good:#6ec08d; --warn:#d59a52;
   --bad:#dd7f7f; --barbg:#2f2e2b; }
 /* All prospects on pale yellow, so it is never mistaken for Ready (2026-11-19, his
-   request). Light theme only: a yellow wash would glare in dark mode. */
+   request). Dark mode gets a dim olive instead: a bright wash would glare, and
+   with none the page went back to plain when the Mac turned dark at evening. */
 body[data-page="index"] { --surface:#fffbe6; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-page="index"] { --surface:#1a1a19; } }
-:root[data-theme="dark"] body[data-page="index"] { --surface:#1a1a19; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body[data-page="index"] { --surface:#2a2716; } }
+:root[data-theme="dark"] body[data-page="index"] { --surface:#2a2716; }
 * { box-sizing:border-box; }
 body { margin:0; background:var(--surface); color:var(--text);
   font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; }
