@@ -211,6 +211,7 @@ const HIS_PAGES = new Set(['outreach', 'results', 'scoreboard', 'searches', 'spe
 // Set by the build: connection-request accepts per target, and accepts due a note.
 let TARGET_ACCEPT = new Map();
 let FOLLOWUP_DUE = 0;
+let FOLLOWUP_EVENTS = 0;
 let HAS_EMAIL = new Set();
 const emailOf = (pid) => (HAS_EMAIL.has(pid) ? 'yes' : 'no');
 
@@ -247,6 +248,7 @@ function nav(pages, currentId, personas = [], counts = {}, forms = [], minimal =
       .map(([id, label]) => `<a href="index.html" class="f" data-axis="status" data-val="${id}" data-his="1"${
         statTitle((counts.status ?? {})[id] ?? ZERO, false)}>${label}${statSpan((counts.status ?? {})[id] ?? ZERO, false)}</a>`).join('')) : '';
   const due = `<a href="index.html#accepted" data-his="1" title="Accepted a connection request a day or more ago, and not yet written to">Follow-up due <span class="n">${FOLLOWUP_DUE}</span></a>`
+    + `<a href="index.html#events" data-his="1" title="Accepted, got your note, stayed quiet, and something has happened since">Event since accept <span class="n">${FOLLOWUP_EVENTS}</span></a>`
     + chip('email', 'yes', 'Has email', { mine: true, title: 'Cards with an email address on file' });
   return '<nav class="tabs" data-filter="1">' + pageCols
     + '<div class="stack">'
@@ -1419,6 +1421,97 @@ carries the latest unsent draft.</p>
 <table><thead><tr><th>Accepted</th><th>Person</th><th>Firm</th><th>Draft</th></tr></thead><tbody>
 ${items}
 </tbody></table></section>`;
+}
+
+// EVENT SINCE THEIR ACCEPT (2026-11-18). Someone who accepted, got the one
+// note, and stayed quiet gets nothing more on a schedule (the operator's rule,
+// 2026-10-13); asked whether to write again at four or six weeks, he chose
+// instead a list of people to whom something has happened since: a talk they
+// are giving, a new role, a filing, a post, news at their firm. Each event was
+// first seen after his last note to them, and each carries its source. Usually
+// empty, which is the point: it fills only when there is a reason to write.
+const UPCOMING_TALK = /\b(is speaking|is on the agenda|will speak|is presenting|is a speaker|is moderating|is on a panel)\b/i;
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+/** The last day of an event named in an agenda claim, "(November 9-11, 2026)" or "(February 2 - 3, 2027)", as YYYY-MM-DD; null if none. */
+export function talkEnd(claim) {
+  const m = String(claim).match(/\(([A-Za-z]+)\s+(\d{1,2})(?:\s*[-–]\s*(?:([A-Za-z]+)\s+)?(\d{1,2}))?,\s*(\d{4})\)/);
+  if (!m) return null;
+  const mon = MONTHS.indexOf((m[3] ?? m[1]).toLowerCase());
+  if (mon < 0) return null;
+  return `${m[5]}-${String(mon + 1).padStart(2, '0')}-${String(m[4] ?? m[2]).padStart(2, '0')}`;
+}
+const PERSON_EVENTS = ['announcement', 'news_event', 'employer_change', 'leadership_change', 'regulatory_filing', 'public_utterance', 'article', 'board_seats'];
+function eventsSinceAccept(db) {
+  const people = db.prepare(`
+    SELECT p.id, p.name, p.title, p.profile_url, p.org_id, g.name AS org_name, MIN(r.responded_at) AS accepted_at,
+           (SELECT MAX(y.sent_at) FROM outreach y WHERE y.person_id = p.id) AS last_sent
+      FROM responses r JOIN outreach x ON x.id = r.outreach_id
+      JOIN people p ON p.id = x.person_id JOIN orgs g ON g.id = p.org_id
+     WHERE r.sentiment = 'accepted'
+       AND EXISTS (SELECT 1 FROM outreach y WHERE y.person_id = p.id AND y.sent_at >= r.responded_at
+                    AND y.channel <> 'linkedin_connect_note')
+       AND NOT EXISTS (SELECT 1 FROM responses h JOIN outreach z ON z.id = h.outreach_id WHERE z.person_id = p.id
+                        AND COALESCE(h.sentiment, '') NOT IN ('accepted', 'bounced'))
+       AND NOT EXISTS (SELECT 1 FROM do_not_contact n WHERE n.person_id = p.id)
+       AND NOT EXISTS (SELECT 1 FROM hold h WHERE h.person_id = p.id AND h.release_after > date('now'))
+     GROUP BY p.id`).all();
+  const ev = db.prepare(`SELECT kind, claim, source_url, retrieved_at FROM evidence WHERE person_id = ?
+      AND kind IN (${PERSON_EVENTS.map(() => '?').join(',')}) ORDER BY retrieved_at`);
+  const sig = db.prepare(`SELECT s.trigger_id, s.detected_at, e.claim, e.source_url FROM signals s
+      LEFT JOIN evidence e ON e.id = s.evidence_id
+     WHERE s.org_id = ? AND s.retracted_at IS NULL AND date(s.detected_at) > ?`);
+  const posts = db.prepare(`SELECT c.post_date, c.post_excerpt, e.source_url FROM comments c
+      LEFT JOIN evidence e ON e.id = c.evidence_id WHERE c.person_id = ? AND c.post_date > ?`);
+  // One talk read off an agenda many times is one event; the page title grows
+  // a suffix on some re-reads, so the key drops anything in parentheses.
+  const talkKey = (claim) => String(claim).replace(/\([^)]*\)/g, '').replace(/\s+on:.*$/, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const today = new Date().toLocaleDateString('en-CA');
+  const recentCutoff = new Date(Date.now() - 14 * 864e5).toLocaleDateString('en-CA');
+  const out = [];
+  for (const p of people) {
+    const events = [];
+    const before = new Set();
+    for (const e of ev.all(p.id, ...PERSON_EVENTS)) {
+      const day = String(e.retrieved_at).slice(0, 10);
+      const k = e.kind === 'announcement' ? talkKey(e.claim) : String(e.claim).trim().toLowerCase();
+      if (day <= p.last_sent) { before.add(k); continue; }
+      // A talk counts if it is ahead or was given in the last two weeks: "spoke
+      // at" is an old event read late, and an agenda still says "is on the
+      // agenda" after the event, so its own date decides.
+      let what = e.claim;
+      if (e.kind === 'announcement') {
+        if (!UPCOMING_TALK.test(e.claim)) continue;
+        const end = talkEnd(e.claim);
+        if (end && end < recentCutoff) continue;
+        if (end && end < today) what = `Gave a talk (${end}): ${e.claim.replace(UPCOMING_TALK, 'was on the agenda')}`;
+      }
+      if (before.has(k)) continue;
+      before.add(k);
+      events.push({ day, what, url: e.source_url });
+    }
+    for (const s of sig.all(p.org_id, p.last_sent)) {
+      events.push({ day: String(s.detected_at).slice(0, 10), what: `At ${p.org_name}: ${s.claim ?? s.trigger_id.replace(/_/g, ' ')}`, url: s.source_url });
+    }
+    for (const c of posts.all(p.id, p.last_sent)) {
+      events.push({ day: c.post_date, what: `Posted: ${String(c.post_excerpt ?? '').slice(0, 160)}`, url: c.source_url });
+    }
+    if (events.length) out.push({ ...p, events: events.sort((a, b) => b.day.localeCompare(a.day)) });
+  }
+  return out.sort((a, b) => b.events[0].day.localeCompare(a.events[0].day));
+}
+
+function eventsPanel(db) {
+  const rows = eventsSinceAccept(db);
+  const body = rows.length ? `<table><thead><tr><th>Person</th><th>Accepted · your last note</th><th>What happened since</th></tr></thead><tbody>
+${rows.map((r) => `<tr><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)} ${searchLink(r.name, r.org_name, r.profile_url)}</td>
+<td>${esc(String(r.accepted_at).slice(0, 10))}<br><span class="dim">${esc(r.last_sent)}</span></td>
+<td><ul>${r.events.map((e) => `<li><span class="dim">${esc(e.day)}</span> ${esc(e.what)}${e.url ? ` <a href="${esc(e.url)}" target="_blank" rel="noopener">source</a>` : ''}</li>`).join('')}</ul></td></tr>`).join('\n')}
+</tbody></table>` : '<p class="dim">Nothing has happened since your last note to anyone who accepted and stayed quiet.</p>';
+  return `<section class="panel" id="events"><h2>Event since their accept${rows.length ? `: ${rows.length}` : ''}</h2>
+<p class="lead">People who accepted, got your note, and have not replied, to whom something has happened since: a talk
+they are giving, a new role, a filing, a post, or news at their firm, first seen after your last note. A reason to write
+again, if it is worth one; nothing here is due.</p>
+${body}</section>`;
 }
 
 // WORTH A COMMENT. Added 2026-10-17. A pasted profile sometimes carries a post
@@ -3380,6 +3473,7 @@ function buildAll(db, cfg, targeting) {
     TARGET_ACCEPT = m; }
   { const today = new Date().toLocaleDateString('en-CA');
     FOLLOWUP_DUE = acceptedRows(db).filter((r) => String(r.accepted_at).slice(0, 10) < today).length; }
+  FOLLOWUP_EVENTS = eventsSinceAccept(db).length;
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
   write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
@@ -3439,6 +3533,7 @@ ${tile({ label: 'AI spend, all time', value: `$${Number(sp.total).toFixed(2)}`, 
   write(pageOf('index'), 'Prospects', `
 ${costTiles}
 ${acceptedPanel(db, d)}
+${eventsPanel(db)}
 ${commentsPanel(db)}
 <section class="panel"><h2>Everyone in the book</h2>
 <p class="lead">${openAll.length} people not yet written to, ${nJudged} of them rated by the judge, best

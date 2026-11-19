@@ -18,8 +18,12 @@ export const UNSEEN_RETIRE = 60;
 const HALF_LIFE = 30;
 
 /** The briefs, as approved by the operator on 2026-11-18. Inserted once; the table is the record after that. */
+// In pipeline order (the operator, 2026-11-18: replies to the bottom, daily
+// work near the top): what came in, what got worked, what went out, what
+// came back, and who answered.
 export const BRIEFS = [
   ['inbound', 'How many new cards reach the board each day, how many rate 4 or 5, and did a missed or failed run cause a dip?', 'Where to fix or widen discovery.'],
+  ['work', 'Where is work piling up: pasting, drafting or sending?', 'Which step to speed up.'],
   ['weekly', 'Is outreach volume holding, and is anything coming back?', 'How much to send each week.'],
   ['channels', 'Which channel is the best place to start a conversation?', 'Connection request, message, InMail or email.'],
   ['segments', 'Which industries accept connection requests?', 'Where discovery looks.'],
@@ -27,9 +31,8 @@ export const BRIEFS = [
   ['roles', 'Which functions accept?', 'Which seats to aim at.'],
   ['levels', 'Which levels of seniority accept?', 'How senior to aim.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
-  ['replies', 'Who answered, and how?', 'What the replies have in common.'],
-  ['work', 'Where is work piling up: pasting, drafting or sending?', 'Which step to speed up.'],
   ['sources', 'Which discovery routes lead to accepts and replies?', 'Where discovery spends.'],
+  ['replies', 'Who answered, and how?', 'What the replies have in common.'],
 ];
 
 export function seedBriefs(db) {
