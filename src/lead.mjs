@@ -1186,6 +1186,7 @@ const CHANNELS = ['linkedin_inmail', 'linkedin_message', 'linkedin_connect_note'
 const CHANNEL_ALIAS = {
   inmail: 'linkedin_inmail', li_inmail: 'linkedin_inmail',
   li: 'linkedin_message', linkedin: 'linkedin_message', dm: 'linkedin_message',
+  message: 'linkedin_message', msg: 'linkedin_message',
   connect: 'linkedin_connect_note', note: 'linkedin_connect_note',
   mail: 'email', e: 'email',
 };

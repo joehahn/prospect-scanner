@@ -426,9 +426,14 @@ ${(seed.channel_rules ?? []).map((r) => `- ${r}`).join('\n')}
 const CHANNEL_ALIAS = {
   inmail: 'linkedin_inmail', li_inmail: 'linkedin_inmail',
   li: 'linkedin_message', linkedin: 'linkedin_message', dm: 'linkedin_message',
+  message: 'linkedin_message', msg: 'linkedin_message',
   connect: 'linkedin_connect_note', note: 'linkedin_connect_note',
   mail: 'email', e: 'email',
 };
+// A name outside these was stored as typed: "--channel message" drafted on a
+// channel called "message", which no follow-up rule or test arm recognises,
+// so the message after an accept came back in neither arm (2026-11-19).
+const DRAFT_CHANNELS = ['linkedin_inmail', 'linkedin_message', 'linkedin_connect_note', 'email'];
 
 // Is this offer sold to that buyer? Its own buyer, or one it declares also_under.
 function underBuyer(pkg, buyerId) {
@@ -488,6 +493,9 @@ async function main() {
   }
 
   const channel = resolveChannel(args.channel && args.channel !== true ? args.channel : 'email');
+  if (!DRAFT_CHANNELS.includes(channel)) {
+    throw new Error(`unknown channel "${args.channel}": use one of ${DRAFT_CHANNELS.join(', ')} (or li, connect, inmail, email)`);
+  }
 
   // A COLLEAGUE WAS WRITTEN TO DAYS AGO (2026-11-12). `rank` has called this a
   // blocker since September, but the card's Draft button passes --force, which
