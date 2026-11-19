@@ -124,17 +124,19 @@ export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, sendG
     const ib = inboundDaily(db, 45);
     const total = ib.series.reduce((a, s) => a + s.counts.reduce((x, y) => x + y, 0), 0);
     const per = (total / ib.days.length).toFixed(1);
-    const missed = ib.marks.filter((m) => m.kind !== 'weekly').length;
+    const missed = ib.marks.filter((m) => m.kind === 'failed' || m.kind === 'missed').length;
+    const judges = ib.marks.filter((m) => m.kind === 'judge').map((m) => `${m.what} on ${m.day.slice(5)}`);
     const per3 = (ib.threes.reduce((a, b) => a + b, 0) / ib.days.length).toFixed(1);
     panels.inbound = {
       title: 'New cards per day',
-      caption: `People rated 3 or more on the day they were judged. Colored bars are the 4s and 5s, by where they were found; the pale band on top is the 3s. Over ${ib.days.length} days, ${per} a day rated 4 or 5${topGoal ? ` against a goal of ${topGoal}` : ''}, and ${per3} rated 3. Gray triangles are the weekly searches and agenda loads; red marks are runs that failed or never started (${missed} here).`,
+      caption: `People rated 3 or more on the day they were judged, at the rating they got that day; a later re-judge does not move a past bar. Colored bars are the 4s and 5s, by where they were found; the pale band on top is the 3s. Over ${ib.days.length} days, ${per} a day rated 4 or 5${topGoal ? ` against a goal of ${topGoal}` : ''}, and ${per3} rated 3. Gray triangles are the weekly searches and agenda loads; red marks are runs that failed or never started (${missed} here)${judges.length ? `; blue diamonds are changes to the judge (${judges.join(', ')}), after which ratings follow different rules` : ''}.`,
       height: 320,
     };
     scripts.push(`{ const days = ${J(ib.days)}, series = ${J(ib.series)}, marks = ${J(ib.marks)}, threes = ${J(ib.threes)};
   const top = Math.max(1, ...days.map((_, i) => series.reduce((a, s) => a + s.counts[i], 0) + threes[i]), ${topGoal ?? 0});
   const kinds = {weekly:{sym:'triangle-up', color: dark ? '#8f8e88' : '#a3a29c', name:'weekly job'},
-                 failed:{sym:'x', color:'#c0392b', name:'run failed'}, missed:{sym:'x', color:'#c0392b', name:'run never started'}};
+                 failed:{sym:'x', color:'#c0392b', name:'run failed'}, missed:{sym:'x', color:'#c0392b', name:'run never started'},
+                 judge:{sym:'diamond', color: pal[0], name:'judge changed'}};
   const traces = series.map((s, i) => ({ type:'bar', name:s.source, x:days, y:s.counts, marker:{color: i === series.length - 1 ? pal[5] : pal[i]},
     hovertemplate:'%{x}<br>' + s.source + ': %{y}<extra></extra>' }));
   traces.push({ type:'bar', name:'rated 3', x:days, y:threes, marker:{color: dark ? 'rgba(200,198,190,0.28)' : 'rgba(120,118,110,0.22)'},

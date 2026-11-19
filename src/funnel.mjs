@@ -238,8 +238,24 @@ export function stages(db) {
     c.sort((a, b) => a - b); ratingNow.set(id, c[Math.floor(c.length / 2)]);
     if (ratingNow.get(id) >= 3) strongNow.add(id);
   }
+  // THE RATING AS IT STOOD THAT DAY (2026-11-19). A re-judge under a new judge
+  // version moved 17 people to 4 and set them on the days they first arrived,
+  // so mornings that delivered none looked as though they had. Per person: the
+  // median of the last batch on the local day of their first judgment.
+  const thenBatches = new Map();
+  for (const j of db.prepare('SELECT person_id, batch, compelling, created_at FROM judgments ORDER BY id').all()) {
+    const day = localDay(judged.get(j.person_id));
+    if (localDay(j.created_at) !== day) continue;
+    const cur = thenBatches.get(j.person_id);
+    if (!cur || j.batch > cur.batch) thenBatches.set(j.person_id, { batch: j.batch, c: [j.compelling ?? 0] });
+    else if (j.batch === cur.batch) cur.c.push(j.compelling ?? 0);
+  }
+  const ratingThen = new Map([...thenBatches].map(([id, b]) => {
+    const c = b.c.sort((x, y) => x - y); return [id, c[Math.floor(c.length / 2)]];
+  }));
   const writable = new Set(strongWritable(db).map((p) => p.person_id));
   return found.map((f) => ({
+    ratingThen: ratingThen.get(f.person_id) ?? null,
     id: f.person_id, source: f.provenance === 'operator_supplied' ? 'added by hand' : sourceOf(f.kind),
     found: localDay(f.t), screened: localDay(screened.get(f.person_id)), judged: localDay(judged.get(f.person_id)),
     strong: strongNow.has(f.person_id), rating: ratingNow.get(f.person_id) ?? null, writable: writable.has(f.person_id),

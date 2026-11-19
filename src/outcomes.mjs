@@ -10,6 +10,7 @@
 // carries its count and a 90% range, and a group under MIN_GROUP sends is
 // folded into "Other".
 
+import { readFileSync } from 'node:fs';
 import { stages } from './funnel.mjs';
 
 export const SEGMENTS = {
@@ -264,7 +265,9 @@ const DAILY_STAGE = 'screen';
  */
 export function inboundDaily(db, days = 60) {
   const since = daysAgo(days - 1);
-  const recent = stages(db).filter((p) => p.judged && p.judged >= since);
+  // As rated that day, so a later re-judge does not rewrite a past bar.
+  const recent = stages(db).filter((p) => p.judged && p.judged >= since)
+    .map((p) => ({ ...p, rating: p.ratingThen ?? p.rating }));
   const top = recent.filter((p) => p.rating >= 4);
   const dayList = [];
   for (let i = days - 1; i >= 0; i--) dayList.push(daysAgo(i));
@@ -296,6 +299,14 @@ export function inboundDaily(db, days = 60) {
       marks.push({ day: d, kind: 'missed', what: 'morning run did not run' });
     }
   }
+  // A new judge version is marked on its day: the bars after it are rated by
+  // different rules. Read from the version notes at the top of its prompt.
+  try {
+    const judgeMd = readFileSync(new URL('../prompts/judge.md', import.meta.url), 'utf8');
+    for (const m of judgeMd.matchAll(/^\*v(\d+), (\d{4}-\d{2}-\d{2})/gm)) {
+      if (dayList.includes(m[2])) marks.push({ day: m[2], kind: 'judge', what: `judge v${m[1]}` });
+    }
+  } catch { /* no prompt file: no marks */ }
   const seen = new Set();
   const uniq = marks.filter((m) => { const k = `${m.day}|${m.kind}|${m.what}`; if (seen.has(k)) return false; seen.add(k); return true; });
   // The 3s too, as one band: with them, a bar is every new card that day.
