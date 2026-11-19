@@ -20,7 +20,7 @@
 // Reports land in data/reviews/.
 //
 // Usage:
-//   npm run review -- [--days 60] [--models a,b] [--packet-only]
+//   npm run review -- [--days 60] [--models a,b] [--packet-only] [--focus discovery]
 
 import { mkdirSync, readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -33,6 +33,7 @@ import { heading, dim } from './report.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PROMPT = 'prompts/outside-review.md';
+const PROMPT_DISCOVERY = 'prompts/outside-review-discovery.md';
 
 function arg(name, dflt) {
   const i = process.argv.indexOf(`--${name}`);
@@ -112,10 +113,68 @@ function outreachHistory(db, since) {
   }).join('\n\n');
 }
 
-function packet(db, days) {
+// DISCOVERY ONLY (--focus discovery, 2026-11-19). Between the quarterly reviews
+// the operator asked for one on discovery alone: where people come from, which
+// targets each source feeds, and how they rate. The packet drops drafting and
+// the outreach history, and carries these tables instead.
+function discoveryNumbers(db) {
+  const rows = (sql, ...a) => db.prepare(sql).all(...a);
+  const table = (rs) => (rs.length ? [Object.keys(rs[0]).join(' | '), ...rs.map((r) => Object.values(r).join(' | '))].join('\n') : '(none)');
+  const latest = `(SELECT j.person_id, j.target, j.compelling FROM judgments j
+      JOIN (SELECT person_id, MAX(id) mid FROM judgments GROUP BY person_id) m ON m.mid = j.id)`;
+  const firstJudged = `(SELECT person_id, MIN(created_at) t FROM judgments GROUP BY person_id)`;
+  const source = `(SELECT CASE WHEN e.provenance = 'operator_supplied' THEN 'added by hand' ELSE e.kind END
+      FROM evidence e WHERE e.person_id = l.person_id ORDER BY e.id LIMIT 1)`;
+  const accepted = `EXISTS (SELECT 1 FROM responses r JOIN outreach y ON y.id = r.outreach_id
+      WHERE y.person_id = x.person_id AND r.sentiment = 'accepted')`;
+  return [
+    '### People first judged in the last 30 days, by target (latest rating)',
+    table(rows(`SELECT COALESCE(NULLIF(l.target, ''), '(no target)') target, COUNT(*) judged,
+        SUM(l.compelling >= 3) rated_3plus, SUM(l.compelling >= 4) rated_4_5
+       FROM ${latest} l JOIN ${firstJudged} f USING (person_id)
+      WHERE f.t >= date('now', '-30 days') GROUP BY 1 ORDER BY 2 DESC`)),
+    '\n### The same people by target and by the source that first found them',
+    table(rows(`SELECT COALESCE(NULLIF(l.target, ''), '(no target)') target, ${source} source, COUNT(*) judged,
+        SUM(l.compelling >= 4) rated_4_5
+       FROM ${latest} l JOIN ${firstJudged} f USING (person_id)
+      WHERE f.t >= date('now', '-30 days') GROUP BY 1, 2 HAVING COUNT(*) >= 3 ORDER BY 1, 3 DESC`)),
+    '\n### Connection requests at least 14 days old, by target of the person (accepted)',
+    table(rows(`SELECT COALESCE(NULLIF(l.target, ''), '(no target)') target, COUNT(*) sent, SUM(${accepted}) accepted
+       FROM outreach x JOIN ${latest} l ON l.person_id = x.person_id
+      WHERE x.channel = 'linkedin_connect_note' AND x.sent_at <= date('now', '-14 days')
+      GROUP BY 1 ORDER BY 2 DESC`)),
+    '\n### Everyone ever judged, by industry of the firm',
+    table(rows(`SELECT COALESCE(g.segment, '(unlabelled)') industry, COUNT(*) judged, SUM(l.compelling >= 3) rated_3plus,
+        SUM(l.compelling >= 4) rated_4_5
+       FROM ${latest} l JOIN people p ON p.id = l.person_id JOIN orgs g ON g.id = p.org_id
+      GROUP BY 1 ORDER BY 2 DESC`)),
+    '\n### Weekly searches by target and status',
+    table(rows(`SELECT COALESCE(target, '(none)') target, status, COUNT(*) searches FROM searches GROUP BY 1, 2 ORDER BY 1, 2`)),
+    '\n### Conference agendas by how they were found and their state',
+    table(rows(`SELECT COALESCE(NULLIF(found_by, ''), 'named or older') found_by, status, COUNT(*) agendas
+       FROM conferences GROUP BY 1, 2 ORDER BY 1, 3 DESC`)),
+  ].join('\n');
+}
+
+const DRAFTING = /\/(draft|grade|comment|followup|revise|voice|note|investor|outside-review)/;
+
+function packet(db, days, focus = null) {
   const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
   const docs = ['README.md', ...files('docs', '.md').filter((f) => !f.includes('/private/') && !f.includes('/writeups/'))];
-  const prompts = files('prompts', '.md').filter((f) => !f.endsWith('.example.md') && !f.endsWith('outside-review.md'));
+  const prompts = files('prompts', '.md').filter((f) => !f.endsWith('.example.md') && !f.includes('outside-review')
+    && (focus !== 'discovery' || !DRAFTING.test(f)));
+  if (focus === 'discovery') {
+    const config = files('config', '.yml').filter((f) => !f.endsWith('.example.yml') && !f.endsWith('sectors.yml'));
+    const part = (title, list, body) => `\n\n# ${title}\n\n${list.map((f) => `## ${f}\n\n${body(f)}`).join('\n\n')}`;
+    return scrub([
+      `# Packet for an outside review of discovery, ${new Date().toISOString().slice(0, 10)}`,
+      part('Docs', docs, read),
+      part('Discovery prompts', prompts, read),
+      part('Configuration (the operator\'s own)', config, read),
+      part('Source files: header comments only', files('src', '.mjs'), header),
+      `\n\n# Discovery numbers\n\n${discoveryNumbers(db)}`,
+    ].join(''));
+  }
   // The operator's own config, not the public templates. sectors.yml is a large
   // catalogue of industries and adds little a reviewer can act on.
   const config = files('config', '.yml').filter((f) => !f.endsWith('.example.yml') && !f.endsWith('sectors.yml'));
@@ -137,8 +196,10 @@ async function main() {
   const days = Number(arg('days', 60));
   const models = String(arg('models', (cfg.models.reviewers ?? []).join(','))).split(',').filter(Boolean);
   const db = openDb();
-  const text = packet(db, days);
-  const stamp = new Date().toISOString().slice(0, 10);
+  const focus = arg('focus', null);
+  const prompt = focus === 'discovery' ? PROMPT_DISCOVERY : PROMPT;
+  const text = packet(db, days, focus);
+  const stamp = `${new Date().toISOString().slice(0, 10)}${focus ? `-${focus}` : ''}`;
   const dir = resolve(ROOT, 'data/reviews');
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, `${stamp}-packet.md`), text);
@@ -151,7 +212,7 @@ async function main() {
   let total = 0;
   await Promise.all(models.map(async (model) => {
     try {
-      const r = await complete(db, runId, { model, system: promptBody(PROMPT), maxTokens: 32000, effort: 'high',  // 16000 cut one report off mid-list (2026-11-12)
+      const r = await complete(db, runId, { model, system: promptBody(prompt), maxTokens: 32000, effort: 'high',  // 16000 cut one report off mid-list (2026-11-12)
         messages: [{ role: 'user', content: text }] });
       total += r.cost_usd ?? 0;
       const file = join(dir, `${stamp}-${model.replace(/[^\w.-]+/g, '_')}.md`);
