@@ -208,6 +208,32 @@ export function targetCards(db, days = 30) {
 }
 
 /**
+ * New cards per target per week (Monday start), for the last `weeks` weeks:
+ * people first judged that week who are rated 3 or more now, filed under the
+ * target of their latest judgment. {weeks, rows: [{target, cells: [{all, top}]}]}.
+ */
+export function targetWeekly(db, weeks = 8) {
+  const thisWeek = weekOf(daysAgo(0));
+  const list = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const d = new Date(`${thisWeek}T12:00:00`); d.setDate(d.getDate() - 7 * i);
+    list.push(d.toLocaleDateString('en-CA'));
+  }
+  const by = new Map();
+  for (const p of personTargets(db).values()) {
+    if (!(p.rating >= 3)) continue;
+    const i = list.indexOf(weekOf(p.firstJudged));
+    if (i < 0) continue;
+    const k = p.target ?? null;
+    const row = by.get(k) ?? { target: k, cells: list.map(() => ({ all: 0, top: 0 })) };
+    row.cells[i].all++; if (p.rating >= 4) row.cells[i].top++;
+    by.set(k, row);
+  }
+  const total = (r) => r.cells.reduce((a, c) => a + c.all, 0);
+  return { weeks: list, rows: [...by.values()].sort((a, b) => total(b) - total(a)) };
+}
+
+/**
  * Per industry: firms the judge has rated anyone at, how many of them have a
  * card (someone rated 3 or more now), and how many a 4 or 5. Firms with no
  * segment yet are counted as unlabelled. Sorted by firms judged.

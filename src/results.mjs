@@ -10,7 +10,7 @@
 // UNSEEN_RETIRE days is retired, and one click brings a retired one back. A
 // new panel stays on top for its first NEW_DAYS days so it gets a fair look.
 
-import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, routeYield, personTargets, targetCards, industryYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
+import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, routeYield, personTargets, targetCards, targetWeekly, industryYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
 
 export const NEW_DAYS = 14;
 export const UNSEEN_FOLD = 30;
@@ -38,6 +38,7 @@ export const BRIEFS = [
   ['targetcards', 'How many new cards does each target get?', 'Which targets discovery under- or over-feeds.'],
   ['targets', 'Which targets accept connection requests?', 'Where discovery spends, by target.'],
   ['industryyield', 'In which industries do judged firms turn into cards?', 'Which industries discovery spends judging on for little.'],
+  ['targetweeks', 'Is each target getting more new cards week by week?', 'Whether a change to discovery reached the targets it was meant for.'],
 ];
 
 export function seedBriefs(db) {
@@ -366,6 +367,23 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
       height: 60 + 34 * tg.length,
     };
     scripts.push(`rateDots('c-targets', ${J(tg)}, ${overall}, 'accepted');`);
+
+    // 15. Figure 12 over time (the operator, 2026-11-20). A table, not lines:
+    // ten targets is more series than the palette has colors, and a week's
+    // count per target is small enough to read as a number. Same row order and
+    // italics as Figure 12. The current week is partial, and marked so.
+    const tw = targetWeekly(db, 8);
+    tw.rows.sort((a, b) => rank(a.target) - rank(b.target));
+    const cell = (c) => (c.all ? `${c.all}${c.top ? ` <span class="dim">(${c.top})</span>` : ''}` : '<span class="dim">·</span>');
+    const wk = (d, i) => `${new Date(`${d}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}${i === tw.weeks.length - 1 ? '*' : ''}`;
+    const sums = tw.weeks.map((_, i) => tw.rows.reduce((a, r) => ({ all: a.all + r.cells[i].all, top: a.top + r.cells[i].top }), { all: 0, top: 0 }));
+    panels.targetweeks = {
+      title: 'New cards per target, by week',
+      caption: 'People first judged each week who are rated 3 or more now, by target; in brackets, how many of them are rated 4 or 5. Weeks start Monday, and the starred week is still under way. Buyer targets first, then situation targets in italics, as in Figure 12.',
+      table: `<table><thead><tr><th>target</th>${tw.weeks.map((d, i) => `<th class="num">${wk(d, i)}</th>`).join('')}</tr></thead><tbody>
+${tw.rows.map((r) => `<tr><td>${r.target == null ? 'No target named' : lab(r.target)}</td>${r.cells.map((c) => `<td class="num">${cell(c)}</td>`).join('')}</tr>`).join('')}
+<tr><td><b>all targets</b></td>${sums.map((c) => `<td class="num"><b>${c.all}</b>${c.top ? ` <span class="dim">(${c.top})</span>` : ''}</td>`).join('')}</tr></tbody></table>`,
+    };
   }
 
   // 14. Judged firms that turn into cards, by industry: where judging is spent
