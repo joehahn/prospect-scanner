@@ -291,7 +291,18 @@ ${[person.decision_role && `Decision role: ${person.decision_role}`,
      : 'unclear from the profile'}`,
    person.capability_authority && `Controls spend on the capability: ${person.capability_authority}`,
    person.builds_in_house && `Builds it personally: ${person.builds_in_house}`,
-   person.notes && `Operator notes: ${person.notes}`].filter(Boolean).join('\n')}
+   person.notes && `Operator notes: ${person.notes}`,
+   // WHERE THEY ARE, AND HIS OWN HISTORY WITH THEM (2026-11-20). He added a
+   // local tie by hand ("a neighbor in [his town]", "part time in [his second place]")
+   // and a history with the firm ("I worked with [the firm]'s teams while I
+   // was at [his past employer]") to notes the drafter wrote without either, because
+   // neither fact reached it. Location is the profile's own; history is only
+   // what he stated (prior_relationship), never a mutual connection.
+   person.location && `Location: ${person.location}`,
+   person.prior_relationship && `HIS HISTORY WITH THIS PERSON (his own words): ${person.prior_relationship}`,
+   ...db.prepare(`SELECT name, prior_relationship FROM people WHERE org_id = ? AND id <> ?
+       AND prior_relationship IS NOT NULL AND prior_relationship <> ''`).all(person.org_id, person.id)
+     .map((c) => `HIS HISTORY WITH THIS FIRM, through ${c.name} (his own words): ${c.prior_relationship}`)].filter(Boolean).join('\n')}
 ${boardLines(db, person.id) ? `
 ## OTHER COMPANIES THIS PERSON HOLDS A ROLE AT NOW: BOARDS, ADVISORY ROLES, INVESTMENTS (each is a company they can introduce you to)
 ${boardLines(db, person.id)}
@@ -902,9 +913,11 @@ async function main() {
   // default and one proof plus one easy next step (prompts/followup-proof-step.md).
   // Assigned by the person's id, so a redraft stays in its arm; recorded on the
   // draft, so replies can be counted by arm. Not on a replay.
-  const testArm = followup && channel === 'linkedin_message' && !args['no-store']
-    ? ([...personId].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % 2 ? 'proof_step' : 'open_door')
-    : null;
+  // ENDED 2026-11-20, the operator's call: in the proof_step drafts sent since
+  // 11-17 he cut the proof every time and kept only the question, so the two
+  // arms went out as one note and the test could measure nothing. Every
+  // follow-up is the open door again; drafts already made keep their arm.
+  const testArm = null;
   if (testArm) console.log(dim(`  follow-up test arm: ${testArm}`));
   const capNote = (channel === 'linkedin_connect_note'
     ? `\n\nCHARACTER LIMIT: ${CONNECT_NOTE_MAX} characters for the note, spaces included.` : '')

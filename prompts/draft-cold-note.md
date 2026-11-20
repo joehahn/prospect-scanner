@@ -1,4 +1,6 @@
-# draft-cold-note — v52, 2026-11-19
+# draft-cold-note — v53, 2026-11-20
+
+*v53: what he kept adding back by hand. A read of his edits to connection notes drafted 2026-11-16–20 found three changes he made again and again. (1) He put "for instance" back into the build sentence ("I could for instance build AI that..."), which v49 had told the drafter to leave out: on its own the build reads as a claim about what they need; with it, as one example of his work. (2) He added where he is when the reader is near him: "a neighbor in [his town] here", "I live part time in [his second place], near you", "in [his metro]". (3) He opened a note to a merchandising executive with "I worked with [the firm]'s teams while I was at [his past employer]": a history with the firm he had already stated on a colleague's record. The location and the stated history now reach the dossier (THE PERSON); the rules are below, under the connection note. (4) The same day he asked of every draft "its unclear to me that X is relevant to the prospect", and whether a note should offer an extra set of AI hands instead when what to build is unclear. It now does: a specific build needs a tie in the evidence.*
 
 *v52: plain words for the work. "Evals" reached four sent notes and two drafts on 2026-11-18–19 (extra hands "on evals that catch a model going wrong"); the operator: "its meaning is unclear to me, will it be clear to the readers?" A platform engineer knows the word; a product officer, a private-equity partner or a CIO may not, and it is not his word. The drafter learned it from his sent notes, so the word is also retired from the examples (business.yml superseded_wording).*
 
@@ -433,9 +435,22 @@ within it: no greeting line, no signature, no subject. **It carries no offer**
 **Who he is comes before what he builds** *(v49)*: the reader learns who is
 writing, then what that person builds. In that order the build reads as his
 work; ahead of the credential it reads as a pitch from a stranger. Write it
-as plainly as "I could help..." or "I could build...", with no "for instance":
-following the credential, it is already an example. The recent notes shown
-in the dossier that put the build first are not precedent for the order.
+as "I could for instance build..." or "I could for instance help..." *(v53)*:
+the "for instance" marks it as one example of his work, not a claim about what
+they need, and he adds it back by hand whenever it is missing. The recent notes
+shown in the dossier that put the build first are not precedent for the order.
+**A local tie, when it is true** *(v53)*. When THE PERSON's location is in or
+near one of the places THE OPERATOR names (the same metro, or within about an
+hour's drive), say so once, in the credential sentence or as the opening:
+"an independent AI consultant in [his town]", "a neighbor in [his town] here",
+"I live part time in [his second place], near you". Never when the location is
+missing, vague or far: a stretched tie is worse than none.
+**His own history with them comes first** *(v53)*. When THE PERSON carries HIS
+HISTORY WITH THIS PERSON or WITH THIS FIRM, that first-hand history is the
+strongest credential he has with this reader, and it replaces the generic one:
+"I worked with [the firm]'s teams while I was in [the past seat]". Say only what
+his words say (worked with their teams, was their supplier's contact), never
+that the reader knows him, and never a mutual connection.
 **A concrete credential** from the dossier's credentials, past tense where it
 is past, in place of a self-label: a past employer and what he did there says
 more than "an independent AI consultant who builds custom AI". It is still not
@@ -453,6 +468,17 @@ miss loses the note. Pitch the example at the outcome their seat owns, in their
 world: a COO hears about operations, a procurement head about spend and
 suppliers, never a task two rungs below them or a detail nothing on file
 mentions.
+**A specific build only when the evidence points at it; otherwise, hands**
+*(v53)*. Name a specific build only when something on file ties it to this
+reader: their own words (a post, a talk title, their stated remit naming the
+area), or a dated event at their firm naming the work. A build reasoned only
+from the sector or the seat ("a customer about to pay late", for a portfolio
+director whose remit is technology and data) leaves the reader asking what it
+has to do with them, and the operator could not tell either. With no such tie,
+offer the hands instead, at the reader's span: "I could for instance add a
+senior pair of hands to help your team deliver its next AI project", "...to
+help your portfolio companies deliver their next AI builds". Never imply their
+team is short or behind; it is more capacity, not a rescue.
 **The view lands on work the operator does** *(v43)*: when their topic lies
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their
