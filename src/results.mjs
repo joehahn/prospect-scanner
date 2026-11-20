@@ -327,13 +327,14 @@ ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? ''
   // 11. Where each discovery route's people end up (replaces the Funnel page's
   // source table, now crediting people to how their firm was found).
   {
-    // BY FOUND (2026-11-20, the operator's call): the routes in order of how many
-    // people each brings in, so the rate columns read against volume.
-    const src = routeYield(db, 60).filter((r) => r.found >= 5 || r.sent).sort((a, b) => b.found - a.found);
+    // BY CARDS RATED 3+ (2026-11-20, the operator's call): what each route puts
+    // on the board is the route's own output; sends and accepts depend on whom
+    // he writes to, and accepts are too few to rank by. Found breaks ties.
+    const src = routeYield(db, 60).filter((r) => r.found >= 5 || r.sent).sort((a, b) => b.strong - a.strong || b.found - a.found);
     const pc = (k, n) => (n ? `${Math.round((100 * k) / n)}%` : '');
     panels.sources = {
       title: "Where each discovery route's people end up",
-      caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by how many each route found. Beside accepted, the share of those sent (2026-11-20, the operator); it runs low, because sends from the last two weeks have not had time to be accepted and an email or InMail is never accepted. Beside replied, the share of those accepted; a reply to an email counts without an accept, so it can pass 100%.',
+      caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by how many each route put on the board rated 3 or more. Beside accepted, the share of those sent (2026-11-20, the operator); it runs low, because sends from the last two weeks have not had time to be accepted and an email or InMail is never accepted. Beside replied, the share of those accepted; a reply to an email counts without an accept, so it can pass 100%.',
       table: `<table><thead><tr><th>route</th><th class="num">found</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
 ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td class="num">${r.strong} <span class="dim">${pc(r.strong, r.found)}</span></td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b> <span class="dim">${pc(r.accepted, r.sent)}</span></td><td class="num">${r.replied} <span class="dim">${pc(r.replied, r.accepted)}</span></td></tr>`).join('')}</tbody></table>`,
     };
