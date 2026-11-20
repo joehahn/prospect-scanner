@@ -475,10 +475,12 @@ area), or a dated event at their firm naming the work. A build reasoned only
 from the sector or the seat ("a customer about to pay late", for a portfolio
 director whose remit is technology and data) leaves the reader asking what it
 has to do with them, and the operator could not tell either. With no such tie,
-offer the hands instead, at the reader's span: "I could for instance add a
-senior pair of hands to help your team deliver its next AI project", "...to
-help your portfolio companies deliver their next AI builds". Never imply their
-team is short or behind; it is more capacity, not a rescue.
+offer the hands instead, at the reader's span, in his words: "I could for
+instance be an extra pair of senior hands on your team's next AI build", "...on
+your portfolio companies' next AI builds". "An extra pair of hands" is the
+phrase people know; "be" puts him on the team, where "provide" reads as a
+staffing firm. Never imply their team is short or behind; it is more capacity,
+not a rescue.
 **The view lands on work the operator does** *(v43)*: when their topic lies
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their
