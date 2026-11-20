@@ -31,11 +31,13 @@ export const BRIEFS = [
   ['roles', 'Which functions accept?', 'Which seats to aim at.'],
   ['levels', 'Which levels of seniority accept?', 'How senior to aim.'],
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
+  // Moved up 2026-11-20 (the operator: "in discovery tab move fig 3 above 2"),
+  // so on Inbound it is Figure 2, ahead of the routes.
+  ['targetcards', 'How many new cards does each target get?', 'Which targets discovery under- or over-feeds.'],
   ['sources', 'Which discovery routes lead to accepts and replies?', 'Where discovery spends.'],
   ['replies', 'Who answered, and how?', 'What the replies have in common.'],
   // Added 2026-11-19 (the operator: "add the charts to the results tab"), at
   // the end so the fixed figure numbers above keep their panels.
-  ['targetcards', 'How many new cards does each target get?', 'Which targets discovery under- or over-feeds.'],
   ['targets', 'Which targets accept connection requests?', 'Where discovery spends, by target.'],
   ['industryyield', 'In which industries do judged firms turn into cards?', 'Which industries discovery spends judging on for little.'],
   ['targetweeks', 'Is each target getting more new cards week by week?', 'Whether a change to discovery reached the targets it was meant for.'],
@@ -325,13 +327,15 @@ ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? ''
   // 11. Where each discovery route's people end up (replaces the Funnel page's
   // source table, now crediting people to how their firm was found).
   {
-    const src = routeYield(db, 60).filter((r) => r.found >= 5 || r.sent);
+    // BY FOUND (2026-11-20, the operator's call): the routes in order of how many
+    // people each brings in, so the rate columns read against volume.
+    const src = routeYield(db, 60).filter((r) => r.found >= 5 || r.sent).sort((a, b) => b.found - a.found);
     const pc = (k, n) => (n ? `${Math.round((100 * k) / n)}%` : '');
     panels.sources = {
       title: "Where each discovery route's people end up",
-      caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by accepts. Sends from the last two weeks have not had time to be accepted.',
+      caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by how many each route found. Beside accepted, the share of those sent (2026-11-20, the operator); it runs low, because sends from the last two weeks have not had time to be accepted and an email or InMail is never accepted. Beside replied, the share of those accepted; a reply to an email counts without an accept, so it can pass 100%.',
       table: `<table><thead><tr><th>route</th><th class="num">found</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
-${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td class="num">${r.strong} <span class="dim">${pc(r.strong, r.found)}</span></td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b></td><td class="num">${r.replied}</td></tr>`).join('')}</tbody></table>`,
+${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td class="num">${r.strong} <span class="dim">${pc(r.strong, r.found)}</span></td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b> <span class="dim">${pc(r.accepted, r.sent)}</span></td><td class="num">${r.replied} <span class="dim">${pc(r.replied, r.accepted)}</span></td></tr>`).join('')}</tbody></table>`,
     };
   }
 
@@ -377,10 +381,10 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
     };
     scripts.push(`rateDots('c-targets', ${J(tg)}, ${overall}, 'accepted');`);
 
-    // 15. Inbound Figure 3 over time (the operator, 2026-11-20). A table, not lines:
+    // 15. Inbound Figure 2 over time (the operator, 2026-11-20). A table, not lines:
     // ten targets is more series than the palette has colors, and a week's
     // count per target is small enough to read as a number. Same row order and
-    // italics as Inbound Figure 3. The current week is partial, and marked so.
+    // italics as Inbound Figure 2. The current week is partial, and marked so.
     const tw = targetWeekly(db, 8);
     tw.rows.sort((a, b) => rank(a.target) - rank(b.target));
     const cell = (c) => (c.all ? `${c.all}${c.top ? ` <span class="dim">(${c.top})</span>` : ''}` : '<span class="dim">·</span>');
@@ -388,7 +392,7 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
     const sums = tw.weeks.map((_, i) => tw.rows.reduce((a, r) => ({ all: a.all + r.cells[i].all, top: a.top + r.cells[i].top }), { all: 0, top: 0 }));
     panels.targetweeks = {
       title: 'New cards per target, by week',
-      caption: 'People first judged each week who are rated 3 or more now, by target; in brackets, how many of them are rated 4 or 5. Weeks start Monday, and the starred week is still under way. Buyer targets first, then situation targets in italics, as in Figure 3.',
+      caption: 'People first judged each week who are rated 3 or more now, by target; in brackets, how many of them are rated 4 or 5. Weeks start Monday, and the starred week is still under way. Buyer targets first, then situation targets in italics, as in Figure 2.',
       table: `<table><thead><tr><th>target</th>${tw.weeks.map((d, i) => `<th class="num">${wk(d, i)}</th>`).join('')}</tr></thead><tbody>
 ${tw.rows.map((r) => `<tr><td>${r.target == null ? 'No target named' : lab(r.target)}</td>${r.cells.map((c) => `<td class="num">${cell(c)}</td>`).join('')}</tr>`).join('')}
 <tr><td><b>all targets</b></td>${sums.map((c) => `<td class="num"><b>${c.all}</b>${c.top ? ` <span class="dim">(${c.top})</span>` : ''}</td>`).join('')}</tr></tbody></table>`,
