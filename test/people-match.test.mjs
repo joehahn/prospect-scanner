@@ -51,3 +51,34 @@ test('a page names the person by surname, or as LinkedIn shows a stranger: first
   assert.equal(pageNames('Omar Al Haddad · 3rd', 'Omar Alhaddad'), true);
   assert.equal(pageNames('Omar El-Haddad · 3rd', 'Omar Elhaddad'), true);
 });
+
+// 2026-11-20: 31 pairs at one firm each, filed twice by intakes that matched
+// slugs letter for letter. Fictional names, the real shapes.
+test('initials, a seat word and nicknames still find the person', async () => {
+  const { sameName } = await import('../src/people-match.mjs');
+  const same = (a, b) => sameName(nameParts(a), nameParts(b));
+  assert.equal(same('J. Mark Lane', 'Mark Lane'), true);
+  assert.equal(same('T.C Rao', 'TC Rao'), true);
+  assert.equal(same('Chief AB Lane', 'Avery Bo "AB" Lane'), true);
+  assert.equal(same('Mike Quell', 'Michael Quell'), true);
+  assert.equal(same('Dr. Ann Lane', 'Ann Lane'), true);
+  assert.equal(same('Ann Lane, PhD', 'Ann B. Lane'), true);
+});
+
+test('relatives at one firm stay two people', async () => {
+  const { sameName } = await import('../src/people-match.mjs');
+  const same = (a, b) => sameName(nameParts(a), nameParts(b));
+  assert.equal(same('Sam Lane Jr.', 'Sam Lane III'), false);
+  assert.equal(same('Paul G. Lane', 'Paul C. Lane'), false);
+  assert.equal(same('James (Jim) W. Lane', 'James (Will) W. Lane'), false);
+  assert.equal(same('S. David Lane', 'Stanley D. Lane'), false);
+  assert.equal(same('J.D. Lane', 'D.N. (Dan) Lane'), false);
+  assert.equal(same('RJ Lane', 'Ron Lane'), false);
+});
+
+test('an intake files a variant under the id already on file', async () => {
+  const { personIdAt } = await import('../src/people-match.mjs');
+  assert.equal(personIdAt(db, 'acme', 'Ron Roe', 'ron_roe'), 'ronald_roe');
+  assert.equal(personIdAt(db, 'other', 'Ron Roe', 'ron_roe'), 'ron_roe');
+  assert.equal(personIdAt(db, 'acme', 'Bill Roe', 'bill_roe'), 'bill_roe');
+});

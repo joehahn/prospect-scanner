@@ -31,6 +31,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
+import { personIdAt } from './people-match.mjs';
 import { loadConfig } from './config.mjs';
 import { complete, promptBody } from './models.mjs';
 import { heading, bold, dim } from './report.mjs';
@@ -587,7 +588,7 @@ export async function loadSpeakers(db, runId, all, { model, judge = true, source
     ON CONFLICT (org_id, kind, source_url, claim) DO UPDATE SET body = excluded.body`);
   let people = 0;
   for (const r of hits) {
-    const oid = slug(r.firm); const pid = slug(r.name);
+    const oid = slug(r.firm); const pid = personIdAt(db, oid, r.name, slug(r.name));
     // A city, agency or police department on an agenda is a public body, not a
     // company; nothing reads its site here, so its name decides (public-body.mjs).
     org.run({ id: oid, name: r.firm, hc: sized.get(r.firm).employees, today, source,

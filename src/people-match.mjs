@@ -29,6 +29,8 @@ const NICK = [
   ['jerry', 'gerald'], ['gene', 'eugene'], ['mandy', 'amanda'], ['cindy', 'cynthia'],
   ['debbie', 'deborah'], ['abby', 'abigail'], ['vicky', 'victoria'], ['wendy', 'gwendolyn'],
   ['olek', 'oleksandr'], ['sasha', 'alexander'], ['zach', 'zachary'],
+  ['mike', 'michael'], ['mick', 'michael'], ['dave', 'david'], ['rudy', 'rodolphe'], ['rudy', 'rudolph'],
+  ['josi', 'josephine'], ['jo', 'josephine'], ['angie', 'angela'], ['peg', 'margaret'], ['hal', 'harold'],
 ];
 const nickOf = new Map();
 for (const [a, b] of NICK) {
@@ -36,17 +38,66 @@ for (const [a, b] of NICK) {
   if (!nickOf.has(b)) nickOf.set(b, new Set()); nickOf.get(b).add(a);
 }
 
-/** {firsts: [...], last} from a display name: "Rajveer (Raj) Kushwaha" -> firsts rajveer, raj. */
+// A generation suffix tells a father from a son: Sam Lane Jr. and Sam
+// Lane III are two people at one bank.
+const GENERATION = new Set(['jr', 'sr', 'ii', 'iii', 'iv']);
+// A seat word an agenda puts before a name: "Chief AB Lane".
+const LEAD_TITLE = new Set(['chief', 'judge', 'senator', 'rep', 'representative', 'mayor', 'commissioner',
+  'gen', 'general', 'adm', 'admiral']);
+const ACCENTS = /[̀-ͯ]/g;
+
+/**
+ * {firsts, last} from a display name: "Rajveer (Raj) Kushwaha" -> firsts rajveer, raj.
+ * Also, not enumerable so the shape stays {firsts, last}: `aliases` (the
+ * parenthesised or quoted names), `middles` (middle initials) and `gen` (Jr.,
+ * III), which tell two relatives apart (sameName).
+ *
+ * LEADING INITIALS (2026-11-20): "T.C Rao" is first name tc, and
+ * "J. Mark Lane" goes by Mark. Both were read as having no first name, so
+ * neither matched the record already on file and each was filed twice.
+ */
 export function nameParts(name) {
-  let s = String(name ?? '');
-  const aliases = [...s.matchAll(/\(([^)]+)\)|"([^"]+)"/g)].map((m) => (m[1] ?? m[2]).trim().toLowerCase());
-  s = s.replace(/\([^)]*\)|"[^"]*"/g, ' ').split(',')[0];
-  const words = s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
-    .replace(/[^a-z\s'-]/g, ' ').split(/\s+/).map((w) => w.replace(/^['-]+|['-]+$/g, ''))
-    .filter((w) => w && !SUFFIX.has(w.replace(/[.'-]/g, '')));
+  const s = String(name ?? '');
+  const aliases = [...s.matchAll(/\(([^)]+)\)|"([^"]+)"/g)]
+    .map((m) => (m[1] ?? m[2]).trim().toLowerCase().normalize('NFD').replace(ACCENTS, '').split(/\s+/)[0])
+    .filter((a) => a.length > 1);
+  const [main, ...tail] = s.replace(/\([^)]*\)|"[^"]*"/g, ' ').split(',');
+  const bare = (w) => w.replace(/[.'-]/g, '');
+  let words = main.normalize('NFD').replace(ACCENTS, '').toLowerCase()
+    .replace(/[^a-z\s.'-]/g, ' ').split(/\s+/).map((w) => w.replace(/^['-]+|['-]+$/g, '')).filter((w) => bare(w));
+  const gen = [...words, ...tail.join(' ').toLowerCase().split(/[\s.]+/)].map(bare)
+    .find((w) => GENERATION.has(w)) ?? null;
+  // A credential is dropped anywhere but first place, where "J.D." is a name.
+  words = words.filter((w, i) => !SUFFIX.has(bare(w)) || (i === 0 && !['dr', 'mr', 'ms', 'mrs'].includes(bare(w))));
+  while (words.length > 2 && LEAD_TITLE.has(bare(words[0]))) words.shift();
   if (words.length < 2) return null;
-  const firsts = [words[0], ...aliases.flatMap((a) => a.split(/\s+/).slice(0, 1))].filter((w) => w.length > 1);
-  return { firsts: [...new Set(firsts)], last: words.at(-1) };
+  let rest = words.slice(0, -1);
+  const initial = (w) => /^[a-z]\.?$/.test(w);
+  const firsts = [];
+  if (/^([a-z]\.)+[a-z]?\.?$/.test(rest[0]) && bare(rest[0]).length > 1) firsts.push(bare(rest[0]));   // T.C, J.D.
+  else if (initial(rest[0]) && rest[1] && !initial(rest[1])) { firsts.push(bare(rest[1])); rest = rest.slice(1); } // J. Troy
+  else if (initial(rest[0]) && rest[1]) { firsts.push(bare(rest[0]) + bare(rest[1])); rest = rest.slice(1); }     // T C
+  else firsts.push(bare(rest[0]));
+  const middles = rest.slice(1).filter(initial).map((w) => w[0]);
+  const out = { firsts: [...new Set([...firsts, ...aliases])].filter((w) => w.length > 1), last: bare(words.at(-1)) };
+  if (!out.firsts.length) return null;
+  Object.defineProperties(out, { aliases: { value: aliases }, middles: { value: middles }, gen: { value: gen } });
+  return out;
+}
+
+/**
+ * Whether two parsed names are one person. Same surname and a first name
+ * that is the same, a nickname of it, or one starting the other; and nothing
+ * that says they are two relatives: different generation suffixes, different
+ * middle initials (Paul G. and Paul C. Lane), or different
+ * nicknames on one given name (James "Jim" and James "Will" Lane).
+ */
+export function sameName(me, them) {
+  if (!me || !them || me.last !== them.last || !firstsMatch(me.firsts, them.firsts)) return false;
+  if (me.gen && them.gen && me.gen !== them.gen) return false;
+  if (me.middles?.length && them.middles?.length && me.middles[0] !== them.middles[0]) return false;
+  if (me.aliases?.length && them.aliases?.length && !firstsMatch(me.aliases, them.aliases)) return false;
+  return true;
 }
 
 /**
@@ -101,10 +152,25 @@ export function samePersonOnFile(db, { name, title = null, orgId }) {
     WHERE lower(name) LIKE ?`).all(`%${me.last}%`);
   let other = null;
   for (const r of rows) {
-    const them = nameParts(r.name);
-    if (!them || them.last !== me.last || !firstsMatch(me.firsts, them.firsts)) continue;
+    if (!sameName(me, nameParts(r.name))) continue;
     if (r.org_id === orgId) return { ...r, sameOrg: true };
     if (!other && title && titlesAgree(title, r.title)) other = { ...r, sameOrg: false };
   }
   return other;
+}
+
+/**
+ * The id to file a name under at this firm: the person already on file there
+ * under another spelling, or `fresh` (the new slug) when there is none.
+ *
+ * EVERY INTAKE ASKS (2026-11-20). Only two of seven places that file people
+ * asked samePersonOnFile; the others matched slugs letter for letter, so an
+ * agenda's "Timothy James TJ" sat beside a pasted "TJ" and his pastes went to
+ * one card while the other kept asking for one. 31 such pairs were merged.
+ * Only a match AT THIS FIRM is reused: a name at another firm is left to `lead
+ * move`, which takes a source.
+ */
+export function personIdAt(db, orgId, name, fresh) {
+  const known = samePersonOnFile(db, { name, orgId });
+  return known?.sameOrg ? known.id : fresh;
 }

@@ -2464,11 +2464,15 @@ document.addEventListener('click', (e) => {
 });
 // Open all: each name's own click, last name first, so that with every tab
 // placed next to this page the first name ends up leftmost.
+// ONE NAME AT A TIME, 400 ms APART (2026-11-20, the operator): clicked in one
+// burst, the browser placed the tabs as they finished opening, so a card and
+// its profile often landed apart; clicked one by one they always sat
+// together. Pop-ups are allowed for this page, so a delayed open still opens.
 document.addEventListener('click', (e) => {
   const btn = e.target.closest && e.target.closest('button.openall');
   if (!btn) return;
-  const links = [...btn.closest('section').querySelectorAll('a.cardlink')];
-  for (const a of links.reverse()) a.click();
+  const links = [...btn.closest('section').querySelectorAll('a.cardlink')].reverse();
+  links.forEach((a, i) => setTimeout(() => a.click(), i * 400));
 });
 `;
 const COPY_JS = `// One delegated listener for every copy button on the page. Falls back to

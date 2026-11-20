@@ -22,6 +22,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify, recordSize} from './db.mjs';
+import { personIdAt } from './people-match.mjs';
 import { loadConfig, capabilityTitles } from './config.mjs';
 import { complete } from './models.mjs';
 import { fetchPage, discoverLinks, CANDIDATE_PATHS } from './sources/web.mjs';
@@ -371,7 +372,7 @@ async function main() {
     let added = 0;
     for (const p of d.people ?? []) {
       if (!p.name) continue;
-      const pid = slugify(p.name);
+      const pid = personIdAt(db, org.id, p.name, slugify(p.name));
       const before = db.prepare('SELECT 1 FROM people WHERE id = ?').get(pid);
       insPerson.run({ id: pid, org: org.id, name: p.name, title: p.title ?? null,
         notes: `Extracted from ${p.source_url} on ${now.slice(0, 10)} by enrich.` });

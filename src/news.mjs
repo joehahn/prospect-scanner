@@ -51,6 +51,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
+import { personIdAt } from './people-match.mjs';
 import { loadConfig, triggerWeight } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { complete } from './models.mjs';
@@ -661,7 +662,7 @@ async function discover(db, cfg, targeting, news, since, runId, args) {
     // better evidence than a reporter's paraphrase, so an existing one wins.
     for (const q of f.people ?? []) {
       if (!q?.name || !q?.title) continue;
-      insPerson.run({ id: slugify(q.name), org: id, name: q.name, title: q.title,
+      insPerson.run({ id: personIdAt(db, id, q.name, slugify(q.name)), org: id, name: q.name, title: q.title,
         notes: `Named in the article that triggered this firm, ${f.event_date}: ${f.source_url}` });
       namedPeople += 1;
     }

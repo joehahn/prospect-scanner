@@ -37,6 +37,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
+import { personIdAt } from './people-match.mjs';
 import { loadConfig, triggerWeight } from './config.mjs';
 import { loadTargeting } from './targeting.mjs';
 import { loadBusiness } from './business.mjs';
@@ -400,7 +401,7 @@ async function runList(cfg, b, { save = false, events = null, wires = false, tar
 /** The customer's people a release named, each with their quote as their own evidence. */
 function savePeople(db, orgId, h, date, stamp) {
   for (const x of h.people ?? []) {
-    const id = slugify(x.name);
+    const id = personIdAt(db, orgId, x.name, slugify(x.name));
     const other = db.prepare('SELECT org_id FROM people WHERE id = ?').get(id);
     if (other && other.org_id !== orgId) continue;
     if (!other) {

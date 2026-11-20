@@ -33,6 +33,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun, slugify } from './db.mjs';
+import { personIdAt } from './people-match.mjs';
 import { loadConfig, triggerWeight } from './config.mjs';
 import { complete } from './models.mjs';
 import { getJson } from './sources/http.mjs';
@@ -244,7 +245,7 @@ async function main() {
       // SAME SLUG, DIFFERENT PERSON is possible -- people.id is a name slug and
       // global. Never re-file an existing person onto another firm from an
       // article; `lead move` is how a person changes employer, with a source.
-      const pid = slugify(m.person_name);
+      const pid = personIdAt(db, orgId, m.person_name, slugify(m.person_name));
       const existing = getPerson.get(pid);
       let personState = 'new';
       if (!existing) {
