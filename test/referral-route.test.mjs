@@ -15,3 +15,11 @@ test('a referral node who owns the budget is not routed to the referral ask', ()
   const c = buyerForOrg(cfg, { kind: 'end_client', referralValue: 0.6, capabilityAuthority: 'owns' });
   assert.notEqual(c?.id, 'referral_ask');
 });
+
+// 2026-11-20: the referral ask is for someone who knows the operator. A
+// well-networked stranger is routed by firm kind, like anyone else.
+test('a well-networked stranger is not routed to the referral ask', () => {
+  const c = buyerForOrg(cfg, { kind: 'investor', referralValue: 0.6, warm: false });
+  assert.notEqual(c?.id, 'referral_ask');
+  assert.equal(buyerForOrg(cfg, { kind: 'end_client', referralValue: 0.6, warm: true }).id, 'referral_ask');
+});

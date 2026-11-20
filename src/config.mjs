@@ -1224,7 +1224,7 @@ export function firmIsStaffed(db, orgId, capabilityTitles = [], today = null) {
 }
 
 export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue = null,
-                                   staffed = false, org = {}, capabilityAuthority = null }) {
+                                   staffed = false, org = {}, capabilityAuthority = null, warm = null }) {
   const live = (cfg.buyers ?? []).filter((p) => !OFF_MENU.has(p.status ?? 'live'));
   const has = (id) => live.some((p) => p.id === id);
 
@@ -1235,8 +1235,14 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
   // referral ask while his own record said he owns the technology budget; the
   // drafter then refused, because the read had chosen a capacity offer. 16
   // budget owners on file scored 0.6+. Someone who can buy is a buyer first.
+  // NOT A STRANGER (2026-11-20). The referral offer is for someone "who knows
+  // Joe favourably"; a 3rd-degree private-equity operating partner with no
+  // history scored 0.6 on network alone, was routed here, and the drafter
+  // refused him, since nothing under the offer fits a stranger. `warm` is
+  // whether the operator stated a history with them (people.prior_relationship);
+  // a caller that does not know passes nothing and the old rule stands.
   if (referralValue !== null && referralValue >= 0.6 && capabilityAuthority !== 'owns'
-      && has('referral_ask')) {
+      && warm !== false && has('referral_ask')) {
     return { id: 'referral_ask', why: `referral node (${Math.round(referralValue * 100)}%) — asks for a name, sells nothing` };
   }
 
