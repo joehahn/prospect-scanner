@@ -715,7 +715,11 @@ async function paste(db, cfg, args) {
   const claim = args.claim && args.claim !== true
     ? String(args.claim)
     : `${kind === 'profile' ? 'Profile' : 'Source'} text for ` +
-      `${person ? person.name : orgId}, supplied by the operator on ${today()}.`;
+      // WHO PASTED IT (2026-11-20, the operator: "can you tell if michele used
+      // this solution at her end?"; it could not). Her pastes said "supplied by
+      // the operator" like his. Provenance stays operator_supplied, since a
+      // person read the page either way; the claim says which person.
+      `${person ? person.name : orgId}, supplied by ${args.via === 'assistant' ? 'the assistant' : 'the operator'} on ${today()}.`;
 
   const row = db.prepare(`
     INSERT INTO evidence (org_id, person_id, kind, claim, source_url, retrieved_at,

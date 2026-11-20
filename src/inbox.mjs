@@ -322,7 +322,7 @@ function queuePaste(personId, args) {
     }
     readInBackground(db, personId);
     commentInBackground(personId);
-    console.log(`  ingested ${personId}${waiting ? ', re-judged' : ''}`);
+    console.log(`  ingested ${personId}${waiting ? ', re-judged' : ''}${args.includes('assistant') ? ' · by the assistant' : ''}`);
   }).catch((e) => {
     const msg = String(e.stderr || e.message).trim().slice(-600);
     pasteFailures.push({ personId, at: Date.now(), msg });
@@ -926,7 +926,7 @@ function handle(req, res) {
       try {
         const r = ingest(f, assistant);
         res.writeHead(303, { location: `${back}${back.includes('#') ? '' : '#'}` }).end();
-        console.log(`  queued ${r.personId}${r.url ? ` · ${r.url}` : ''}`);
+        console.log(`  queued ${r.personId}${r.url ? ` · ${r.url}` : ''}${assistant ? ' · BY THE ASSISTANT' : ''}`);
       } catch (e) {
         const err = String(e.stderr || e.message);
         if (assistant) {
