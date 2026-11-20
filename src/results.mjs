@@ -41,6 +41,14 @@ export const BRIEFS = [
   ['targetweeks', 'Is each target getting more new cards week by week?', 'Whether a change to discovery reached the targets it was meant for.'],
 ];
 
+// TWO TABS (2026-11-20, the operator: "split results into 2 tabs", after asking
+// whether the panels should run inbound then outbound). What discovery brings
+// in decides where to look; what outreach gets back decides what to send and
+// to whom. One page of 15 panels mixed the two, with the first discovery panel
+// on top and the other four at the bottom. Each tab numbers its own figures.
+export const INBOUND = new Set(['inbound', 'targetcards', 'targetweeks', 'industryyield', 'sources']);
+export const sideOf = (id) => (INBOUND.has(id) ? 'inbound' : 'outbound');
+
 export function seedBriefs(db) {
   const now = new Date().toISOString();
   const ins = db.prepare(`INSERT OR IGNORE INTO chart_briefs (id, question, decision, status, created_at, approved_at)
@@ -115,9 +123,10 @@ function rateDots(id, groups, overall, xTitle) {
 const byRate = (gs) => [...gs].sort((a, b) => b.rate - a.rate || b.n - a.n);
 
 /** {html, script} for the page. `offerLabel(id)` names an offer from config. */
-export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) => name, targetKind = () => null, topGoal = null, sendGoal = null, server = '' } = {}) {
+export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) => name, targetKind = () => null, topGoal = null, sendGoal = null, server = '', side = null } = {}) {
   seedBriefs(db);
-  const placed = placeBriefs(db);
+  const onSide = (id) => !side || sideOf(id) === side;
+  const placed = placeBriefs(db).filter((b) => onSide(b.id));
   const rows = sends(db);
   const reqs = matureRequests(rows);
   const accepted = reqs.filter((r) => r.accepted).length;
@@ -368,10 +377,10 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
     };
     scripts.push(`rateDots('c-targets', ${J(tg)}, ${overall}, 'accepted');`);
 
-    // 15. Figure 12 over time (the operator, 2026-11-20). A table, not lines:
+    // 15. Inbound Figure 3 over time (the operator, 2026-11-20). A table, not lines:
     // ten targets is more series than the palette has colors, and a week's
     // count per target is small enough to read as a number. Same row order and
-    // italics as Figure 12. The current week is partial, and marked so.
+    // italics as Inbound Figure 3. The current week is partial, and marked so.
     const tw = targetWeekly(db, 8);
     tw.rows.sort((a, b) => rank(a.target) - rank(b.target));
     const cell = (c) => (c.all ? `${c.all}${c.top ? ` <span class="dim">(${c.top})</span>` : ''}` : '<span class="dim">·</span>');
@@ -379,7 +388,7 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
     const sums = tw.weeks.map((_, i) => tw.rows.reduce((a, r) => ({ all: a.all + r.cells[i].all, top: a.top + r.cells[i].top }), { all: 0, top: 0 }));
     panels.targetweeks = {
       title: 'New cards per target, by week',
-      caption: 'People first judged each week who are rated 3 or more now, by target; in brackets, how many of them are rated 4 or 5. Weeks start Monday, and the starred week is still under way. Buyer targets first, then situation targets in italics, as in Figure 12.',
+      caption: 'People first judged each week who are rated 3 or more now, by target; in brackets, how many of them are rated 4 or 5. Weeks start Monday, and the starred week is still under way. Buyer targets first, then situation targets in italics, as in Figure 3.',
       table: `<table><thead><tr><th>target</th>${tw.weeks.map((d, i) => `<th class="num">${wk(d, i)}</th>`).join('')}</tr></thead><tbody>
 ${tw.rows.map((r) => `<tr><td>${r.target == null ? 'No target named' : lab(r.target)}</td>${r.cells.map((c) => `<td class="num">${cell(c)}</td>`).join('')}</tr>`).join('')}
 <tr><td><b>all targets</b></td>${sums.map((c) => `<td class="num"><b>${c.all}</b>${c.top ? ` <span class="dim">(${c.top})</span>` : ''}</td>`).join('')}</tr></tbody></table>`,
@@ -406,7 +415,11 @@ ${iy.map((g) => `<tr><td>${esc(g.segment == null ? 'Not labelled yet' : SEGMENTS
     // A FIXED NUMBER PER PANEL (2026-11-18, the operator: "add plot numbers to
     // each plot"). Fixed rather than by position, since the order moves with
     // use and "Figure 3" has to mean the same panel next week.
-    const n = BRIEFS.findIndex(([id]) => id === b.id) + 1;
+    // NUMBERED PER TAB (2026-11-20, the operator: "renumber inbound & outbound
+    // figures"): 1 to 5 on Inbound, 1 to 10 on Outbound, in BRIEFS order within
+    // each tab. A new panel is appended to BRIEFS, so it takes the next number
+    // on its own tab and moves none of the others.
+    const n = BRIEFS.filter(([id]) => !side || sideOf(id) === sideOf(b.id)).findIndex(([id]) => id === b.id) + 1;
     return `<section class="panel chart" data-brief="${esc(b.id)}" title="${esc(b.question)}">
 <h2>${n ? `Figure ${n}. ` : ''}${esc(p.title)}</h2>
 ${p.table ?? `<div id="c-${esc(b.id)}" style="height:${p.height}px"></div>`}
@@ -414,11 +427,18 @@ ${p.table ?? `<div id="c-${esc(b.id)}" style="height:${p.height}px"></div>`}
   };
   const shown = placed.filter((b) => b.place !== 'folded');
   const folded = placed.filter((b) => b.place === 'folded');
-  const retired = db.prepare(`SELECT id, question, retired_why FROM chart_briefs WHERE status = 'retired'`).all();
+  const retired = db.prepare(`SELECT id, question, retired_why FROM chart_briefs WHERE status = 'retired'`).all().filter((r) => onSide(r.id));
+  const intro = !side ? '' : side === 'inbound'
+    ? '<p class="lead">What discovery brings in: new cards, by target, route and industry. Where to look next. The Outbound tab has what came back.</p>'
+    : '<p class="lead">What outreach gets back: sends, accepts and replies. What to send, and to whom. The Inbound tab has what discovery brings in.</p>';
+  // Each chart's script draws into its own c-<id>; a panel on the other tab has none.
+  const off = BRIEFS.map(([id]) => id).filter((id) => !onSide(id));
+  const mine = scripts.filter((s) => !off.some((id) => s.includes(`'c-${id}'`)));
   const html = `<style>
 .chart .cap{color:var(--text2);font-size:13.5px;line-height:1.45;margin:.5rem 0 0;max-width:46rem}
 .folded summary,.retired summary{cursor:pointer;color:var(--text2)}
 </style>
+${intro}
 ${shown.map(section).join('\n')}
 ${folded.length ? `<details class="folded panel"><summary>Not looked at in ${UNSEEN_FOLD} days: ${folded.length}</summary>${folded.map(section).join('\n')}</details>` : ''}
 ${retired.length ? `<details class="retired panel"><summary>Retired panels: ${retired.length}</summary><ul>${retired.map((r) => `<li>${esc(r.question)} <span class="dim">${esc(r.retired_why ?? '')}</span>
@@ -452,5 +472,5 @@ document.querySelectorAll('details.folded').forEach((d) => d.addEventListener('t
   });
 }));`;
   const fill = (s) => s.replaceAll('SERVER', server);
-  return { html: fill(html), script: fill(`${PLOT_HEAD}\n${scripts.join('\n')}\n${beacon}\n${folds}`), placed };
+  return { html: fill(html), script: fill(`${PLOT_HEAD}\n${mine.join('\n')}\n${beacon}\n${folds}`), placed };
 }

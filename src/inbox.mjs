@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from './db.mjs';
+import { sideOf } from './results.mjs';
 import { pasteQueue } from './funnel.mjs';
 import { operatorLastSaid } from './operator-said.mjs';
 import { fieldsNear, urlFrom, matchPerson } from './paste-match.mjs';
@@ -752,7 +753,7 @@ function handle(req, res) {
       db.prepare(`UPDATE chart_briefs SET status = 'approved', approved_at = ?, retired_at = NULL, retired_why = NULL WHERE id = ?`).run(now, id);
       db.prepare(`INSERT INTO chart_feedback (brief_id, at, call, note) VALUES (?, ?, 'keep', 'brought back from retired')`).run(id, now);
       try { await rebuild(); } catch { /* the page still loads; it updates on the next build */ }
-      res.writeHead(303, { location: '/results.html' }).end();
+      res.writeHead(303, { location: sideOf(id) === 'inbound' ? '/discovery.html' : '/results.html' }).end();
     });
     return;
   }

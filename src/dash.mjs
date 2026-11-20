@@ -193,7 +193,7 @@ function statTitle(st, outcomes = true) {
 // more actionable or else drop them", and order them by their %. Pages are
 // grouped by what they are for. The offer and geography filters are gone:
 // their counts were the whole book, not the page, and their rate was replies
-// per send, which is noise at these numbers (Results, Figure 3). Targets show
+// per send, which is noise at these numbers (Outbound, Figure 2). Targets show
 // the cards waiting under each, ordered by how often connection requests there
 // were accepted, the one rate with a real spread; a target with nothing
 // waiting is hidden by the page script. "Your call" is the send list.
@@ -204,10 +204,10 @@ function statTitle(st, outcomes = true) {
 // (inbox.mjs); they still work, since a filter changes nothing but the view.
 const PAGE_GROUPS = [
   ['work', ['index', 'ready', 'topaste', 'events', 'outreach']],
-  ['how it is going', ['results', 'scoreboard']],
+  ['how it is going', ['discovery', 'results', 'scoreboard']],
   ['setup', ['spend', 'gates', 'inputs', 'searches']],
 ];
-const HIS_PAGES = new Set(['events', 'outreach', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
+const HIS_PAGES = new Set(['events', 'outreach', 'discovery', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
 // Set by the build: connection-request accepts per target, and accepts due a note.
 let TARGET_ACCEPT = new Map();
 let FOLLOWUP_DUE = 0;
@@ -1575,6 +1575,63 @@ ${rows.map((r) => `<tr${r.worth ? '' : ' style="opacity:.6"'}><td><b>${esc(r.nam
 <td>${esc(String(r.accepted_at).slice(0, 10))}<br><span class="dim">${esc(r.last_sent)}</span></td>
 <td><ul>${r.events.map(item).join('')}</ul></td></tr>`).join('\n')}
 </tbody></table>`;
+}
+
+// GONE QUIET AFTER A YES (2026-11-20, the operator: "should this solution
+// track people whose messages appear to die on the vine, so nobody falls
+// through the cracks?"). Not cold silence, which is an answer and is never
+// chased: someone who replied warmly or asked for something, then got your
+// answer and went quiet. One nudge each. A row shows when your latest message
+// after their reply is QUIET_DAYS old with nothing back, and leaves when they
+// answer, when you have sent a second message since their reply (that was the
+// nudge; after it, let it go), or while a dated check-back they asked for is
+// still ahead. On All prospects and Ready, the pages he opens (he never opens Sent).
+const QUIET_DAYS = 14;
+
+export function goneQuiet(db, today = new Date().toISOString().slice(0, 10)) {
+  const cut = new Date(Date.parse(today) - QUIET_DAYS * 86400000).toISOString().slice(0, 10);
+  const yes = db.prepare(`
+    SELECT x.person_id, r.responded_at, r.outcome, x.id AS outreach_id
+      FROM responses r JOIN outreach x ON x.id = r.outreach_id
+     WHERE r.sentiment IN ('positive', 'neutral') AND x.seeded = 0
+     ORDER BY r.responded_at DESC, r.id DESC`).all();
+  const latest = new Map();
+  for (const y of yes) if (!latest.has(y.person_id)) latest.set(y.person_id, y);
+  const after = db.prepare(`SELECT x.id, x.channel, x.sent_at, x.subject,
+      (SELECT COUNT(*) FROM responses r WHERE r.outreach_id = x.id AND r.sentiment NOT IN ('accepted', 'bounced')) AS answered
+      FROM outreach x WHERE x.person_id = ? AND x.seeded = 0 AND x.id > ? AND x.status <> 'bounced' ORDER BY x.id`);
+  // A check-back he agreed to (scheduled_followups) or a hold still ahead keeps the row off.
+  const held = (pid, name) => db.prepare(`SELECT 1 FROM scheduled_followups f
+      WHERE f.date > ? AND (EXISTS (SELECT 1 FROM scheduled_followup_targets t WHERE t.followup_id = f.id AND t.person_id = ?)
+        OR f.note LIKE ?)`).get(today, pid, `%${name}%`)
+    || db.prepare('SELECT 1 FROM hold WHERE person_id = ? AND release_after > ?').get(pid, today);
+  const out = [];
+  for (const y of latest.values()) {
+    const ours = after.all(y.person_id, y.outreach_id);
+    if (ours.length !== 1 || ours[0].answered || ours[0].sent_at > cut) continue;
+    const p = db.prepare(`SELECT p.id, p.name, p.title, p.profile_url, o.name AS org_name
+      FROM people p JOIN orgs o ON o.id = p.org_id WHERE p.id = ?`).get(y.person_id);
+    if (!p || held(p.id, p.name)) continue;
+    const days = Math.round((Date.parse(today) - Date.parse(ours[0].sent_at)) / 86400000);
+    out.push({ ...p, asked: y.outcome, asked_at: y.responded_at, sent: ours[0], days });
+  }
+  return out.sort((a, b) => b.days - a.days);
+}
+
+function goneQuietPanel(db) {
+  const rows = goneQuiet(db);
+  if (!rows.length) return '';
+  const chan = (c) => ({ email: 'email', linkedin_message: 'LinkedIn message', linkedin_inmail: 'InMail',
+    linkedin_connect_note: 'connection note' })[c] ?? c;
+  return `<section class="panel"><h2>Gone quiet after a yes: ${rows.length}</h2>
+<p class="lead">They replied warmly or asked for something, you answered, and nothing has come back in ${QUIET_DAYS}+ days.
+One short nudge on the same thread; a row leaves once you record it or they answer, and after that nudge, let it go.</p>
+<table><thead><tr><th>Person</th><th>What they said</th><th>Your answer</th></tr></thead><tbody>
+${rows.map((r) => `<tr><td><b>${esc(r.name)}</b><br><span class="dim">${esc(r.title ?? '')}</span><br>${esc(r.org_name)}<br>
+<a class="cardlink" href="index.html?card=p-${esc(r.id)}" target="_blank" title="Opens their card and their profile, each in its own tab">their card</a></td>
+<td><span class="dim">${esc(String(r.asked_at).slice(0, 10))}</span><br>${esc(r.asked ?? '')}</td>
+<td>${esc(chan(r.sent.channel))}, ${esc(r.sent.sent_at)}${r.sent.subject ? `<br><span class="dim">${esc(r.sent.subject)}</span>` : ''}<br><b>${r.days} days quiet</b></td></tr>`).join('\n')}
+</tbody></table></section>`;
 }
 
 // WORTH A COMMENT. Added 2026-10-17. A pasted profile sometimes carries a post
@@ -3349,7 +3406,9 @@ function buildAll(db, cfg, targeting) {
     // this already, but a reminder has to be in sight to remind.
     { id: 'topaste', file: 'ready.html#call=first,write,none&pasted=no', label: 'To paste', shortcut: true },
     { id: 'events', file: 'events.html', label: 'Events' },
-    { id: 'results', file: 'results.html', label: 'Results' },
+    // Results in two tabs (2026-11-20): what came in, then what came back.
+    { id: 'discovery', file: 'discovery.html', label: 'Inbound' },
+    { id: 'results', file: 'results.html', label: 'Outbound' },
     { id: 'outreach', file: 'outreach.html', label: 'Sent' },
     { id: 'searches', file: 'searches.html', label: 'Searches' },
     { id: 'scoreboard', file: 'scoreboard.html', label: 'Scoreboard' },
@@ -3543,16 +3602,18 @@ function buildAll(db, cfg, targeting) {
   FOLLOWUP_EVENTS = EVENTS.filter((r) => r.worth).length;
   const pageOf = (id) => pages.find((x) => x.id === id);
   const readyBody = readyPage(db, d, cfg);
-  write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
+  write(pageOf('ready'), 'Ready', goneQuietPanel(db) + commentsPanel(db) + readyBody, undefined, false,
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('events'), 'Events', eventsPanel(db, { all: EVENTS }));
   write(pageOf('searches'), 'Searches', searchesPage(db, (t) => sectors.find((v) => v.name === t)?.label ?? t));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
-  { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
+  for (const [page, side, title] of [['discovery', 'inbound', 'Inbound'], ['results', 'outbound', 'Outbound']]) {
+    const r = resultsPage(db, { server: SERVER, side, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
       offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' '),
       targetLabel: (name) => sectors.find((v) => v.name === name)?.label ?? name,
       targetKind: (name) => sectors.find((v) => v.name === name)?.kind ?? null });
-    write(pageOf('results'), 'Results', r.html, r.script); }
+    write(pageOf(page), title, r.html, r.script);
+  }
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }
 
   // ---- 1. index: everyone, in the judge's order ------------------------------
@@ -3602,6 +3663,7 @@ ${tile({ label: 'AI spend, all time', value: `$${Number(sp.total).toFixed(2)}`, 
 </div>`;
   write(pageOf('index'), 'Prospects', `
 ${costTiles}
+${goneQuietPanel(db)}
 ${acceptedPanel(db, d)}
 ${eventsPanel(db, { worthOnly: true, all: EVENTS })}
 ${commentsPanel(db)}
