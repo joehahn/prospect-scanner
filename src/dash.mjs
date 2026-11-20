@@ -205,7 +205,7 @@ function statTitle(st, outcomes = true) {
 const PAGE_GROUPS = [
   ['work', ['index', 'ready', 'topaste', 'events', 'outreach']],
   ['how it is going', ['results', 'scoreboard']],
-  ['setup', ['searches', 'spend', 'gates', 'inputs']],
+  ['setup', ['spend', 'gates', 'inputs', 'searches']],
 ];
 const HIS_PAGES = new Set(['events', 'outreach', 'results', 'scoreboard', 'searches', 'spend', 'gates', 'inputs']);
 // Set by the build: connection-request accepts per target, and accepts due a note.
@@ -2239,20 +2239,42 @@ ${blindList || '<p class="callout">Nothing waiting. Run <code>npm run judge -- -
 }
 
 // SEARCHES, down the funnel (measures.mjs, shared with `queries --yield`).
-function searchesPage(db) {
+function searchesPage(db, label = (t) => t) {
   const rows = searchFunnel(db);
   if (!rows.length) return '<section class="panel"><p class="callout">No search list yet. Run <code>npm run queries -- --adopt</code>.</p></section>';
+  // SHORT, BY TARGET FIRST (2026-11-19). It was one 134-row table, 96 of them
+  // retired searches that never found anything. What the page has to answer is
+  // whether each target still has searches working for it, and which searches
+  // ever led anywhere; the rest folds away.
   const act = rows.filter((r) => r.status === 'active');
-  const tr = (r) => `<tr${r.status === 'retired' ? ' class="dim"' : ''}><td>${r.runs}</td><td>${r.found}</td><td>${r.alive}</td>
-    <td>${r.rated}</td><td><b>${r.wrote}</b></td><td>${r.sent}</td><td>${r.replied}</td><td>${esc(r.origin)}</td>
-    <td>${r.status === 'retired' ? `[retired] ` : ''}${esc(r.query)}${r.target ? `<br><span class="dim">${esc(r.target)}</span>` : ''}</td></tr>`;
-  return `<section class="panel"><h2>What each search is worth</h2>
-<p class="lead">${act.length} active, ${rows.length - act.length} retired. Finding firms is the top of the funnel; a search is
-worth how far its finds get: vetted and alive, rated 4 or 5 by the judge, your call to write, a note sent,
-a reply. A search that finds nothing in two runs in a row is retired, with the reason kept. Runs weekly
-from <code>npm run daily</code>.</p>
-<table><thead><tr><th>runs</th><th>firms</th><th>alive</th><th>rated 4+</th><th>you write</th><th>sent</th>
-<th>replied</th><th>origin</th><th>search</th></tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></section>`;
+  const paid = rows.filter((r) => r.rated || r.wrote || r.sent);
+  const sum = (xs, k) => xs.reduce((n, x) => n + (x[k] || 0), 0);
+  const targets = [...new Set(rows.map((r) => r.target ?? '(no target)'))];
+  const byTarget = targets.map((t) => {
+    const xs = rows.filter((r) => (r.target ?? '(no target)') === t);
+    return { t, active: xs.filter((r) => r.status === 'active').length, found: sum(xs, 'found'),
+      rated: sum(xs, 'rated'), sent: sum(xs, 'sent'), replied: sum(xs, 'replied') };
+  }).sort((a, b) => b.active - a.active || b.rated - a.rated);
+  const num = (x) => `<td class="num">${x}</td>`;
+  const tRow = (r) => `<tr${r.active ? '' : ' class="dim"'}><td>${esc(label(r.t))}</td>${num(r.active)}${num(r.found)}${num(r.rated)}${num(r.sent)}${num(r.replied)}</tr>`;
+  const sRow = (r) => `<tr${r.status === 'retired' ? ' class="dim"' : ''}>${num(r.found)}${num(r.rated)}${num(r.sent)}
+    <td>${r.status === 'retired' ? '[retired] ' : ''}${esc(r.query)}${r.target ? `<br><span class="dim">${esc(label(r.target))}</span>` : ''}</td></tr>`;
+  const waiting = act.filter((r) => !paid.includes(r));
+  const dead = rows.filter((r) => r.status === 'retired' && !paid.includes(r));
+  return `<section class="panel"><h2>Weekly news searches</h2>
+<p class="lead">${act.length} active. Together they have found ${sum(rows, 'found')} firms, ${sum(rows, 'rated')} with someone rated 4 or 5,
+and ${sum(rows, 'sent')} you wrote to. Conference agendas feed most cards (Results, the routes table). These run on
+Mondays; a search that finds nothing two weeks running retires, and a target left with fewer than two gets new ones written for it.</p>
+<table><thead><tr><th>target</th><th class="num">active</th><th class="num">firms found</th><th class="num">rated 4+</th>
+<th class="num">sent</th><th class="num">replied</th></tr></thead><tbody>${byTarget.map(tRow).join('')}</tbody></table></section>
+<section class="panel"><h2>Searches that led somewhere</h2>
+<p class="dim">${paid.length} of ${rows.length} searches ever found a firm with someone rated 4 or 5, or someone you wrote to.</p>
+<table><thead><tr><th class="num">firms</th><th class="num">rated 4+</th><th class="num">sent</th><th>search</th></tr></thead>
+<tbody>${paid.map(sRow).join('')}</tbody></table>
+<details><summary>${waiting.length} active searches with nothing yet</summary><ul>${waiting.map((r) =>
+    `<li>${esc(r.query)} <span class="dim">· ${esc(label(r.target ?? ''))} · ${r.runs} run${r.runs === 1 ? '' : 's'}</span></li>`).join('')}</ul></details>
+<details><summary>${dead.length} retired searches that found nothing usable</summary><ul class="dim">${dead.map((r) =>
+    `<li>${esc(r.query)}</li>`).join('')}</ul></details></section>`;
 }
 
 // SPEND: what the project has spent on AI, from `runs` (measures.mjs). Charts
@@ -3520,10 +3542,12 @@ function buildAll(db, cfg, targeting) {
   write(pageOf('ready'), 'Ready', commentsPanel(db) + readyBody, undefined, false,
     { ...axisStats, ...(d.readyCounts ? d.readyCounts(axisStats) : {}) });
   write(pageOf('events'), 'Events', eventsPanel(db, { all: EVENTS }));
-  write(pageOf('searches'), 'Searches', searchesPage(db));
+  write(pageOf('searches'), 'Searches', searchesPage(db, (t) => sectors.find((v) => v.name === t)?.label ?? t));
   write(pageOf('scoreboard'), 'Scoreboard', scoreboardPage(db));
   { const r = resultsPage(db, { server: SERVER, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
-      offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' ') });
+      offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' '),
+      targetLabel: (name) => sectors.find((v) => v.name === name)?.label ?? name,
+      targetKind: (name) => sectors.find((v) => v.name === name)?.kind ?? null });
     write(pageOf('results'), 'Results', r.html, r.script); }
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }
 

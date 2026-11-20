@@ -6,8 +6,15 @@
 // that are not industries. The segment list is generic on purpose, so the
 // panel reads the same for any business that runs this.
 //
+// WHICH FIRMS (widened 2026-11-19, after the outside discovery review): every
+// firm written to, AND every firm the judge has rated anyone at. Only firms
+// written to had a segment, so any "by industry" count compared labelled firms
+// with unlabelled ones. Firms whose people all rated 1-2 are labelled too, so
+// the Results page can show what share of each industry's judged firms ever
+// produce a card. A label costs a few hundredths of a cent.
+//
 // Usage:
-//   npm run segments              firms written to that have no segment yet
+//   npm run segments              firms written to or judged, no segment yet
 //   npm run segments -- --org <id>
 //   npm run segments -- --redo    every firm written to, again
 
@@ -42,7 +49,8 @@ async function main() {
         ORDER BY e.id DESC LIMIT 1) AS what,
       (SELECT group_concat(title, ' | ') FROM (SELECT DISTINCT p.title FROM people p WHERE p.org_id = o.id AND p.title IS NOT NULL LIMIT 4)) AS titles
     FROM orgs o
-    WHERE ${one ? 'o.id = ?' : `EXISTS (SELECT 1 FROM outreach x WHERE x.org_id = o.id AND x.seeded = 0)${redo ? '' : ' AND o.segment IS NULL'}`}
+    WHERE ${one ? 'o.id = ?' : `(EXISTS (SELECT 1 FROM outreach x WHERE x.org_id = o.id AND x.seeded = 0)
+        OR EXISTS (SELECT 1 FROM judgments j WHERE j.org_id = o.id))${redo ? '' : ' AND o.segment IS NULL'}`}
     ORDER BY o.name`).all(...(one ? [one] : []));
 
   console.log(heading(`segments · ${rows.length} firm(s) · ${model}`));

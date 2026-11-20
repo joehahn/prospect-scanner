@@ -241,15 +241,16 @@ async function find(db, cfg, b, args) {
   let added = 0; let abroad = 0;
   for (const s of searches) {
     // BOTH PROVIDERS, from 2026-11-02. On 27 searches Tavily found 56 conferences
-    // and Exa 60, and they shared 18 (--compare exa). Tavily's come first, so a
-    // page both return is credited to Tavily; found_by says which.
+    // and Exa 60, and they shared 18 (--compare exa). Exa's come first since
+    // 2026-11-19 (its agendas resolve more often), so a page both return is
+    // credited to Exa; found_by says which.
     const [t, e] = await Promise.all([
       searchNews(s.query, { topic: 'general', requireDate: false, maxResults: 6, excludeDomains: hosts }),
       process.env.EXA_API_KEY ? searchExa(s.query, { maxResults: 6, excludeDomains: hosts }) : { results: [] },
     ]);
     if (e.error) console.log(dim(`  exa: ${e.error}`));
-    const results = [...(t.results ?? []).map((r) => ({ ...r, by: 'tavily' })),
-      ...(e.results ?? []).map((r) => ({ ...r, by: 'exa' }))];
+    const results = [...(e.results ?? []).map((r) => ({ ...r, by: 'exa' })),
+      ...(t.results ?? []).map((r) => ({ ...r, by: 'tavily' }))];
     let fromThis = 0;
     for (const r of results) {
       if (seen.has(r.url) || forbidden(r.url, hosts)) continue;
@@ -495,8 +496,13 @@ async function read(db, cfg, b, args) {
   const limit = Number(args.limit ?? 3);
   const ids = args.ids && args.ids !== true ? String(args.ids).split(',').map(Number) : null;
   const mech = (cfg.mechanisms ?? []).find((m) => m.id === 'conference_discovery') ?? {};
+  // EXA'S FINDS ARE READ FIRST (2026-11-19). Of the agendas each provider found
+  // and the reader resolved, 62 of 105 from Exa held speakers to load against
+  // 35 of 98 from Tavily: Tavily leans to listing and ticket pages. With a daily
+  // cap on reads, the order decides which get read.
   const waiting = db.prepare(`SELECT * FROM conferences WHERE status = 'pending'
-      OR (status = 'stale' AND read_at < datetime('now', '-30 days')) ORDER BY id`).all()
+      OR (status = 'stale' AND read_at < datetime('now', '-30 days'))
+      ORDER BY CASE found_by WHEN 'exa' THEN 0 ELSE 1 END, id`).all()
     .filter((r) => !ids || ids.includes(r.id));
   const past = db.prepare(`UPDATE conferences SET status = 'past', reason = ?, read_at = ? WHERE id = ?`);
   const current = [];

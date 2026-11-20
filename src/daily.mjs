@@ -33,7 +33,7 @@
 //                 one is flagged on its card with the words that failed
 //   4d. addresses for the firms of writable people rated 4+ where nobody has
 //                 one, read off the firm's own pages (up to --addresses firms)
-//   4e. segments  an industry for each firm newly written to (Results page)
+//   4e. segments  an industry for each firm newly written to or carded (Results page)
 //   5. dash       rebuild the pages
 //
 // Every stage records its own cost in `runs`; the summary at the end adds them
@@ -222,6 +222,9 @@ const last = q(`SELECT MAX(run_at) t FROM search_runs WHERE COALESCE(partial, 0)
 const ageDays = last ? (Date.now() - Date.parse(last)) / 86_400_000 : Infinity;
 let searched = false;
 if (args.includes('--searches') || weeklyDue(ageDays)) {
+  // A target below two active searches gets new ones first (2026-11-19):
+  // retirement alone had left whole targets with none.
+  run('1. searches · top up thin targets', ['queries', '--', '--replenish']);
   const out = run('1. searches', ['queries', '--', '--run', '--save']);
   searched = true;
   const m = out.match(/Ran (\d+) searches · (\d+) credits · (\d+) new finds/);

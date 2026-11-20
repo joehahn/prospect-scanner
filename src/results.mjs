@@ -10,7 +10,7 @@
 // UNSEEN_RETIRE days is retired, and one click brings a retired one back. A
 // new panel stays on top for its first NEW_DAYS days so it gets a fair look.
 
-import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, routeYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
+import { sends, rates, matureRequests, channelScores, paths, weekly, inboundDaily, workDaily, routeYield, personTargets, targetCards, industryYield, SEGMENTS, CHANNELS, MATURE_DAYS, MIN_GROUP } from './outcomes.mjs';
 
 export const NEW_DAYS = 14;
 export const UNSEEN_FOLD = 30;
@@ -33,6 +33,11 @@ export const BRIEFS = [
   ['rating', 'Do people the judge rates higher accept more often?', 'Whether 3s are worth sending.'],
   ['sources', 'Which discovery routes lead to accepts and replies?', 'Where discovery spends.'],
   ['replies', 'Who answered, and how?', 'What the replies have in common.'],
+  // Added 2026-11-19 (the operator: "add the charts to the results tab"), at
+  // the end so the fixed figure numbers above keep their panels.
+  ['targetcards', 'How many new cards does each target get?', 'Which targets discovery under- or over-feeds.'],
+  ['targets', 'Which targets accept connection requests?', 'Where discovery spends, by target.'],
+  ['industryyield', 'In which industries do judged firms turn into cards?', 'Which industries discovery spends judging on for little.'],
 ];
 
 export function seedBriefs(db) {
@@ -109,7 +114,7 @@ function rateDots(id, groups, overall, xTitle) {
 const byRate = (gs) => [...gs].sort((a, b) => b.rate - a.rate || b.n - a.n);
 
 /** {html, script} for the page. `offerLabel(id)` names an offer from config. */
-export function resultsPage(db, { offerLabel = (id) => id, topGoal = null, sendGoal = null, server = '' } = {}) {
+export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) => name, targetKind = () => null, topGoal = null, sendGoal = null, server = '' } = {}) {
   seedBriefs(db);
   const placed = placeBriefs(db);
   const rows = sends(db);
@@ -317,6 +322,63 @@ ${reps.map((r) => `<tr><td style="white-space:nowrap">${esc(r.at)}${r.dated ? ''
       caption: 'People first found in the last 60 days, by the route that found them: a conference speaker or a person added by hand is found as a person; anyone else is credited to how their firm was found. Sorted by accepts. Sends from the last two weeks have not had time to be accepted.',
       table: `<table><thead><tr><th>route</th><th class="num">found</th><th class="num">rated 3+</th><th class="num">sent</th><th class="num">accepted</th><th class="num">replied</th></tr></thead><tbody>
 ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td class="num">${r.strong} <span class="dim">${pc(r.strong, r.found)}</span></td><td class="num">${r.sent}</td><td class="num"><b>${r.accepted}</b></td><td class="num">${r.replied}</td></tr>`).join('')}</tbody></table>`,
+    };
+  }
+
+  // 12. New cards per target, and 13. requests accepted per target. The target
+  // is the one the judge named in each person's latest judgment; known for
+  // every judged person, unlike the industry, which is labelled per firm.
+  {
+    const CARD_DAYS = 30;
+    // BUYERS, THEN SITUATIONS (2026-11-19, the operator: "is fig 13 mixing
+    // apples and oranges?"). A buyer target says who the person is; a situation
+    // says what is happening at the firm, in any industry. Each person is filed
+    // under one, so a PE partner at a firm with manual work may sit under
+    // either: the rows are one split, but not one kind of category. Buyers come
+    // first, situations after, in italics; unfiled last.
+    const sit = (t) => t != null && targetKind(t) === 'situation';
+    const rank = (t) => (t == null ? 2 : sit(t) ? 1 : 0);
+    const tc = targetCards(db, CARD_DAYS).sort((a, b) => rank(a.target) - rank(b.target));
+    const lab = (t) => (t == null ? 'No target named' : sit(t) ? `<i>${esc(targetLabel(t))}</i>` : esc(targetLabel(t)));
+    const y = tc.map((g) => `${lab(g.target)}  (${g.top + g.threes})`);
+    const total = tc.reduce((a, g) => a + g.top + g.threes, 0);
+    const none = tc.find((g) => g.target == null);
+    panels.targetcards = {
+      title: `New cards per target, last ${CARD_DAYS} days`,
+      caption: `People first judged in the last ${CARD_DAYS} days who are rated 3 or more now, by the target the judge filed them under: buyer targets first, then situation targets in italics. Blue is rated 4 or 5, orange rated 3. ${total} cards in all${none ? `, ${none.top + none.threes} of them under no target` : ''}.`,
+      height: 70 + 30 * tc.length,
+    };
+    scripts.push(`{ const y = ${J(y)};
+  Plotly.newPlot('c-targetcards', [
+    { type:'bar', orientation:'h', name:'rated 4 or 5', y, x:${J(tc.map((g) => g.top))}, marker:{color:pal[0]}, hovertemplate:'%{y}<br>%{x} rated 4 or 5<extra></extra>' },
+    { type:'bar', orientation:'h', name:'rated 3', y, x:${J(tc.map((g) => g.threes))}, marker:{color:pal[1]}, hovertemplate:'%{y}<br>%{x} rated 3<extra></extra>' }],
+    layoutFor({ barmode:'stack', margin:{l:10, r:24, t:10, b:44}, legend:{...legendTop, traceorder:'normal'},
+      xaxis:{gridcolor:grid, title:{text:'cards'}}, yaxis:{autorange:'reversed', automargin:true, gridcolor:'rgba(0,0,0,0)'} }), cfgP); }`);
+
+    const tOf = personTargets(db);
+    // Blue buyers, then orange situations, each high to low (D14); Other gray, last.
+    const tg = byRate(rates(reqs, (r) => tOf.get(r.person_id)?.target ?? null, (r) => r.accepted, { label: (k) => targetLabel(k) }))
+      .map((g) => ({ ...g, group: g.label === 'Other' ? 2 : sit(g.key) ? 1 : 0, ...(g.label === 'Other' ? { color: 5 } : {}) }))
+      .sort((a, b) => a.group - b.group || b.rate - a.rate);
+    panels.targets = {
+      title: 'Connection requests accepted, by target',
+      caption: `The target the judge filed each person under: blue is a buyer target (who the person is), orange a situation target (what is happening at the firm). The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}, and targets with under ${MIN_GROUP} requests are folded into Other, with people the judge filed under no target. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * tg.length,
+    };
+    scripts.push(`rateDots('c-targets', ${J(tg)}, ${overall}, 'accepted');`);
+  }
+
+  // 14. Judged firms that turn into cards, by industry: where judging is spent
+  // for little. A table, since the point is the counts side by side.
+  {
+    const iy = industryYield(db);
+    const all = iy.reduce((a, g) => ({ firms: a.firms + g.firms, card: a.card + g.card }), { firms: 0, card: 0 });
+    const pc = (k, n) => (n ? `${Math.round((100 * k) / n)}%` : '');
+    panels.industryyield = {
+      title: 'Judged firms with a card, by industry',
+      caption: `Every firm the judge has rated anyone at, by its industry, and how many have someone rated 3 or more now. ${all.card} of ${all.firms} judged firms have a card (${pc(all.card, all.firms)}). Sorted by firms judged.`,
+      table: `<table><thead><tr><th>industry</th><th class="num">firms judged</th><th class="num">with a card</th><th class="num">share</th><th class="num">with a 4 or 5</th></tr></thead><tbody>
+${iy.map((g) => `<tr><td>${esc(g.segment == null ? 'Not labelled yet' : SEGMENTS[g.segment] ?? g.segment)}</td><td class="num">${g.firms}</td><td class="num">${g.card}</td><td class="num"><b>${pc(g.card, g.firms)}</b></td><td class="num">${g.top}</td></tr>`).join('')}</tbody></table>`,
     };
   }
 

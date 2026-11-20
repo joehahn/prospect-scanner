@@ -27,6 +27,10 @@
 //                                   yield, retire a search after two runs with no
 //                                   finds; --save adds the finds to the book
 //   npm run queries -- --yield      each search's record
+//   npm run queries -- --replenish [--floor 2] [--dry]
+//                                   write new searches for every target with fewer
+//                                   than --floor active ones; they join the list at
+//                                   once (daily runs it before the weekly searches)
 
 import { exemplarText } from './exemplars.mjs';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
@@ -584,9 +588,78 @@ async function main() {
     return;
   }
   const b = loadBusiness(cfg, targeting);
+  if (process.argv.includes('--replenish')) {
+    const fi = process.argv.indexOf('--floor');
+    await replenish(cfg, b, { floor: fi > 0 ? Number(process.argv[fi + 1]) : FLOOR,
+      dry: process.argv.includes('--dry') });
+    return;
+  }
+  const db = openDb();
+  const { res, model } = await propose(db, cfg, b, b.targets);
+  db.close();
+
+  const saved = { proposed_at: new Date().toISOString(), from: b._source, prompt: PROMPT_FILE,
+    model: res.model ?? model, cost_usd: res.cost_usd ?? 0, approved: false, targets: res.data?.targets ?? [] };
+  mkdirSync(dirname(OUT), { recursive: true });
+  writeFileSync(OUT, JSON.stringify(saved, null, 2));
+  console.log(heading(`Proposed searches · ${saved.targets.length} targets · $${(saved.cost_usd).toFixed(3)} · nothing was run`));
+  print(saved, oldSearches(cfg, targeting));
+  console.log(dim(`\nSaved to data/proposed-queries.json (approved: false). Nothing uses them yet.`));
+}
+
+// A TARGET NEVER RUNS DRY (added 2026-11-19, after the outside discovery review).
+// A search retires after two runs that qualify nothing, and nothing replaced it,
+// so whole targets fell to no searches at all: by 11-19 mid-market manual work,
+// local bodies and state agencies had none and two more had one each, while
+// their people still came in from agendas alone. Before the weekly run, any
+// target below the floor gets new searches written for it alone, shown its own
+// retired wording as what not to repeat, and they join the list at once. They
+// retire by the same rule as the rest, so a target that finds nothing in the
+// news keeps costing one proposal a week, not a growing list.
+const FLOOR = 2;
+const PER_TARGET = 3;
+
+async function replenish(cfg, b, { floor = FLOOR, dry = false } = {}) {
+  const db = openDb();
+  ensureTables(db);
+  const active = db.prepare(`SELECT target, COUNT(*) c FROM searches WHERE status = 'active' GROUP BY target`).all();
+  const count = (t) => active.find((x) => x.target === t.name)?.c ?? 0;
+  const starved = b.targets.filter((t) => count(t) < floor);
+  if (!starved.length) { console.log(`every target has at least ${floor} active searches`); db.close(); return { added: 0 }; }
+  const retired = (t) => db.prepare(`SELECT query FROM searches WHERE target = ? AND status = 'retired' ORDER BY id DESC LIMIT 15`)
+    .all(t.name).map((r) => `- "${r.query}"`);
+  const avoid = starved.map((t) => {
+    const r = retired(t);
+    return `\n## "${t.name}" has ${count(t)} active search(es)`
+      + (r.length ? `\nThese were retired after two weekly runs that found nothing; write differently (another kind of source, `
+        + `the event in other words, a neighbouring kind of firm), never a rewording of these:\n${r.join('\n')}` : '');
+  }).join('\n');
+  const { res, model } = await propose(db, cfg, b, starved, {
+    avoid: `${avoid}\n\nWrite searches ONLY for the targets listed above, ${PER_TARGET} each.` });
+  const now = new Date().toISOString();
+  const ins = db.prepare(`INSERT OR IGNORE INTO searches (query, target, event, origin, created_at) VALUES (?, ?, ?, 'replenish', ?)`);
+  let added = 0;
+  for (const t of res.data?.targets ?? []) {
+    const name = starved.find((x) => x.name.toLowerCase() === String(t.target).toLowerCase())?.name;
+    if (!name) continue;
+    for (const q of t.searches.slice(0, PER_TARGET)) {
+      if (dry) { console.log(`  ${name.slice(0, 40)} · ${q.query}`); continue; }
+      const n = ins.run(q.query, name, q.event, now).changes;
+      added += n;
+      if (n) console.log(`  ${name.slice(0, 40)} · ${q.query} ${dim(`(${q.event})`)}`);
+    }
+  }
+  db.close();
+  console.log(`replenished ${starved.length} target(s) below ${floor}: ${added} search(es) added · $${(res.cost_usd ?? 0).toFixed(3)}`
+    + `${dry ? ' · dry run, nothing saved' : ''}`);
+  return { added, model };
+}
+
+/** One proposal from the proposer, for the targets given; the record and the examples go with it. */
+async function propose(db, cfg, b, targets, { avoid = '' } = {}) {
   const content = [
     `## The operator's targets (from ${b._source})`,
-    ...b.targets.map((t) => `- ${t.name}: ${t.description}`
+    ...targets.map((t) => `- ${t.name}: ${t.description}`
       + (t.where?.countries?.length ? `\n    where: ${t.where.countries.join(', ')}` : '')
       + (t.where?.region ? `\n    region: ${t.where.region} (put this in every search for this target)` : '')
       + (t.examples?.length ? `\n    e.g. ${t.examples.join('; ')}` : '')),
@@ -598,7 +671,6 @@ async function main() {
       + (e.does_not_count?.length ? `\n    does NOT count: ${e.does_not_count.map((x) => String(x).slice(0, 160)).join(' | ')}` : '')),
   ].join('\n');
 
-  const db = openDb();
   // THE SEARCHES' OWN RECORD (2026-09-29): which ones produced prospects the
   // judge rated 4 or 5, the operator would write to, or wrote to, and which
   // found nothing. Examples to write more like, and less like: the same move
@@ -620,24 +692,16 @@ async function main() {
   // THE OPERATOR'S EXAMPLES, per target: people he wants more of, with what he
   // said about them and what is on file. Searches are written to find their
   // look-alikes (propose-queries v6).
-  const examples = b.targets.filter((t) => t.exemplars?.length)
+  const examples = targets.filter((t) => t.exemplars?.length)
     .map((t) => `\n## Examples for "${t.name}": find more like these\n${exemplarText(db, t, { full: false })}`).join('\n');
-  const contentWithYield = content + examples + yieldBlock;
+  const contentWithYield = content + examples + yieldBlock + (avoid ? `\n${avoid}` : '');
   const model = cfg.models?.default;
-  const runId = startRun(db, 'queries', { model });
+  const runId = startRun(db, avoid ? 'queries-replenish' : 'queries', { model });
   const res = await complete(db, runId, {
     model, system: readFileSync(resolve(ROOT, PROMPT_FILE), 'utf8'), schema: SCHEMA,
     effort: 'medium', maxTokens: 24000, messages: [{ role: 'user', content: contentWithYield }] });
   finishRun(db, runId, {});
-  db.close();
-
-  const saved = { proposed_at: new Date().toISOString(), from: b._source, prompt: PROMPT_FILE,
-    model: res.model ?? model, cost_usd: res.cost_usd ?? 0, approved: false, targets: res.data?.targets ?? [] };
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, JSON.stringify(saved, null, 2));
-  console.log(heading(`Proposed searches · ${saved.targets.length} targets · $${(saved.cost_usd).toFixed(3)} · nothing was run`));
-  print(saved, oldSearches(cfg, targeting));
-  console.log(dim(`\nSaved to data/proposed-queries.json (approved: false). Nothing uses them yet.`));
+  return { res, model };
 }
 
 main().catch((e) => { console.error(e.message); process.exit(1); });

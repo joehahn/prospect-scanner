@@ -164,6 +164,74 @@ export function rates(rows, keyOf, hit, { min = MIN_GROUP, label = (k) => k } = 
   return out.map((g) => ({ ...g, rate: g.n ? g.k / g.n : 0, range: wilson(g.k, g.n) }));
 }
 
+/**
+ * Each judged person's target and current rating, from their latest judgment
+ * batch: the target most of its runs named, and the middle rating. A person
+ * whose judge named no target maps to null.
+ */
+export function personTargets(db) {
+  const has = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judgments'`).get();
+  if (!has) return new Map();
+  const rows = db.prepare(`SELECT person_id, batch, target, compelling, created_at FROM judgments j
+      WHERE batch = (SELECT MAX(batch) FROM judgments x WHERE x.person_id = j.person_id)`).all();
+  const first = new Map(db.prepare(`SELECT person_id, MIN(created_at) t FROM judgments GROUP BY person_id`).all()
+    .map((r) => [r.person_id, r.t]));
+  const by = new Map();
+  for (const r of rows) (by.get(r.person_id) ?? by.set(r.person_id, []).get(r.person_id)).push(r);
+  const out = new Map();
+  for (const [id, rs] of by) {
+    const count = {};
+    for (const r of rs) if (r.target) count[r.target] = (count[r.target] ?? 0) + 1;
+    const target = Object.entries(count).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const cs = rs.map((r) => r.compelling).filter((c) => c != null).map(Number);
+    out.set(id, { target, rating: cs.length ? median(cs) : null,
+      firstJudged: new Date(first.get(id)).toLocaleDateString('en-CA') });
+  }
+  return out;
+}
+
+/**
+ * New cards per target: people first judged in the last `days` days whose
+ * current rating is 3 or more, split into 3s and 4-5s. Sorted by total.
+ */
+export function targetCards(db, days = 30) {
+  const since = daysAgo(days - 1);
+  const by = new Map();
+  for (const p of personTargets(db).values()) {
+    if (p.firstJudged < since || !(p.rating >= 3)) continue;
+    const k = p.target ?? null;
+    const g = by.get(k) ?? { target: k, threes: 0, top: 0 };
+    if (p.rating >= 4) g.top++; else g.threes++;
+    by.set(k, g);
+  }
+  return [...by.values()].sort((a, b) => (b.top + b.threes) - (a.top + a.threes));
+}
+
+/**
+ * Per industry: firms the judge has rated anyone at, how many of them have a
+ * card (someone rated 3 or more now), and how many a 4 or 5. Firms with no
+ * segment yet are counted as unlabelled. Sorted by firms judged.
+ */
+export function industryYield(db) {
+  const has = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'judgments'`).get();
+  if (!has) return [];
+  const orgOf = new Map(db.prepare('SELECT DISTINCT person_id, org_id FROM judgments').all().map((r) => [r.person_id, r.org_id]));
+  const seg = new Map(db.prepare('SELECT id, segment FROM orgs').all().map((r) => [r.id, r.segment]));
+  const best = new Map();
+  for (const [pid, p] of personTargets(db)) {
+    const o = orgOf.get(pid);
+    if (o) best.set(o, Math.max(best.get(o) ?? 0, p.rating ?? 0));
+  }
+  const by = new Map();
+  for (const [o, r] of best) {
+    const k = seg.get(o) ?? null;
+    const g = by.get(k) ?? { segment: k, firms: 0, card: 0, top: 0 };
+    g.firms++; if (r >= 3) g.card++; if (r >= 4) g.top++;
+    by.set(k, g);
+  }
+  return [...by.values()].sort((a, b) => b.firms - a.firms);
+}
+
 /** Connection requests old enough to have been accepted. */
 export const matureRequests = (rows) => rows.filter((r) => r.channel === 'linkedin_connect_note' && r.mature);
 
