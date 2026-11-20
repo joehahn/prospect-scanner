@@ -429,7 +429,9 @@ export function workDaily(db, days = 30) {
 // and a person added by hand are found as people, so they keep their own row.
 const FIRM_ROUTES = [
   [/^conference/, 'Firms from conference agendas'],
-  [/^discovered by news/, 'News searches'],
+  // AD HOC (2026-11-20): run by hand to test a new target idea, never on a
+  // schedule; the label says so beside the Monday searches.
+  [/^discovered by news/, 'News sweeps (ad hoc)'],
   [/^intake search/, 'Weekly searches'],
   [/^portfolio of/, 'PE portfolio lists'],
   [/^operator/, 'Firms added by hand'],
