@@ -430,7 +430,11 @@ function move(db, args) {
     + (since ? `\n  since: ${since}` : '')
     + dim(`\n  ${db.prepare('SELECT COUNT(*) c FROM signals WHERE org_id = ? AND retracted_at IS NULL')
         .get(person.org_id).c} signal(s) stay with ${fromName}`)
-    + dim('\n  run `npm run rank` to score them at the new firm'));
+    // THE CARD WAITS ON A JUDGMENT AT THE NEW FIRM (2026-11-21): the judgments
+    // on file are about the old firm, so the cards drop the person until the
+    // judge has read them again; after a move a card vanished from the board.
+    + bold(`\n  the card is hidden until they are judged at the new firm: npm run judge -- --person ${person.id}`)
+    + dim('\n  then `npm run rank` and `npm run dash`'));
 }
 
 function addPerson(db, args) {
