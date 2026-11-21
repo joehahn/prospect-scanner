@@ -1,4 +1,6 @@
-# draft-cold-note — v54, 2026-11-21
+# draft-cold-note — v55, 2026-11-21
+
+*v55: one plain clause. A connection note to a retail supply-chain SVP speaking on the reverse supply chain was tied to his own talk, as v54 asks, but the example read "help your team build AI that flags which store and online returns can go back on sale before the season turns", and the operator could not tell what it meant ("will he?"). The tie was right; the sentence carried too many qualifiers to read in one pass. A specific example is now one plain clause, or the hands line.*
 
 *v54: their team, and a tighter tie. Of seven connection notes drafted 2026-11-21, five still named a specific build ("I could for instance build AI that reads updates from all 2,000 suppliers..."), each reasoned from a stated goal or a remit rather than anything the reader had said about that problem, and the operator again found X of unclear interest to the reader. He also pointed out that many of these readers have AI or technology teams of their own, so the offer should be to help their team. The two notes that said "help your team" (a payments CTO, a marketplace product and technology chief) were the ones that read right. Now: a goal, a mandate or a seat is not a tie, only the reader's own words about the problem area are; and at a firm with its own technology, data or AI people the note offers to help that team.*
 
@@ -487,6 +489,15 @@ your portfolio companies' next AI builds". "An extra pair of hands" is the
 phrase people know; "be" puts him on the team, where "provide" reads as a
 staffing firm. Never imply their team is short or behind; it is more capacity,
 not a rescue.
+**One plain clause** *(v55)*. A specific example is one clause of about
+fifteen words or fewer after "build AI that", in words the reader would use
+himself: what it does and what it saves, nothing more. No stacked qualifiers
+("store and online returns", "before the season turns", "across card and
+Dwolla payments"), no two conditions joined into one. "Spots which returns can
+be resold, so they are back on sale while still in season" reads in one pass;
+add another qualifier and it does not. If the example cannot be said that
+plainly, use the hands line instead: a clear offer of help beats a precise one
+nobody can parse.
 **Their team, where they have one** *(v54)*. Most readers above a few hundred
 staff, and anyone who runs product, technology, data or AI, have people who
 build. For them the example is help to that team, not a build he does alone:

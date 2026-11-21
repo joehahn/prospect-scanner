@@ -721,6 +721,17 @@ async function main() {
         // it no longer changes who the buyer is. --service is untouched.
         if (service && !(args.service && args.service !== true) && !underBuyer(service, c.id)) {
           const alt = svcPick?.service ?? null;
+          // UNLESS THE PITCH HAS NOTHING TO OFFER HIM (2026-11-21). A CTO at a
+          // firm filed under the build pitch, whose read chose extra hands, was
+          // refused from the card: no offer under the pitch fitted, and the
+          // read's offer was set aside for a pick that did not exist. With no
+          // alternative the read's choice stands and is argued from its own
+          // pitch, as when no pitch fits by firm kind (above).
+          if (!alt && service.buyer) {
+            console.log(dim(`the read chose ${service.id}, not offered to ${c.id}, and nothing under ${c.id} fits; ` +
+              `arguing from ${service.id}'s own pitch`));
+            return resolveBuyer(cfg, service.buyer);
+          }
           console.log(dim(`the read chose ${service.id}, which is not offered to ${c.id}; ` +
             (alt ? `quoting ${alt.id}, the router's pick` : 'nothing under it fits')));
           service = alt; serviceId = alt?.id ?? null; offerNote = '';
