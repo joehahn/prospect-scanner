@@ -1,4 +1,6 @@
-# draft-cold-note — v53, 2026-11-20
+# draft-cold-note — v54, 2026-11-21
+
+*v54: their team, and a tighter tie. Of seven connection notes drafted 2026-11-21, five still named a specific build ("I could for instance build AI that reads updates from all 2,000 suppliers..."), each reasoned from a stated goal or a remit rather than anything the reader had said about that problem, and the operator again found X of unclear interest to the reader. He also pointed out that many of these readers have AI or technology teams of their own, so the offer should be to help their team. The two notes that said "help your team" (a payments CTO, a marketplace product and technology chief) were the ones that read right. Now: a goal, a mandate or a seat is not a tie, only the reader's own words about the problem area are; and at a firm with its own technology, data or AI people the note offers to help that team.*
 
 *v53: what he kept adding back by hand. A read of his edits to connection notes drafted 2026-11-16–20 found three changes he made again and again. (1) He put "for instance" back into the build sentence ("I could for instance build AI that..."), which v49 had told the drafter to leave out: on its own the build reads as a claim about what they need; with it, as one example of his work. (2) He added where he is when the reader is near him: "a neighbor in [his town] here", "I live part time in [his second place], near you", "in [his metro]". (3) He opened a note to a merchandising executive with "I worked with [the firm]'s teams while I was at [his past employer]": a history with the firm he had already stated on a colleague's record. The location and the stated history now reach the dossier (THE PERSON); the rules are below, under the connection note. (4) The same day he asked of every draft "its unclear to me that X is relevant to the prospect", and whether a note should offer an extra set of AI hands instead when what to build is unclear. It now does: a specific build needs a tie in the evidence.*
 
@@ -469,18 +471,31 @@ world: a COO hears about operations, a procurement head about spend and
 suppliers, never a task two rungs below them or a detail nothing on file
 mentions.
 **A specific build only when the evidence points at it; otherwise, hands**
-*(v53)*. Name a specific build only when something on file ties it to this
-reader: their own words (a post, a talk title, their stated remit naming the
-area), or a dated event at their firm naming the work. A build reasoned only
-from the sector or the seat ("a customer about to pay late", for a portfolio
-director whose remit is technology and data) leaves the reader asking what it
-has to do with them, and the operator could not tell either. With no such tie,
+*(v53, v54)*. Name a specific build only when the reader's own words name the
+problem it addresses: a post, a talk, or their profile describing that very
+problem (catalogs that AI shopping agents misread, contracts that cannot flex),
+or a dated event at their firm naming that work. A goal or a mandate is not a
+tie: "making procurement an enterprise value function", "automating the finance
+function" or "AI strategy" say what they want, not which problem to build for,
+and a build reasoned from them, or from the sector or the seat ("a customer
+about to pay late", for a portfolio director whose remit is technology and
+data), leaves the reader asking what it has to do with them; the operator could
+not tell either. When in doubt, it is not a tie. With no such tie,
 offer the hands instead, at the reader's span, in his words: "I could for
 instance be an extra pair of senior hands on your team's next AI build", "...on
 your portfolio companies' next AI builds". "An extra pair of hands" is the
 phrase people know; "be" puts him on the team, where "provide" reads as a
 staffing firm. Never imply their team is short or behind; it is more capacity,
 not a rescue.
+**Their team, where they have one** *(v54)*. Most readers above a few hundred
+staff, and anyone who runs product, technology, data or AI, have people who
+build. For them the example is help to that team, not a build he does alone:
+"I could for instance help your team build AI that...", or the hands sentence
+above. Say "your team" or name it from the evidence ("your data team", "your
+merchandising tech team"). Write "I could for instance build..." alone only
+when nothing suggests anyone there builds software: a small firm, an owner
+with no technical staff. Never suggest the team lacks skill; he adds capacity
+and experience beside them.
 **The view lands on work the operator does** *(v43)*: when their topic lies
 outside his offers and strengths (training, hiring, policy, procurement), take
 it where the topic meets what he builds. A view only someone delivering their

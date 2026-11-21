@@ -2100,8 +2100,7 @@ ${balanceForm}</section>`;
   ${verdictBox(p, null, { blind: true })}
 </article>`;
   // THE NOTE BOX, SAME AS THE OLD CARDS: draft, revise by instruction, record
-  // what was sent. An address on file makes Email the default channel, because
-  // email costs nothing and an InMail spends a credit.
+  // what was sent. The box opens on a connection request (noteDefault).
   const draftsOf = (d.backstory ?? d).draftsByPerson;
   // The fields the reach advice reads, fresh from the book (a paste may have added them).
   const reachQ = db.prepare('SELECT email, email_guess, degree, profile_url, platform_activity, prior_relationship FROM people WHERE id = ?');
@@ -2109,8 +2108,7 @@ ${balanceForm}</section>`;
   const readyNote = (p) => {
     const latest = draftsOf?.get(p.person_id)?.[0] ?? null;
     const { email, email_guess: guess } = db.prepare('SELECT email, email_guess FROM people WHERE id = ?').get(p.person_id) ?? {};
-    const channel = reachOptions(pFull(p), d).find((x) => x.channel)?.channel ?? 'linkedin_inmail';
-    return noteBox(p, latest, { channel, email, guess });
+    return noteBox(p, latest, { channel: noteDefault(pFull(p)), email, guess });
   };
   // THE SAME FILTER ATTRIBUTES AS ON ALL PROSPECTS, so a target, offer or
   // geography chip narrows the day's cards in place.
@@ -2805,6 +2803,16 @@ function glanceBox(draft) {
     row('Why them', g.why_them)}${row('Opens on', g.hook)}${row('Offer', g.offer)}</div>`;
 }
 
+// THE DRAFT BOX OPENS ON A CONNECTION REQUEST (2026-11-21, the operator:
+// "have note button always default to CR when clicked"). It had opened on the
+// reach advice's first pick, an address on file or an InMail, and he changes
+// the channel while composing anyway. A 1st-degree contact cannot be sent a
+// request, so theirs opens on a message. The reach advice beside the box is
+// unchanged and still says when email or an InMail is the better way in.
+function noteDefault(p) {
+  return String(p?.degree ?? '') === '1' ? 'linkedin_message' : 'linkedin_connect_note';
+}
+
 function noteBox(p, latest, { channel: preferred = null, email = null, guess = null } = {}) {
   const id = esc(p.person_id);
   // A DRAFT ALREADY SENT IS NOT THE NEXT NOTE. The box kept the drafter's text
@@ -2830,7 +2838,7 @@ function noteBox(p, latest, { channel: preferred = null, email = null, guess = n
   const svc = esc(draft?.package_id ?? p.service_id ?? '');
   // A draft already sent does not choose the next channel: after an accepted
   // connection note the box offered another connection note, and Draft wrote one.
-  const ch = draft?.channel ?? preferred ?? 'linkedin_inmail';
+  const ch = draft?.channel ?? preferred ?? noteDefault(p);
   const sel = (v, label) => `<option value="${v}"${ch === v ? ' selected' : ''}>${label}</option>`;
   // WHO IT GOES TO, when it is an email: the address on file, or the guessed one
   // marked as a guess, with a copy button for the mail client.
@@ -3265,7 +3273,7 @@ function cards(list, cfg, d) {
         warnGates.map((g) => `<li><b>${esc(g.gate_id)}</b> — ${esc(g.reason ?? '')}
           <span class="dim">${checkLabel(g)}</span></li>`).join('')}</ul></div>` : ''}
       ${backstoryPanel(p, d)}
-      ${noteBox(p, (d.backstory ?? d).draftsByPerson?.get(p.person_id)?.[0] ?? null, { channel: reachOptions(p, d).find((x) => x.channel)?.channel ?? 'linkedin_inmail' })}
+      ${noteBox(p, (d.backstory ?? d).draftsByPerson?.get(p.person_id)?.[0] ?? null, { channel: noteDefault(p) })}
     </article>`;
   }).join('');
 }
