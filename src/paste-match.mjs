@@ -57,7 +57,7 @@ export function fieldsNear(text, name) {
   const head = win.slice(0, win.indexOf('Contact info') + 1 || 600);
   const loc = head.split('\n').map((l) => l.trim())
     .find((l) => /^[A-Z][\w .'-]+(?:,\s*[A-Z][\w .'-]+){1,3}$/.test(l)
-      && /(United States|United Kingdom|Canada|Australia|Ireland|Bermuda|Area|Metropolitan)/i.test(l));
+      && COUNTRY.test(l));
   if (loc) {
     out.location = loc;
     const parts = loc.split(',').map((x) => x.trim());
@@ -104,6 +104,14 @@ export function fieldsNear(text, name) {
   }
   return out;
 }
+
+// The last part of a header line that makes it a place. The Gulf was missing,
+// so a Dubai profile came back with no location (2026-11-22).
+const COUNTRY = new RegExp('\\b(United States|United Kingdom|Canada|Australia|New Zealand|Ireland|Bermuda|Area|Metropolitan'
+  + '|United Arab Emirates|Saudi Arabia|Qatar|Kuwait|Bahrain|Oman|Israel|Egypt|Turkey|T\u00fcrkiye|India|Pakistan'
+  + '|Singapore|Malaysia|Hong Kong|Japan|South Korea|China|Taiwan|Philippines|Indonesia|Thailand|Vietnam'
+  + '|Germany|France|Netherlands|Belgium|Luxembourg|Switzerland|Austria|Italy|Spain|Portugal|Sweden|Norway'
+  + '|Denmark|Finland|Poland|Czechia|Greece|South Africa|Nigeria|Kenya|Mexico|Brazil|Argentina|Chile|Colombia)\\b', 'i');
 
 // Metros LinkedIn prints without a country, by the country they settle.
 const METRO_COUNTRY = { Paris: 'France', Lyon: 'France', London: 'United Kingdom', Manchester: 'United Kingdom',

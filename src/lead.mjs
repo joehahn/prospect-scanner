@@ -114,7 +114,7 @@ import { loadTargeting } from './targeting.mjs';
 import { complete, batchMode, promptBody } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
-import { notThisPerson, withoutMessaging, headerName, nameKey, sameName } from './profile-identity.mjs';
+import { notThisPerson, withoutMessaging, headerName, nameKey, sameName, slugFits } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const EXTRACT_PROMPT = 'prompts/extract-profile.md';
@@ -631,7 +631,7 @@ async function paste(db, cfg, args) {
   // evidence.source_url is NOT NULL, and the right answer to that is not a
   // fabricated link. FIRST_HAND is a marker, not a URL: it never renders as one,
   // it greps, and it says plainly that the source is the operator himself.
-  const url = args.url && args.url !== true ? String(args.url)
+  let url = args.url && args.url !== true ? String(args.url)
     : provenance === 'operator_supplied' ? FIRST_HAND
     : requireArg(args, 'url', 'paste');
   if (url === FIRST_HAND) {
@@ -709,6 +709,14 @@ async function paste(db, cfg, args) {
           `If ${person.name} and ${owner.name} are one person, merge them: npm run lead -- merge --from ${person.id} --into ${owner.id}`);
       }
     }
+  }
+
+  // AN ADDRESS THAT CANNOT BE THEIRS is dropped, the paste kept: a profile
+  // URL left in the form from the last person went onto the next card.
+  if (person && /linkedin\.com\/in\//i.test(url) && !slugFits(url, person.name)) {
+    console.log(dim(`${url} has nothing of ${person.name}'s name in it, so it is not stored as their profile ` +
+      'address; the page itself is. If it really is theirs, paste again with --force.'));
+    if (!args.force) url = FIRST_HAND;
   }
 
   // --check: the refusals above and nothing else, in under a second. The paste

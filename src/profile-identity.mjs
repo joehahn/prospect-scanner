@@ -106,6 +106,25 @@ export function hiddenSurnameFirst(head) {
   return m ? m[1].normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : null;
 }
 
+/**
+ * Whether a linkedin.com/in/ address could be this person's: its slug holds
+ * the start of one of their names. A URL typed into the paste form is not
+ * checked against the page, and one left over from the previous profile went
+ * onto the next card (2026-11-22). Vanity slugs ("/in/tpf/") fail this about
+ * 1 time in 120, so a miss drops the address, never the paste.
+ */
+export function slugFits(url, name) {
+  const raw = String(url ?? '').toLowerCase().match(/linkedin\.com\/in\/([^/?#]+)/)?.[1];
+  if (!raw) return true;
+  let s; try { s = decodeURIComponent(raw); } catch { s = raw; }
+  s = s.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '');
+  if (!s || /^acoaa/.test(s)) return true;   // LinkedIn's own member id, no name in it
+  const k = nameKey(name);
+  if (!k) return true;
+  return [...k.words, k.alias].filter((w) => w && w.length >= 2)
+    .some((w) => s.includes(w.replace(/[^a-z]/g, '').slice(0, 4)));
+}
+
 /** The page up to LinkedIn's suggestion rails, which are other people. */
 export function ownPart(text) {
   const t = String(text);

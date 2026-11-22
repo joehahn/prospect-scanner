@@ -75,10 +75,26 @@ test('a surname a letter off or spaced differently is the same person', () => {
 
 test('a hidden surname: the header is a first name and dots', async () => {
   const { hiddenSurnameFirst } = await import('../src/profile-identity.mjs');
-  assert.equal(hiddenSurnameFirst('Lata ..'), 'lata');
+  assert.equal(hiddenSurnameFirst('Jane ..'), 'jane');
   assert.equal(hiddenSurnameFirst('Jane Contoso'), null);
   assert.equal(hiddenSurnameFirst('Frantz F.'), null);
-  assert.equal(nameKey('Lata ..'), null);
+  assert.equal(nameKey('Jane ..'), null);
   const p = page('Jane ..', 'Supply Chain Lead', 'Fabrikam');
   assert.equal(notThisPerson(p, 'Jane Contoso', 'Fabrikam'), null);
+});
+
+test('a profile address with nothing of the name in it is not theirs', async () => {
+  const { slugFits } = await import('../src/profile-identity.mjs');
+  assert.equal(slugFits('https://www.linkedin.com/in/jane-c/', 'Jane Contoso'), true);
+  assert.equal(slugFits('https://www.linkedin.com/in/afabrik09/', 'Ann Fabrikam'), true);
+  assert.equal(slugFits('https://www.linkedin.com/in/annother', 'Jane Contoso'), false);
+  assert.equal(slugFits('https://www.linkedin.com/in/ACoAABxyz/', 'Jane Contoso'), true);
+});
+
+test('a Gulf location is read from the header', async () => {
+  const { fieldsNear } = await import('../src/paste-match.mjs');
+  const p = 'Cover photo\nJane Contoso\n\n· 2nd\n\nSupply Chain Lead\n\nDubai, United Arab Emirates\n\n·\n\nContact info\n';
+  assert.equal(fieldsNear(p, 'Jane Contoso').country, 'United Arab Emirates');
+  const r = 'Cover photo\nJane Contoso\n\n· 2nd\n\nCIO\n\nBucharest, Romania\n\nContact info\n';
+  assert.equal(fieldsNear(r, 'Jane Contoso').location, undefined);
 });
