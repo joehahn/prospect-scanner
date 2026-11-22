@@ -398,12 +398,24 @@ function backlogIds(db, limit) {
                 >= datetime('now', '-7 days') DESC, l.total DESC LIMIT ?`).all(limit).map((r) => r.person_id);
 }
 
-/** The best screened people the full judge has not seen, highest screen first. */
+/**
+ * The best screened people the full judge has not seen, highest screen first.
+ *
+ * NOT AT A FIRM THE RANKER FOUND NO OFFER FOR (2026-11-22). The Ready page and
+ * the paste list leave those firms out (funnel.mjs WRITABLE: a firm rank left
+ * without an offer), yet the judge rated their people anyway: 72 of 149 judged
+ * on 2026-11-20, mostly vendors that sell AI delivery and firms under the money
+ * floor, every rating paid for and none of them ever shown. A firm not yet
+ * ranked is still judged, and one that gains an offer comes back the next day,
+ * because this is read fresh on every run.
+ */
 function passedIds(db, min, limit) {
-  return db.prepare(`SELECT s.person_id FROM screens s
+  return db.prepare(`SELECT s.person_id FROM screens s JOIN people p ON p.id = s.person_id
      WHERE s.id = (SELECT MAX(id) FROM screens x WHERE x.person_id = s.person_id)
        AND s.compelling >= ? AND s.person_id NOT IN (SELECT person_id FROM judgments)
        AND s.person_id NOT IN (SELECT person_id FROM outreach WHERE person_id IS NOT NULL)
+       AND NOT (EXISTS (SELECT 1 FROM scores c WHERE c.org_id = p.org_id)
+                AND NOT EXISTS (SELECT 1 FROM scores c WHERE c.org_id = p.org_id AND c.package_id IS NOT NULL))
      ORDER BY s.compelling DESC, s.id LIMIT ?`).all(min, limit).map((r) => r.person_id);
 }
 
