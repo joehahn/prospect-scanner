@@ -35,7 +35,7 @@ export function nameKey(s) {
     .toLowerCase().trim();
   let w = raw.replace(/\([^)]*\)|["\u201c][^"\u201d]*["\u201d]/g, ' ').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z\s.']/g, ' ').split(/\s+/).map((x) => x.replace(/\.$/, ''))
-    .filter((x) => x && !/^(dr|mr|mrs|ms|prof)$/.test(x));
+    .filter((x) => /[a-z]/.test(x) && !/^(dr|mr|mrs|ms|prof)$/.test(x));
   while (w.length > 2 && SUFFIX.test(w[w.length - 1])) w.pop();
   while (w.length > 2 && w[0].length === 1) w.shift();
   // ONLY INITIALS AFTER THE FIRST NAME (2026-11-14): "Beth M S." outside the
@@ -94,6 +94,16 @@ export function headerName(text) {
     }
   }
   return null;
+}
+
+/**
+ * The first name of a header whose surname is hidden, or null. A member may
+ * show only a first name and dots ("Jane .."); the dots were read as a
+ * one-letter surname and her own page matched no one (2026-11-22).
+ */
+export function hiddenSurnameFirst(head) {
+  const m = String(head ?? '').trim().match(/^([\p{L}'’-]{2,})\s+[.·…]+$/u);
+  return m ? m[1].normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : null;
 }
 
 /** The page up to LinkedIn's suggestion rails, which are other people. */

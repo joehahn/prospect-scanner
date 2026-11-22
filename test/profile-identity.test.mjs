@@ -72,3 +72,13 @@ test('a surname a letter off or spaced differently is the same person', () => {
   assert.ok(!sameName(nameKey('Jane Contossa'), 'Ann Contosa'), 'the first name still has to match');
   assert.equal(notThisPerson(page('Jane Contossa', 'CIO at Fabrikam', 'Fabrikam'), 'Jane Contosa', 'Fabrikam'), null);
 });
+
+test('a hidden surname: the header is a first name and dots', async () => {
+  const { hiddenSurnameFirst } = await import('../src/profile-identity.mjs');
+  assert.equal(hiddenSurnameFirst('Lata ..'), 'lata');
+  assert.equal(hiddenSurnameFirst('Jane Contoso'), null);
+  assert.equal(hiddenSurnameFirst('Frantz F.'), null);
+  assert.equal(nameKey('Lata ..'), null);
+  const p = page('Jane ..', 'Supply Chain Lead', 'Fabrikam');
+  assert.equal(notThisPerson(p, 'Jane Contoso', 'Fabrikam'), null);
+});

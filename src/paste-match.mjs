@@ -1,7 +1,7 @@
 // What a pasted LinkedIn page says about whose page it is, and the fields
 // near the subject's name, used by the paste server (inbox.mjs). Nothing here
 // fetches linkedin.com: it reads text a person copied.
-import { nameKey, sameName, headerName, firmOnPage, firmShare, ownPart } from './profile-identity.mjs';
+import { nameKey, sameName, headerName, hiddenSurnameFirst, firmOnPage, firmShare, ownPart } from './profile-identity.mjs';
 
 // THE DEGREE AND THE FOLLOWER COUNT ARE ALREADY IN THE PASTE, and the first
 // version of this form made the operator retype them into dropdowns. He asked
@@ -22,6 +22,13 @@ export function fieldsNear(text, name) {
   // header was never found and the model's own reading of the degree (wrong,
   // "1st") stood in for "· 3rd". The first name and surname initial is tried next.
   let at = name ? t.toLowerCase().indexOf(String(name).toLowerCase()) : -1;
+  // A HIDDEN SURNAME: the header says "Jane .."; the full name, if anywhere,
+  // is in someone else's post further down, so the header is the anchor.
+  const hidden = hiddenSurnameFirst(headerName(t));
+  if (hidden && name && nameKey(name)?.first === hidden) {
+    const h = headerName(t);
+    at = t.indexOf(h);
+  }
   if (at < 0 && name) {
     const w = String(name).trim().split(/\s+/);
     if (w.length > 1) at = t.toLowerCase().indexOf(`${w[0]} ${w[w.length - 1][0]}.`.toLowerCase());
@@ -146,6 +153,16 @@ export function matchPerson(db, text) {
     const best = Math.max(0, ...atFirm.map((r) => firmShare(text, r.org)));
     const top = atFirm.length > 1 ? atFirm.filter((r) => firmShare(text, r.org) === best) : atFirm;
     return (top.length ? top : same).map((r) => ({ ...r, at: 0 }));
+  }
+  // A HIDDEN SURNAME (2026-11-22): the header shows "Jane .." and nothing else
+  // of the name. Her first name and the firm on the page decide, and only
+  // when exactly one person in the book has both; anything else is no match.
+  const hidden = hiddenSurnameFirst(headerName(text));
+  if (hidden) {
+    const pick = db.prepare(`SELECT p.id, p.name, p.title, o.name org
+      FROM people p LEFT JOIN orgs o ON o.id = p.org_id`).all()
+      .filter((r) => nameKey(r.name)?.first === hidden && firmOnPage(text, r.org));
+    return pick.length === 1 ? [{ ...pick[0], at: 0 }] : [];
   }
   // THE RAILS ARE OTHER PEOPLE. Everything from the first of LinkedIn's
   // suggestion rails on is someone else's name and headline; on 282 stored
