@@ -58,6 +58,8 @@ the comment to follow his note.
 - If the post asks a question, the first sentence answers it.
 - Every word one a reader of the post alone would follow: no term from a
   linked article the post does not use, no jargon an everyday phrase can say.
+  Plain words standing for a technical idea count as jargon ("held up on past
+  months it never saw"); say what it means to the reader instead.
 - No claim about the poster's product, firm or results beyond what they said:
   not that it is better, more accurate or guarantees anything.
 - No AI tells: name things instead of "whichever", "those", "it" or "this"

@@ -243,6 +243,11 @@ longer worth a comment (`worthy` false) when nothing is left to add.
    word. No term from a linked article that the post itself does not use, and
    no trade jargon where an everyday phrase says the same: "filing each expense
    under the right account", not the accounting code it stands for.
+   Plain words standing for a technical idea are jargon too *(v13)*: "a
+   forecast that held up on past months it never saw" is a backtest in
+   disguise. Say what it means to the reader ("a forecast that has been right
+   all year"). If a skimmer would have to stop and work a phrase out, it is
+   cryptic; rewrite it.
 3. **No claim about their product, firm or results** beyond what they said
    themselves: not that it is better, faster or more accurate than another, not
    what it does or guarantees. Say what would decide the question, or how they
