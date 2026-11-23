@@ -88,6 +88,26 @@ export function planDate(s) {
   return `${m[1]}-${m[2] ?? '01'}-${m[3] ?? '01'}`;
 }
 
+/**
+ * A date for a plan that gives none but the fiscal years it covers: the year
+ * before its first one, when such plans are written ("FY 2027-2031" is dated
+ * 2026-01-01), never later than today. Null when the years cover none of this
+ * year or the next two, because a plan for years long gone or far off is not a
+ * current statement of what the body means to buy. Added 2026-11-22: five of
+ * nine plans with verified AI lines, a state cyber agency's among them, gave
+ * only their years and fired nothing.
+ */
+export function coversDate(covers, today = new Date().toISOString().slice(0, 10)) {
+  const ys = [...String(covers ?? '').matchAll(/(?:FY\s*)?(\d{4}|\d{2})(?!\d)/gi)]
+    .map((m) => Number(m[1].length === 2 ? `20${m[1]}` : m[1])).filter((y) => y >= 2000 && y < 2100);
+  if (!ys.length) return null;
+  const now = Number(today.slice(0, 4));
+  const lo = Math.min(...ys), hi = Math.max(...ys);
+  if (hi < now || lo > now + 2) return null;
+  const d = `${lo - 1}-01-01`;
+  return d > today ? today : d;
+}
+
 const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch { return null; } };
 const blocked = (u) => { const h = hostOf(u); return !h || BLOCKED.some((b) => h === b || h.endsWith(`.${b}`)); };
 
@@ -155,12 +175,22 @@ async function main() {
   console.log(heading(`plans · ${orgs.length} public bod${orgs.length === 1 ? 'y' : 'ies'} · their own published plan, quotes checked`));
 
   const system = promptBody(PROMPT);
-  const answers = await Promise.all(orgs.map((o) => complete(db, runId, {
+  // FOUR AT A TIME, ONE RETRY (2026-11-22). All at once, 8 of 17 calls timed
+  // out on a re-read; each one searches the web up to five times.
+  const ask = (o) => complete(db, runId, {
     model: cfg.models.default, effort: 'low', maxTokens: 6000, schema: SCHEMA, system,
     tools: [{ type: 'web_search_20260209', name: 'web_search', blocked_domains: BLOCKED, max_uses: 5 }],
     messages: [{ role: 'user', content: `PUBLIC BODY: ${o.name}${o.domain ? `\nWEBSITE: ${o.domain}` : ''}\n\n`
       + 'Find its current published plan and the AI lines in it.' }],
-  }).catch((error) => ({ error }))));
+  });
+  const answers = new Array(orgs.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, orgs.length) }, async () => {
+    while (next < orgs.length) {
+      const i = next++;
+      answers[i] = await ask(orgs[i]).catch(() => ask(orgs[i])).catch((error) => ({ error }));
+    }
+  }));
 
   const insRead = db.prepare(`INSERT INTO plan_reads (org_id, checked_at, plan_url, plan_title, plan_date, ai_lines, outcome, run_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
@@ -190,7 +220,7 @@ async function main() {
     const dropped = d.lines.length - kept.length;
     if (!kept.length) { console.log(dim(`${d.lines.length} line(s), none found in the document`)); record('unverified', d); continue; }
 
-    const on = planDate(d.date);
+    const on = planDate(d.date) ?? coversDate(d.covers);
     console.log(`${bold(`${kept.length} AI line(s)`)} ${dim(`${on ?? 'undated'} · ${truncate(d.title, 40)}${dropped ? ` · ${dropped} dropped` : ''}`)}`);
     for (const l of kept) console.log(dim(`      ${truncate(`${l.what}: "${l.quote}"`, 110)}`));
     if (dry) { tally.signal = (tally.signal ?? 0) + 1; continue; }

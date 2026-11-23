@@ -33,3 +33,13 @@ test('a plan date is a day, or nothing', () => {
 test('curly quotes and case do not decide a match', () => {
   assert.equal(normalise('The State’s “AI” Plan'), normalise("the state's \"ai\" plan"));
 });
+
+test('a plan that gives only the years it covers is dated the year before them', async () => {
+  const { coversDate } = await import('../src/plans.mjs');
+  assert.equal(coversDate('Fiscal Years 2027-2031', '2026-11-22'), '2026-01-01');
+  assert.equal(coversDate('FY26', '2026-11-22'), '2025-01-01');
+  assert.equal(coversDate('FY 2028-2032', '2026-11-22'), '2026-11-22');
+  assert.equal(coversDate('FY 2019-2023', '2026-11-22'), null);
+  assert.equal(coversDate('2030-2035', '2026-11-22'), null);
+  assert.equal(coversDate('', '2026-11-22'), null);
+});
