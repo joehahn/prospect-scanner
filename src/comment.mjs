@@ -229,14 +229,24 @@ async function more(db, args) {
   const paste = db.prepare('SELECT id, person_id, retrieved_at, body FROM evidence WHERE id = ?').get(row.evidence_id);
   const person = db.prepare('SELECT * FROM people WHERE id = ?').get(row.person_id);
   const extra = { replaceId: id };
-  const url = args.url && args.url !== true ? String(args.url).trim() : '';
+  let url = args.url && args.url !== true ? String(args.url).trim() : '';
   const cfg = await loadConfig();
+  const hasThread = args.thread && args.thread !== true;
   if (url) {
     // NEVER A FORBIDDEN HOST, checked at run time against the config's own list,
     // so a pasted LinkedIn link is refused here rather than trusted to robots.txt.
+    // With a pasted thread beside it (2026-11-23), the link is dropped and the
+    // thread used: the post's own address in the article box had thrown away
+    // fourteen pasted comments with it.
     const host = new URL(url).hostname.toLowerCase();
     const banned = (cfg.forbidden_hosts ?? []).map((h) => String(typeof h === 'string' ? h : h.host).toLowerCase());
-    if (banned.some((h) => host === h || host.endsWith(`.${h}`))) throw new Error(`${host} is never fetched. Paste its text into the comments box instead.`);
+    if (banned.some((h) => host === h || host.endsWith(`.${h}`))) {
+      if (!hasThread) throw new Error(`${host} is never fetched. Paste its text into the comments box instead.`);
+      console.log(`${host} is never fetched; the link is ignored and the pasted comments are used.`);
+      url = '';
+    }
+  }
+  if (url) {
     const page = await fetchPage(url, { allowBrowser: false });
     if (!page?.ok || !page.text) throw new Error(`could not read ${url}${page?.skipped ? ' (robots.txt disallows it)' : ''}`);
     extra.article = { url, text: page.text.slice(0, 12000) };

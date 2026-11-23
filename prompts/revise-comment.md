@@ -1,6 +1,6 @@
 # Revising a comment on the operator's note
 
-**Version 2, 2026-11-14.**
+**Version 3, 2026-11-23.**
 
 *v1: first version. The operator reads a drafted comment on the dashboard and
 types a short note on what to change ("build on his agent-checking point",
@@ -12,6 +12,10 @@ correction made once is not made again.*
 words a skimmer knows, no claim about their product, no AI tells). Rewrites of
 one comment brought in a claim about the poster's product that nobody knew and
 phrasing a person would not say aloud.*
+
+*v3: the drafter's v13 rules hold here too. Asked to say who "the extra
+people" were, a rewrite called them "new hires", a phrase the poster never
+used, and a reader still had to look into the post to follow it.*
 
 ---
 
@@ -34,9 +38,19 @@ the comment to follow his note.
 - Written for the poster: it takes a position on their idea (where to draw the
   line, what to build first, the trade-off that decides it), with the reason,
   so they come away thinking the operator has thought about their problem
-  more deeply than most. It keeps the post's actors in their roles.
-- One or two sentences, under forty words. Plain words.
-- Opens on their idea, not on agreement ("Agreed", "Exactly", "Yes, and").
+  more deeply than most. It keeps the post's actors in their roles. Said as
+  what a practitioner expects or has seen happen, never as instructions to the
+  poster on running their team.
+- One concrete example a skimmer can picture, in the poster's world, said as
+  what might happen, never as the operator's client or project.
+- Two or three sentences, under sixty words. Plain words.
+- Opens on their idea, not on agreement ("Agreed", "Exactly", "Yes, and"),
+  except that a first sentence may agree by stating the poster's answer to
+  their own question in full, with the step following in the same sentence.
+- Reads on its own: never point into the post with a short phrase the reader
+  must look up ("the extra people", "your point"); say it in full. When echoing
+  the post, use the poster's own words or none, never a paraphrase that sounds
+  like a quote of them.
 - No pitch, no link, no "DM me", no mention of the operator's firm.
 - No flattery. No em dashes, hashtags or emoji.
 - Nothing on the never-claim list, and no result already used in a posted
