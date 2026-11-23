@@ -514,7 +514,11 @@ async function main() {
   // firm on the same day and a bank's second person three days after the first.
   // Not skipped by --force; --firm-ok (a box on the card) says he means it.
   // A revise of an existing draft is not a new approach and is not stopped.
-  if (!args['firm-ok'] && !args.revise) {
+  // Nor is the message after an accept (2026-11-23): two colleagues at one
+  // energy firm had each accepted, and the second's follow-up was refused as
+  // spray. Each said yes on their own; writing back to them is not a new
+  // approach to the firm.
+  if (!args['firm-ok'] && !args.revise && !isFollowup(db, person.id, channel)) {
     const coolDays = Number(targeting?.ranking?.thresholds?.firm_cooling_days ?? 3);
     const last = db.prepare(`SELECT o.sent_at, p.name FROM outreach o JOIN people p ON p.id = o.person_id
         WHERE o.org_id = ? AND o.person_id <> ? AND o.sent_at > date('now', ?)

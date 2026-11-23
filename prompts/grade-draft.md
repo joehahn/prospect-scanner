@@ -1,4 +1,6 @@
-# grade-draft — v11, 2026-11-13
+# grade-draft — v12, 2026-11-23
+
+*v12: a follow-up after an accept that lists tasks, documents or agencies, or describes how the work is scoped, priced or handed over, is flagged (draft-cold-note v57).*
 
 *v11: a connection note says what he builds, as an example of his work, with a concrete credential (draft-cold-note v47). One that guesses at the reader's problem or priorities ("I'd guess…") is flagged; an example of what he could build is not an offer, unless it carries a price, a package or an ask.*
 
@@ -177,6 +179,9 @@ problem sits in.
   to do. Flag a note that instead carries a tactic: a question engineered to be
   easy to answer, an offer to send a resource, a hook on their talk or post, a
   referral, call or meeting ask, or the connection note's pitch restated.
+  Flag too a follow-up that lists tasks, documents, agencies or units, or
+  describes how the work is scoped, priced, tested or handed over: that note
+  says the kind of help in one sentence at the reader's level.
 - **An offer in a connection note.** *(v8.)* A `linkedin_connect_note` that
   proposes work for their firm with a price, a package, a fixed-price build or
   an ask. *(v11.)* One concrete example of what he builds ("I build AI that

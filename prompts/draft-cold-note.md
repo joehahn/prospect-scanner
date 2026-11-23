@@ -1,4 +1,6 @@
-# draft-cold-note — v56, 2026-11-21
+# draft-cold-note — v57, 2026-11-23
+
+*v57: the message after an accept says what he does in one plain sentence. Two follow-ups drafted 2026-11-23 read as "very granular" to the operator: to a utility's EVP of supply chain, "the same works on what your team reads by hand in bulk, like tender bids and supplier correspondence. I do each as one fixed-price build, scoped in writing before it starts"; to a state public-safety CIO, three named agencies and "scoped and priced in writing first, tested on real cases and handed over running", with the hourly offer her connection note made swapped for a fixed-price build meant for firms without technical staff. The first was copied from a follow-up he sent on 11-19, so an example he sent is not a licence for a list. Now: one sentence on the kind of help at their level, no list of tasks, documents, agencies or units, how it is bought in a few words or not at all, never the process, and the same kind of help the connection note offered when it offered help to their team.*
 
 *v56: shorter NOTES. A draft's NOTES ran to about 2,600 characters under a 300-character note, and output is most of what a draft costs. Asked what he reads, the operator named the storyline (goal, lede, bridge, example, offer) and nothing after it: not the precondition discussion, the DO NOT SAY checklist, the left-out list, prior contact at the firm, or the missing address, which the card already shows. NOTES is now the storyline, the sources, and at most one line of objection.*
 
@@ -563,7 +565,20 @@ When PRIOR CONTACT shows a connection note to this person with status
   than that note's example, or a different problem their seat owns, and how
   it is bought. A brief pointer back ("the reports I mentioned") is fine; a
   second pitch of it is not. The credential appears only if the connection
-  note did not carry it.
+  note did not carry it, and then as one short phrase, not a career history.
+  **One sentence, at their level, with no list.** *(v57.)* Say the kind of
+  help in one plain sentence a senior reader takes in at once. Never a list of
+  tasks, documents, agencies, units or systems ("such as bids, supplier
+  correspondence and change orders", "whether the BMV, the Highway Patrol or
+  EMA"): a list reads as a catalogue and pulls the note below their seat. How
+  it is bought is a few words ("by the hour", "fixed price") or left out;
+  never the process (scoped in writing, priced first, tested on real cases,
+  handed over running). That is for after they reply.
+  **Keep the kind of help they accepted.** *(v57.)* When the connection note
+  offered help to their team (extra senior hands, a builder beside their
+  people), the follow-up stays with that, said more broadly; it does not
+  switch to an offer meant for firms without technical staff. Where a sent
+  example below breaks any of these rules, follow the rule.
 - **An open door, and nothing to do.** One sentence leaving it to them: if that
   kind of help is ever useful at their firm, he would be pleased to hear from
   them. The idea, not a formula; word it fresh each time, as with the opener.
@@ -577,7 +592,7 @@ When PRIOR CONTACT shows a connection note to this person with status
   it scores.
 - A fact on file may set the sentence's subject ("manufacturing and supply-chain
   teams", "portfolio companies") but is never recited back to them.
-- **Short**: 40 to 80 words in the body. Greeting, the note, his first name.
+- **Short**: 30 to 60 words in the body *(v57; was 40 to 80)*. Greeting, the note, his first name.
 
 NOTES carries the storyline as usual, and says which of their facts set the
 subject sentence.
