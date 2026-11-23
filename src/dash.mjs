@@ -1398,8 +1398,20 @@ function acceptedRows(db) {
      GROUP BY p.id ORDER BY accepted_at DESC, p.name`).all(since, new Date().toISOString().slice(0, 10));
 }
 
+// WHEN TO WRITE (2026-11-23, his ask). His rule since 10-22, restated 11-11 and
+// 11-18: one to two days after the accept, on a weekday morning, never the same
+// day (an instant note is what automation tools send). The first weekday after
+// the accept day.
+export function writeOn(acceptedAt) {
+  const d = new Date(`${String(acceptedAt).slice(0, 10)}T12:00:00Z`);
+  do d.setUTCDate(d.getUTCDate() + 1); while ([0, 6].includes(d.getUTCDay()));
+  return d.toISOString().slice(0, 10);
+}
+
 function acceptedPanel(db, d) {
   const rows = acceptedRows(db);
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const dayName = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
   if (!rows.length) return '';
   // NOT A CONNECTION NOTE. Someone who accepted never gets another, and an
   // unused earlier version of the note they accepted showed here as the message
@@ -1436,7 +1448,10 @@ function acceptedPanel(db, d) {
          <input type="hidden" name="back" value="">
          <button type="submit" name="do" value="draft">Draft the message</button>
          <span class="dim">no draft yet</span></form>`;
-    return `<tr><td><b>${esc(String(r.accepted_at).slice(0, 10))}</b></td>
+    const on = writeOn(r.accepted_at);
+    const when = on <= todayIso ? `<b>now</b>${on < todayIso ? `<br><span class="dim">since ${dayName(on)} ${esc(on.slice(5))}</span>` : ''}`
+      : `<span class="dim">${dayName(on)} ${esc(on.slice(5))}</span>`;
+    return `<tr><td><b>${esc(String(r.accepted_at).slice(0, 10))}</b></td><td>${when}</td>
       <td>${who}<br><span class="dim">${esc(r.title ?? '')}</span></td>
       <td>${esc(r.org_name)}<br>${searchLink(r.name, r.org_name, r.profile_url)}</td>
       <td>${draft}</td></tr>`;
@@ -1445,8 +1460,9 @@ function acceptedPanel(db, d) {
 <p class="lead">${rows.length} accepted a connection request in the last ${ACCEPTED_WINDOW_DAYS} days, or have a note drafted since, and have had
 nothing since. Each gets one plain note (who you are, why them, an open door) and nothing after it: silence
 is not something to fix, and what they hear from you next is your posts and your comments on theirs. Each row
-carries the latest unsent draft.</p>
-<table><thead><tr><th>Accepted</th><th>Person</th><th>Firm</th><th>Draft</th></tr></thead><tbody>
+carries the latest unsent draft. <b>Write</b> is the first weekday after the accept: one to two days on,
+never the same day.</p>
+<table><thead><tr><th>Accepted</th><th>Write</th><th>Person</th><th>Firm</th><th>Draft</th></tr></thead><tbody>
 ${items}
 </tbody></table></section>`;
 }
