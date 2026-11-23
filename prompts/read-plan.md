@@ -1,7 +1,11 @@
-# read-plan — v1, 2026-11-06
+# read-plan — v2, 2026-11-22
 
 System prompt for `npm run plans`. Versioned so what it finds stays
 attributable (CLAUDE.md).
+
+*v2: a short bullet counts. v1 asked for 20 to 60 words, and a state cyber
+agency's plan saying, in 13 words, that it will integrate state-of-the-art AI
+into its cyber defenses was read as having no AI lines at all.*
 
 *v1: a public body's own published plan (strategic plan, IT plan, budget
 request, technology roadmap) is often the clearest written statement of what it
@@ -45,8 +49,10 @@ Do NOT count:
 
 Rules:
 
-- **Verbatim only.** Each quote must be copied exactly from the document,
-  20 to 60 words, one sentence or one bullet. It is checked against the text
+- **Verbatim only.** Each quote must be copied exactly from the document:
+  one sentence or one bullet, whole, up to 60 words. A short bullet counts
+  (plans often state commitments in eight or ten words); copy the whole
+  bullet, never a fragment of a longer sentence. It is checked against the text
   afterwards, and a quote that is not found is discarded.
 - **The document's own URL.** `url` is the plan itself (the PDF or page), not
   a search result page or a news story about it.

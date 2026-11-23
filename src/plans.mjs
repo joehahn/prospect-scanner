@@ -59,7 +59,7 @@ const SCHEMA = {
     lines: { type: 'array', items: { type: 'object', additionalProperties: false,
       required: ['quote', 'what'],
       properties: {
-        quote: { type: 'string', description: 'Verbatim from the document, 20 to 60 words.' },
+        quote: { type: 'string', description: 'Verbatim from the document: one whole sentence or bullet, up to 60 words.' },
         what: { type: 'string', description: 'What the AI is for, in a few plain words.' },
       } } },
   },
