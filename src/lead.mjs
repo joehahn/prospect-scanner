@@ -513,7 +513,11 @@ function merge(db, args) {
       .run(into, from.length + 1, into, `${from.replace(/[\\%_]/g, '\\$&')}@%`);
     // Blank fields on the kept record take the other's value; nothing is overwritten.
     const cols = db.prepare('PRAGMA table_info(people)').all().map((c) => c.name)
-      .filter((c) => !['id', 'org_id', 'name'].includes(c) && b[c] == null && a[c] != null);
+      .filter((c) => !['id', 'org_id', 'name'].includes(c) && b[c] == null && a[c] != null)
+      // NOT THE SIDEBAR MARK (2026-11-23). "Surfaced from …'s profile page" says
+      // the record is an unconfirmed sidebar pick and hides it; carried onto a
+      // researched record by a merge, it hid a rated 3 from the paste list.
+      .filter((c) => !(c === 'notes' && /^Surfaced from .*profile page/.test(String(a[c]))));
     for (const c of cols) db.prepare(`UPDATE people SET ${c} = ? WHERE id = ?`).run(a[c], into);
     db.prepare('DELETE FROM people WHERE id = ?').run(from);
     console.log(`merged ${bold(a.name)} (${from}) into ${bold(b.name)} (${into})`

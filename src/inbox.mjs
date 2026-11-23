@@ -984,6 +984,10 @@ function handle(req, res) {
       send(page(db, { note: `Ingested for ${who} (${personId})${url ? `\n${url}` : ''}\n\n${out.trim()}` }));
     } catch (e) {
       const err = `lead -- paste refused it:\n${e.stderr || e.message}`;
+      // IN THE LOG TOO (2026-11-23). His refusals showed only on the page, so a
+      // profile pasted several times and refused each time left no trace to
+      // diagnose from.
+      console.log(`  paste refused for ${personId ?? 'no match'}: ${String(e.stderr || e.message).replace(/\s+/g, ' ').slice(0, 200)}`);
       if (assistant) { const rid = keepRefusal({ personId, url, text, reason: err });
         return send(page(db, { err: `${err}\n\n${REFUSAL_KEPT}`, extra: refusalNoteBox(rid) })); }
       send(page(db, { text, err }));
