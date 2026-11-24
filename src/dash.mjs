@@ -31,6 +31,7 @@ import { noteBody, retiredPhrases, retiredHits, seenTalkHits } from './checks.mj
 import { upcomingTalks } from './events.mjs';
 import { pasteQueue, worthPasting, recordPicks, pickResults, PICK_BANDS } from './funnel.mjs';
 import { resultsPage } from './results.mjs';
+import { regionOf, regionLabel } from './region.mjs';
 import { sends, matureRequests } from './outcomes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -3635,7 +3636,8 @@ function buildAll(db, cfg, targeting) {
     const r = resultsPage(db, { server: SERVER, side, topGoal: cfg.daily_goals?.top_prospects ?? null, sendGoal: cfg.daily_goals?.notes_sent ?? null,
       offerLabel: (id) => (cfg.packages ?? []).find((x) => x.id === id)?.label ?? String(id).replace(/_/g, ' '),
       targetLabel: (name) => sectors.find((v) => v.name === name)?.label ?? name,
-      targetKind: (name) => sectors.find((v) => v.name === name)?.kind ?? null });
+      targetKind: (name) => sectors.find((v) => v.name === name)?.kind ?? null,
+      regionOf: (p) => regionOf(p, cfg), regionLabel: (k) => regionLabel(k, cfg) });
     write(pageOf(page), title, r.html, r.script);
   }
   { const sp = spendPage(db); write(pageOf('spend'), 'Spend', sp.html, sp.script); }

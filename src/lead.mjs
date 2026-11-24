@@ -114,6 +114,8 @@ import { loadTargeting } from './targeting.mjs';
 import { complete, batchMode, promptBody } from './models.mjs';
 import { table, heading, bold, dim, truncate } from './report.mjs';
 import { hiringQuote, capabilityTerms } from './hiring.mjs';
+import { fieldsNear } from './paste-match.mjs';
+import { regionOf } from './region.mjs';
 import { notThisPerson, withoutMessaging, headerName, nameKey, sameName, slugFits } from './profile-identity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -435,6 +437,47 @@ function move(db, args) {
     // judge has read them again; after a move a card vanished from the board.
     + bold(`\n  the card is hidden until they are judged at the new firm: npm run judge -- --person ${person.id}`)
     + dim('\n  then `npm run rank` and `npm run dash`'));
+}
+
+// LOCATIONS FROM PASTED PROFILES (2026-11-24, the operator: "should we not use
+// profiles to determine location?"). A paste sets the location when it is
+// stored; pastes from before that parser read it carry it in their text all the
+// same. This reads each person's latest pasted profile and, failing that, a
+// "Location as stated on the profile" fact, and writes what it finds. The
+// profile wins over a location a search source gave. --dry shows, writes nothing.
+function locations(db, cfgRegion, args) {
+  const people = db.prepare(`SELECT p.id, p.name, p.location, p.country,
+      (SELECT body FROM evidence e WHERE e.person_id = p.id AND e.kind = 'operator_profile' ORDER BY e.id DESC LIMIT 1) AS body,
+      (SELECT claim FROM evidence e WHERE e.person_id = p.id AND e.kind = 'profile_fact'
+         AND e.claim LIKE 'Location as stated on the profile%' ORDER BY e.id DESC LIMIT 1) AS fact
+    FROM people p WHERE EXISTS (SELECT 1 FROM evidence e WHERE e.person_id = p.id
+      AND (e.kind = 'operator_profile' OR (e.kind = 'profile_fact' AND e.claim LIKE 'Location as stated on the profile%')))`).all();
+  const set = db.prepare('UPDATE people SET location = ?, country = COALESCE(?, country) WHERE id = ?');
+  let changed = 0, same = 0, none = 0;
+  for (const p of people) {
+    let loc = null, country = null;
+    if (p.body) ({ location: loc = null, country = null } = fieldsNear(p.body, p.name));
+    if (!loc && p.fact) loc = p.fact.match(/—\s*"([^"]+)"/)?.[1] ?? null;
+    // Older pastes were stored as a summary: "Location: Austin, Texas, United
+    // States", or a line opening "Houston, Texas · University of Houston · ...".
+    if (!loc && p.body) loc = p.body.match(/^\s*Location:\s*([^·\n]+?)\s*(?:·|$)/m)?.[1] ?? null;
+    if (!loc && p.body) {
+      loc = p.body.split('\n').slice(0, 15).map((l) => l.split(' · ')[0].trim())
+        .find((l) => l.length <= 45 && !/degree|followers|connections|:|\|/i.test(l)
+          && ['home_metro', 'home_region', 'home_country', 'canada', 'europe', 'middle_east'].includes(regionOf({ location: l }, cfgRegion))
+          && !/\b(University|College|School|Institute|Inc|LLC|Capital|Partners|Group)\b/.test(l)) ?? null;
+    }
+    // A summary line can run on ("..., United States. Florida State University.");
+    // a name, a venue or an address is not a place a person lives.
+    if (loc && (/[()\d]|He\/Him|She\/Her/.test(loc) || /\b(Partner|Group|Marriott|Hotel|House|Center|Centre)\b/.test(loc))) loc = null;
+    loc = loc ? loc.split(/\.\s/)[0].replace(/\.$/, '').trim() : null;
+    if (!loc) { none++; continue; }
+    if (loc === p.location) { same++; continue; }
+    if (!args.dry) set.run(loc, country, p.id);
+    changed++;
+    if (args.verbose) console.log(`  ${p.name}: ${p.location ?? '(none)'} -> ${loc}`);
+  }
+  console.log(`${people.length} people with a pasted profile: ${changed} location${changed === 1 ? '' : 's'} ${args.dry ? 'would be ' : ''}written, ${same} already right, ${none} with no location on the page`);
 }
 
 function addPerson(db, args) {
@@ -2832,6 +2875,7 @@ async function main() {
       case 'add-person': addPerson(db, args); break;
       case 'move':       move(db, args); break;
       case 'paste':      await paste(db, cfg, args); break;
+      case 'locations':  locations(db, cfg, args); break;
       case 'extract':    await reextract(db, cfg, args); break;
       case 'verdict':    verdict(db, args); break;
       case 'vet':        await vet(db, cfg, args); break;

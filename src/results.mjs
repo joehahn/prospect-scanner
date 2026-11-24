@@ -41,6 +41,11 @@ export const BRIEFS = [
   ['targets', 'Which targets accept connection requests?', 'Where discovery spends, by target.'],
   ['industryyield', 'In which industries do judged firms turn into cards?', 'Which industries discovery spends judging on for little.'],
   ['targetweeks', 'Is each target getting more new cards week by week?', 'Whether a change to discovery reached the targets it was meant for.'],
+  // Added 2026-11-24 (the operator: where cards are based, "europe vs middle
+  // east vs US/texas/austin metro/other", and which regions accept), one panel
+  // per tab, from the location on each person's pasted profile.
+  ['regioncards', 'Where are the people on the board based?', 'Which regions discovery reaches into.'],
+  ['regions', 'Which regions accept connection requests?', 'Whether to keep reaching into Europe and the Gulf.'],
 ];
 
 // TWO TABS (2026-11-20, the operator: "split results into 2 tabs", after asking
@@ -48,7 +53,7 @@ export const BRIEFS = [
 // in decides where to look; what outreach gets back decides what to send and
 // to whom. One page of 15 panels mixed the two, with the first discovery panel
 // on top and the other four at the bottom. Each tab numbers its own figures.
-export const INBOUND = new Set(['inbound', 'targetcards', 'targetweeks', 'industryyield', 'sources']);
+export const INBOUND = new Set(['inbound', 'targetcards', 'targetweeks', 'industryyield', 'sources', 'regioncards']);
 export const sideOf = (id) => (INBOUND.has(id) ? 'inbound' : 'outbound');
 
 export function seedBriefs(db) {
@@ -125,7 +130,7 @@ function rateDots(id, groups, overall, xTitle) {
 const byRate = (gs) => [...gs].sort((a, b) => b.rate - a.rate || b.n - a.n);
 
 /** {html, script} for the page. `offerLabel(id)` names an offer from config. */
-export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) => name, targetKind = () => null, topGoal = null, sendGoal = null, server = '', side = null } = {}) {
+export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) => name, targetKind = () => null, regionOf = null, regionLabel = (k) => k ?? 'No location on file', topGoal = null, sendGoal = null, server = '', side = null } = {}) {
   seedBriefs(db);
   const onSide = (id) => !side || sideOf(id) === side;
   const placed = placeBriefs(db).filter((b) => onSide(b.id));
@@ -398,6 +403,50 @@ ${src.map((r) => `<tr><td>${esc(r.route)}</td><td class="num">${r.found}</td><td
 ${tw.rows.map((r) => `<tr><td>${r.target == null ? 'No target named' : lab(r.target)}</td>${r.cells.map((c) => `<td class="num">${cell(c)}</td>`).join('')}</tr>`).join('')}
 <tr><td><b>all targets</b></td>${sums.map((c) => `<td class="num"><b>${c.all}</b>${c.top ? ` <span class="dim">(${c.top})</span>` : ''}</td>`).join('')}</tr></tbody></table>`,
     };
+  }
+
+  // 16. Where cards are based, and 17. which regions accept. The region comes
+  // from the person's own location (a pasted profile fills it), never the
+  // firm's HQ. Gray is no location on file, which mostly means no paste yet.
+  if (regionOf) {
+    const where = new Map(db.prepare('SELECT id, location, country FROM people').all()
+      .map((p) => [p.id, regionOf({ location: p.location, country: p.country })]));
+    const by = new Map();
+    for (const [id, p] of personTargets(db)) {
+      if (!(p.rating >= 3)) continue;
+      const k = where.get(id) ?? null;
+      const g = by.get(k) ?? { key: k, top: 0, threes: 0 };
+      if (p.rating >= 4) g.top++; else g.threes++;
+      by.set(k, g);
+    }
+    const rc = [...by.values()].sort((a, b) => (a.key == null) - (b.key == null) || (b.top + b.threes) - (a.top + a.threes));
+    const total = rc.reduce((a, g) => a + g.top + g.threes, 0);
+    const none = rc.find((g) => g.key == null);
+    const y = rc.map((g) => `${esc(regionLabel(g.key))}  (${g.top + g.threes})`);
+    panels.regioncards = {
+      title: 'Cards by region',
+      caption: `Everyone rated 3 or more now, by where their profile says they are. Blue is rated 4 or 5, orange rated 3; the gray row has no location on file, mostly people whose profile has not been pasted yet. ${total} cards${none ? `, ${none.top + none.threes} of them with no location` : ''}.`,
+      height: 70 + 30 * rc.length,
+    };
+    scripts.push(`{ const y = ${J(y)}, none = ${J(rc.map((g) => g.key == null))};
+  Plotly.newPlot('c-regioncards', [
+    { type:'bar', orientation:'h', name:'rated 4 or 5', y, x:${J(rc.map((g) => g.top))}, marker:{color: none.map((n) => n ? pal[5] : pal[0])}, hovertemplate:'%{y}<br>%{x} rated 4 or 5<extra></extra>' },
+    { type:'bar', orientation:'h', name:'rated 3', y, x:${J(rc.map((g) => g.threes))}, marker:{color: none.map((n) => n ? (dark ? '#5a5955' : '#cfcec9') : pal[1])}, hovertemplate:'%{y}<br>%{x} rated 3<extra></extra>' }],
+    layoutFor({ barmode:'stack', margin:{l:10, r:24, t:10, b:44}, legend:{...legendTop, traceorder:'normal'},
+      xaxis:{gridcolor:grid, title:{text:'cards'}}, yaxis:{autorange:'reversed', automargin:true, gridcolor:'rgba(0,0,0,0)'} }), cfgP); }`);
+
+    // Unknown is its own row when it is big enough, so the regions are
+    // compared with what is missing in view; Other folds the small ones (D5).
+    const rg = byRate(rates(reqs, (r) => where.get(r.person_id) ?? 'none', (r) => r.accepted,
+      { label: (k) => regionLabel(k === 'none' ? null : k) }))
+      .map((g) => ({ ...g, group: g.label === 'Other' || g.key === 'none' ? 2 : 0, ...(g.label === 'Other' || g.key === 'none' ? { color: 5 } : {}) }))
+      .sort((a, b) => a.group - b.group || b.rate - a.rate);
+    panels.regions = {
+      title: 'Connection requests accepted, by region',
+      caption: `Where each person's profile says they are. The dashed line is all requests, ${overall == null ? 'none yet' : pct(overall)}; regions with under ${MIN_GROUP} requests are folded into Other, and gray rows are Other and people with no location on file. Bars show where the true rate likely lies (90% range, computed from the counts).`,
+      height: 60 + 34 * rg.length,
+    };
+    scripts.push(`rateDots('c-regions', ${J(rg)}, ${overall}, 'accepted');`);
   }
 
   // 14. Judged firms that turn into cards, by industry: where judging is spent

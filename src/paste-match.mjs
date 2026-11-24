@@ -67,7 +67,9 @@ export function fieldsNear(text, name) {
     // "Detroit Metropolitan Area". Kept as the location; the country only where
     // the city settles it, so a card can say a Paris profile is abroad.
     const metro = head.split('\n').map((l) => l.trim())
-      .find((l) => /^(Greater\s+)?[A-Z][\w .'-]+\s+(Metropolitan\s+)?(Area|Region)$/.test(l));
+      .find((l) => /^(Greater\s+)?[A-Z][\w .'-]+\s+(Metropolitan\s+)?(Area|Region|Metroplex)$/.test(l)
+        // "Greater Boston", "Greater Houston" (2026-11-24): a metro with no suffix.
+        || /^Greater\s+[A-Z][\w.'-]+(?:\s+[A-Z][\w.'-]+)?$/.test(l));
     if (metro) {
       out.location = metro;
       const city = Object.keys(METRO_COUNTRY).find((c) => new RegExp(`\\b${c}\\b`, 'i').test(metro));
