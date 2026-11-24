@@ -262,7 +262,7 @@ const findAge = lastFind ? (Date.now() - Date.parse(lastFind)) / 86_400_000 : In
 // 160, 99, then 12, 15, 13 a day -- and the goal is a daily one. Eight search
 // credits and about fifteen cents a run.
 if (args.includes('--conferences') || findAge >= 0.5) {
-  const out = run('1c. find conferences', ['conferences', '--', '--find']);
+  const out = run('1c. find conferences', ['conferences', '--', '--find'], { limitMs: 30 * 60_000 });
   const m = out.match(/(\d+) new conferences found/);
   if (m) console.log(`  ${m[1]} new conferences found`);
 } else {
