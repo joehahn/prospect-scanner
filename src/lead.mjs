@@ -597,8 +597,8 @@ function mergeOrg(db, args) {
        GROUP BY LOWER(domain) HAVING COUNT(*) > 1 ORDER BY domain`).all();
     for (const r of rows) console.log(`${bold(r.domain)}  ${r.ids}`);
     if (!rows.length) console.log('no two firms share a domain');
-    // THE SAME NAME, SHORT AND LONG (2026-10-31). "CVC" and "CVC Capital
-    // Partners", a state agency named two ways by two sources: fifteen such
+    // THE SAME NAME, SHORT AND LONG (2026-10-31). an acronym and the same firm's full name ("XYZ" and "XYZ Capital
+    // Partners"), a state agency named two ways by two sources: fifteen such
     // records hid second notes from the one-note-per-firm check. Names that are
     // equal once corporate and agency filler is dropped are listed too.
     const names = new Map();

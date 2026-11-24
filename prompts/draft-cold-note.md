@@ -1,4 +1,6 @@
-# draft-cold-note — v57, 2026-11-23
+# draft-cold-note — v58, 2026-11-24
+
+*v58: notes that show the evidence, and an example credited to its owner. An InMail to a manufacturer's CIO read "One example is AI that reads a customer's drawing or photo and finds the matching part, so a quote goes out within a day." That was his own program, named on his profile, but the note offered it as if it were a new idea, and the NOTES only said "which his profile names as his own program", so the operator could not see why. He asked that the reasoning also say what the reader is known to care about, the date of the talk and what it was likely about, and where the example came from, then that it tell him "as concisely as possible everything i need to know to confirm the note's content, at a glance". Then, on seeing a claim-by-claim check: "i dont need to see checks on my details, i know those. i just need to be able to confirm that the note's text aligns with prospects known or inferred interests. and if the best possible offer is being made". NOTES is now FIT (each phrase about the reader, beside the stated or inferred interest it answers), OFFER (why this offer beats the other live ones, and the runner-up) and READ. An example taken from the reader's own work is credited to them.*
 
 *v57: the message after an accept says what he does in one plain sentence. Two follow-ups drafted 2026-11-23 read as "very granular" to the operator: to a utility's EVP of supply chain, "the same works on what your team reads by hand in bulk, like tender bids and supplier correspondence. I do each as one fixed-price build, scoped in writing before it starts"; to a state public-safety CIO, three named agencies and "scoped and priced in writing first, tested on real cases and handed over running", with the hourly offer her connection note made swapped for a fixed-price build meant for firms without technical staff. The first was copied from a follow-up he sent on 11-19, so an example he sent is not a licence for a list. Now: one sentence on the kind of help at their level, no list of tasks, documents, agencies or units, how it is bought in a few words or not at all, never the process, and the same kind of help the connection note offered when it offered help to their team.*
 
@@ -205,9 +207,9 @@ the firm does, and work out:
    to lead with when your lede is that event; then its pitch and its link
    replace the offer's. Name the variant in NOTES. *(v29.)*
 
-Then write the note so each beat serves that line, and nothing else. Put the
-storyline first in NOTES, so the operator can check the reasoning before the
-wording.
+Then write the note so each beat serves that line, and nothing else. NOTES
+then sets each beat beside the interest of theirs it answers (v58), so he can
+confirm the note in one pass.
 
 ## Absolute constraints
 
@@ -503,6 +505,12 @@ be resold, so they are back on sale while still in season" reads in one pass;
 add another qualifier and it does not. If the example cannot be said that
 plainly, use the hands line instead: a clear offer of help beats a precise one
 nobody can parse.
+**Their own work is theirs** *(v58)*. When the example is a program, project
+or target the reader has already named (on their profile, in a post, in a
+talk), say it is theirs: "your Next-Gen Customer Experience program, quoting
+within a day from a part drawing or photo, is the kind of build I help teams
+finish". Never present their own work as an idea from him; to them it reads as
+not having looked.
 **Their team, where they have one** *(v54)*. Most readers above a few hundred
 staff, and anyone who runs product, technology, data or AI, have people who
 build. For them the example is help to that team, not a build he does alone:
@@ -594,7 +602,7 @@ When PRIOR CONTACT shows a connection note to this person with status
   teams", "portfolio companies") but is never recited back to them.
 - **Short**: 30 to 60 words in the body *(v57; was 40 to 80)*. Greeting, the note, his first name.
 
-NOTES carries the storyline as usual, and says which of their facts set the
+NOTES carries the FIT lines as usual, and says which of their facts set the
 subject sentence.
 
 ## The subject line, where the channel has one
@@ -623,19 +631,28 @@ DRAFT
 
 NOTES
 -----
-- STORYLINE: goal (stated | inferred | role only, with the fact behind it) ->
-  lede -> bridge -> example -> offer, one short line each
-- SOURCES: each factual claim about them, a few words and the URL, one line each
+- FIT: one line per phrase of the note that is about them or offers them
+  something, in note order: the phrase in quotes, then the interest of theirs
+  it answers, stated (with date and source, quoted short) or inferred (with
+  the fact it is inferred from). A phrase that answers no interest of theirs
+  says so: "<- none". Never a line for the operator's own name, credential or
+  history: he knows those.
+- OFFER: the offer pitched, then in one line why it is the best of the live
+  offers for this reader, and the runner-up and why not
 - READ: one line, only if something should change whether he sends it
 ```
 
-**NOTES is short** *(v56)*. He reads the storyline and nothing after it, so
-write nothing else: no list of what you left out, no checklist of rules you
-followed, no discussion of preconditions, no note on prior contact at the firm
-or a missing address (the card shows both), no character count unless the note
-is within ten characters of the limit. Every other instruction in this prompt
-that says to put something in NOTES means one line under READ, and only if it
-would change his decision. The whole section stays under about 700 characters.
+**NOTES is for checking the note at a glance** *(v56, v58)*. He reads it to
+confirm two things: that the note's text answers what this reader is known or
+can fairly be inferred to care about, and that the best possible offer is
+being made. So it is FIT, OFFER and READ, and nothing else: no storyline essay,
+no lines on his own credentials, no list of what you left out, no checklist of
+rules you followed, no discussion of preconditions, no note on prior contact at
+the firm or a missing address (the card shows both), no character count unless
+the note is within ten characters of the limit. Every other instruction in this
+prompt that says to put something in NOTES means one line under READ, and only
+if it would change his decision. Short lines, no bold, no sub-bullets; the
+whole section stays under about 800 characters.
 
 The NOTES section is for the operator, never for the recipient. Be blunt in it.
 If you think the recipient is the wrong person, or the timing is wrong, or the
