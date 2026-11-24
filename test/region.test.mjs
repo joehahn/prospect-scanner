@@ -29,3 +29,10 @@ test('a pasted header reads a Metroplex or a bare Greater metro as the location'
     assert.equal(fieldsNear(text, 'Pat Example').location, place);
   }
 });
+
+test('the location is read above the first Contact info when the header name differs from the card', () => {
+  const text = 'Skip to search\nHome\nPatricia Q. Example, CFA\n· 3rd\nPartner, Head of Operations\nUnited States\n·\nContact info\nPeople you may know\nSomeone Else\nLondon, England, United Kingdom\n';
+  assert.equal(fieldsNear(text, 'Pat Example').location, 'United States');
+  const none = 'Skip to search\nPat Example\n· 2nd\nHead of Operations at Example Co\n·\nContact info\n';
+  assert.equal(fieldsNear(none, 'Pat Example').location, undefined);
+});

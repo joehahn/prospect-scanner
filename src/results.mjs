@@ -34,8 +34,9 @@ export const BRIEFS = [
   // Moved up 2026-11-20 (the operator: "in discovery tab move fig 3 above 2"),
   // so on Inbound it is Figure 2, ahead of the routes.
   ['targetcards', 'How many new cards does each target get?', 'Which targets discovery under- or over-feeds.'],
+  // Moved up 2026-11-24 (the operator: "in inbound move fig 6 above fig 3").
+  ['regioncards', 'Where are the people on the board based?', 'Which regions discovery reaches into.'],
   ['sources', 'Which discovery routes lead to accepts and replies?', 'Where discovery spends.'],
-  ['replies', 'Who answered, and how?', 'What the replies have in common.'],
   // Added 2026-11-19 (the operator: "add the charts to the results tab"), at
   // the end so the fixed figure numbers above keep their panels.
   ['targets', 'Which targets accept connection requests?', 'Where discovery spends, by target.'],
@@ -44,8 +45,9 @@ export const BRIEFS = [
   // Added 2026-11-24 (the operator: where cards are based, "europe vs middle
   // east vs US/texas/austin metro/other", and which regions accept), one panel
   // per tab, from the location on each person's pasted profile.
-  ['regioncards', 'Where are the people on the board based?', 'Which regions discovery reaches into.'],
   ['regions', 'Which regions accept connection requests?', 'Whether to keep reaching into Europe and the Gulf.'],
+  // Moved to the bottom 2026-11-24 (the operator: "in outbound mov fig 9 below 11").
+  ['replies', 'Who answered, and how?', 'What the replies have in common.'],
 ];
 
 // TWO TABS (2026-11-20, the operator: "split results into 2 tabs", after asking

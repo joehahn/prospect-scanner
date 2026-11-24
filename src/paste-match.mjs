@@ -33,7 +33,7 @@ export function fieldsNear(text, name) {
     const w = String(name).trim().split(/\s+/);
     if (w.length > 1) at = t.toLowerCase().indexOf(`${w[0]} ${w[w.length - 1][0]}.`.toLowerCase());
   }
-  if (at < 0) return {};
+  if (at < 0) return placeBeforeContact(t);
   const win = t.slice(at, at + 900);              // the header block, not the rails
   const out = {};
 
@@ -77,6 +77,8 @@ export function fieldsNear(text, name) {
     }
   }
 
+  if (!out.location) Object.assign(out, placeBeforeContact(t));
+
   // ACTIVITY FROM HOW OLD THE POSTS ARE, which is the only honest source for it.
   // LinkedIn stamps each item "1w", "3mo", "2yr", and says "has no recent posts"
   // when there are none. The freshest one decides. Guessing this wrong changes
@@ -105,6 +107,25 @@ export function fieldsNear(text, name) {
     }
   }
   return out;
+}
+
+// THE FIRST "Contact info" ON THE PAGE IS THE SUBJECT'S (2026-11-24). Their
+// location sits just above it, before a lone "·". Read from there when the
+// name on the card is not the name in the header (a nickname, an initial, a
+// credential after it): 18 of 45 people sent a request had no location for
+// that reason alone. Only the few lines above it, and only a line shaped like
+// a place, so a headline is never taken for one.
+function placeBeforeContact(t) {
+  const at = t.indexOf('Contact info');
+  if (at < 0 || at > 6000) return {};
+  const lines = t.slice(Math.max(0, at - 400), at).split('\n').map((l) => l.trim()).filter((l) => l && l !== '·').slice(-2);
+  const loc = lines.reverse().find((l) => (/^[A-Z][\w .'-]+(?:,\s*[A-Z][\w .'-]+){1,3}$/.test(l) && COUNTRY.test(l))
+    || /^(Greater\s+)?[A-Z][\w .'-]+\s+(Metropolitan\s+)?(Area|Region|Metroplex)$/.test(l)
+    || /^Greater\s+[A-Z][\w.'-]+(?:\s+[A-Z][\w.'-]+)?$/.test(l)
+    || /^(United States|United Kingdom|Canada|Ireland|Germany|France|Netherlands|Denmark|Sweden|Norway|Switzerland|Singapore|India|Australia|United Arab Emirates|Saudi Arabia|Qatar)$/.test(l));
+  if (!loc) return {};
+  const parts = loc.split(',').map((x) => x.trim());
+  return { location: loc, ...(parts.length > 1 ? { country: parts[parts.length - 1] } : {}) };
 }
 
 // The last part of a header line that makes it a place. The Gulf was missing,
