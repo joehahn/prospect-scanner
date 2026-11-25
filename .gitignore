@@ -65,3 +65,7 @@ db-snapshots/
 
 # Design history and the old spec: kept locally, not published (2026-09-29).
 /docs/private/
+
+# THE OPERATOR'S OWN MAC HELPERS (2026-11-25): the profile-grab hotkey and any
+# like it. Kept beside the project so Dropbox backs them up; never published.
+/local/

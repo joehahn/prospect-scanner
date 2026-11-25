@@ -23,6 +23,14 @@ A configurable prospect-discovery pipeline for small consulting firms, with a bu
   `src/config.mjs` enforces it to the character: one line in `src/dash.mjs`,
   refused if a call shares the line. `test/forbidden-host.test.mjs` plants the
   near-misses. Widening it is a new decision for the operator, not a refactor.
+  *(Operator decision 2026-11-25: "we are not doing automated copying. we are
+  doing manual copying. I am asking you to make my manual copying more
+  efficient".)* A hotkey on the operator's own Mac, kept in `local/` (gitignored,
+  never published), may press
+  the keys he would press on the profile he is viewing (select all, copy, copy
+  the address bar) and join the URL and page text on the clipboard for one paste
+  onto a card. One profile per press, on his press; it makes no requests and
+  reads nothing on its own. Nothing in the repo targets LinkedIn because of it.
 - **Every factual claim in a dossier carries a source URL.** A claim without retrievable evidence is a defect, and the grader treats it as one.
 - **Every LLM call records model, tokens and cost** into the `runs` table. The cost study depends on it and cannot be retrofitted.
 - **Respect robots.txt and rate limits** on every source.
