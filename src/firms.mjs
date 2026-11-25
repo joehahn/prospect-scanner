@@ -86,6 +86,30 @@ const FIT_SCHEMA = {
 };
 
 /** What a firm's own site says about itself: its description and the facts read off it. */
+/** A title that is a customer's, quoted on the firm's site: says so, or names another company. */
+export function quotedCustomer(title, firm) {
+  const t = String(title ?? '').replace(/,?\s*(Inc|LLC|Ltd|Corp)\.?\s*$/i, '');
+  if (/testimonial|client quote|customer quote|quoted|\(client\)|\(customer\)/i.test(t)) return true;
+  const m = t.match(/(,|\bat\b|\bof\b|@)\s*([^,()@]+?)\s*\)?$/i);
+  if (!m) return false;
+  const words = (s) => new Set(String(s).toLowerCase().match(/[a-z0-9]{3,}/g) ?? []);
+  const own = words(firm);
+  const named = [...words(m[2])].filter((w) => !['inc', 'llc', 'the', 'and', 'group', 'solutions', 'technology', 'technologies'].includes(w));
+  // "CEO, <a client>" names a client; "CEO, <the firm>" names the firm.
+  // A bare role after the comma ("President, Technology Solutions") is a role.
+  const ROLE = /\b(?:officer|president|director|manager|partner|founder|sales|operations|technology|solutions|practice|consulting|services|north america|international|india|uk|usa|accounts?|alliances?|channel|strategic|business|development|marketing|engineering|finance|delivery|success|growth|strategy|product|people|human|data|cloud|erp|crm|platform|managed|transformation|innovation|architect|implementation|support|revenue|client|region|east|west|north|south|central|global)\b/i;
+  return named.length >= (m[1] === '@' ? 1 : 2) && !named.some((w) => own.has(w)) && !ROLE.test(m[2]);
+}
+
+/** A legal form outside the target's countries ("GmbH", "AG", "SA", "Pvt"), or null. */
+export function foreignForm(name, target) {
+  const cs = (target.where?.countries ?? []).map((c) => c.toLowerCase());
+  const FORMS = [[/\bGmbH\b/, 'germany'], [/\bAG\b/, 'switzerland'], [/\bS\.?A\.?S?$/, 'france'],
+    [/\bB\.?V\.?$/, 'netherlands'], [/\bPvt\b/i, 'india'], [/\bS\.?r\.?l\.?$/i, 'italy']];
+  for (const [re, c] of FORMS) if (re.test(String(name)) && !cs.includes(c)) return String(name).match(re)[0];
+  return null;
+}
+
 function candidateText(db, orgId) {
   const lines = db.prepare(`SELECT claim FROM evidence WHERE org_id = ? AND person_id IS NULL
     AND provenance = 'retrieved' ORDER BY (kind = 'firm_profile') DESC, id LIMIT 40`).all(orgId).map((r) => `- ${r.claim}`);
@@ -296,7 +320,14 @@ async function vetCandidates(db, cfg, target, args) {
         const kill = db.prepare(`SELECT gate_id, reason FROM gate_results WHERE org_id = ?
           AND outcome LIKE 'kill%' LIMIT 1`).get(c.key);
         const people = db.prepare('SELECT id, name, title FROM people WHERE org_id = ?').all(c.key);
-        const seated = people.filter((p) => inSeat(target, p.title));
+        // A CUSTOMER QUOTED ON THE SITE IS NOT STAFF (2026-11-24). Partner sites
+        // carry testimonials, and the extractor kept "CEO, <client>" and "VP
+        // (client testimonial)" as people: nine of 71 admitted firms had only
+        // their customers on file.
+        const seated = people.filter((p) => inSeat(target, p.title) && !quotedCustomer(p.title, c.name));
+        // A legal form from outside the target's countries. Partner lists mix
+        // in German, Swiss and Indian firms, and their sites rarely give an HQ.
+        if (foreignForm(c.name, target)) { reject(`its legal form (${foreignForm(c.name, target)}) is from outside the target's countries`); return; }
         if (!org?.kind) { reject('its own site did not settle what kind of firm it is'); return; }
         if (!target.where.kinds.includes(org.kind)) { reject(`its own site makes it ${org.kind}`); return; }
         const spec = await checkFit(db, cfg, runId, target, c.key);
@@ -408,4 +439,6 @@ async function main() {
   await vetCandidates(db, cfg, target, args);
 }
 
-main().catch((err) => { console.error(err.message); process.exit(1); });
+if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((err) => { console.error(err.message); process.exit(1); });
+}
