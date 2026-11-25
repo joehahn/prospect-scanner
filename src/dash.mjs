@@ -669,7 +669,7 @@ const STYLE = `
 /* JUMP TO TOP. The shortlist runs to a hundred-odd cards and the only way back
    to the filters was a long scroll or Home, which does nothing while focus sits
    in a paste box. Hidden until there is something to scroll back from. */
-#totop{position:fixed;right:18px;bottom:18px;z-index:60;display:none;
+#totop{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:60;display:none;   /* middle left: the operator, 2026-11-25 */
   border:1px solid #cfd6e0;background:#fffffff2;color:#334;border-radius:999px;
   padding:.55rem .9rem;font:600 12px/1 system-ui,sans-serif;cursor:pointer;
   box-shadow:0 2px 10px #0000002e;backdrop-filter:blur(3px)}
