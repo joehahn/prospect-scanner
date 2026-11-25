@@ -884,6 +884,10 @@ window.addEventListener('DOMContentLoaded', () => {
     el.hidden = false;
     wrap.replaceChildren(all, el);
     if (el.dataset.name) document.title = el.dataset.name;
+    // THE NOTE OPEN (2026-11-25, the operator: "i would like the note portion
+    // of the card to be opened when the card comes up"). A card opened on its
+    // own is opened to write.
+    for (const nb of el.querySelectorAll('details.notebox')) nb.open = true;
     return;
   }
   for (const card of document.querySelectorAll('article.card[id]')) {
