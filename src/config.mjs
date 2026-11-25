@@ -1448,7 +1448,19 @@ export function buyerForOrg(cfg, { kind, hasVendorTrigger = false, referralValue
                    'beside the practice rather than inside its product' }
           : null;
     case 'delivery_firm':
-      return { id: null, why: 'sells AI delivery — overflow_bench is retired and buyers_side never fits a firm that judges vendors for a living' };
+      // A PARTNER WITH NO AI BENCH (2026-11-24, the operator: "do #2", a target
+      // for firms that bring an outside AI hand to their own clients). Two of
+      // three meetings since October came from intermediaries. The firm sells
+      // platform, ERP, infrastructure or IT work, NOT AI, and its clients ask it
+      // for AI it has nobody to build. That is not overflow_bench's ground (a
+      // firm whose product IS AI hires for it): only a firm whose own site was
+      // read and shows no AI delivery or advisory gets an offer. Unread stays
+      // unrouted, and the sells-the-capability gate still kills the rest.
+      if (org.sells_ai_delivery === 0 && org.sells_ai_advisory === 0 && has('senior_capacity')) {
+        return { id: 'senior_capacity',
+          why: 'partner firm that sells platform or IT work and has no AI bench — be the AI hand it brings into its clients\' work, by the hour' };
+      }
+      return { id: null, why:'sells AI delivery — overflow_bench is retired and buyers_side never fits a firm that judges vendors for a living' };
     case 'marketplace':
       return { id: null, why: 'brokers talent or expert calls — the marketplace_or_expert_network gate kills this' };
     case 'staffing':

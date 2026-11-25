@@ -143,7 +143,9 @@ export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) 
   const panels = {};
   const scripts = [];
 
-  // 1. Daily inbound, with what ran and what failed marked under it.
+  // 1. Daily inbound, with what ran and what failed marked under it. THE GOAL
+  // COUNTS 3s (2026-11-24, the operator: "count 3+ toward the bar"): sends to
+  // people rated 3 accepted and replied no worse than sends to 4-5s.
   {
     const ib = inboundDaily(db, 45);
     const total = ib.series.reduce((a, s) => a + s.counts.reduce((x, y) => x + y, 0), 0);
@@ -153,7 +155,7 @@ export function resultsPage(db, { offerLabel = (id) => id, targetLabel = (name) 
     const per3 = (ib.threes.reduce((a, b) => a + b, 0) / ib.days.length).toFixed(1);
     panels.inbound = {
       title: 'New cards per day',
-      caption: `People rated 3 or more on the day they were judged, at the rating they got that day; a later re-judge does not move a past bar. Colored bars are the 4s and 5s, by where they were found; the pale band on top is the 3s. Over ${ib.days.length} days, ${per} a day rated 4 or 5${topGoal ? ` against a goal of ${topGoal}` : ''}, and ${per3} rated 3. Gray triangles are the weekly searches and agenda loads; red marks are runs that failed or never started (${missed} here)${judges.length ? `; blue diamonds are changes to the judge (${judges.join(', ')}), after which ratings follow different rules` : ''}.`,
+      caption: `People rated 3 or more on the day they were judged, at the rating they got that day; a later re-judge does not move a past bar. Colored bars are the 4s and 5s, by where they were found; the pale band on top is the 3s. Over ${ib.days.length} days, ${per} a day rated 4 or 5 and ${per3} rated 3: ${(Number(per) + Number(per3)).toFixed(1)} a day rated 3 or more${topGoal ? `, against a goal of ${topGoal} (the dotted line, read against the whole stack)` : ''}. Gray triangles are the weekly searches and agenda loads; red marks are runs that failed or never started (${missed} here)${judges.length ? `; blue diamonds are changes to the judge (${judges.join(', ')}), after which ratings follow different rules` : ''}.`,
       height: 320,
     };
     scripts.push(`{ const days = ${J(ib.days)}, series = ${J(ib.series)}, marks = ${J(ib.marks)}, threes = ${J(ib.threes)};

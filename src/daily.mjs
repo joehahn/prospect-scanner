@@ -422,7 +422,7 @@ if (!dry) {
   const cost = q(`SELECT ROUND(SUM(cost_usd), 3) c, SUM(tavily_credits) t FROM runs WHERE started_at >= ?`, started)[0];
   // RATINGS ARE EACH PERSON'S LATEST JUDGMENT, the median of that batch's runs
   // (ratingOf, as the cards show it), not any judgment this run: a card research
-  // moved down from 3 to 2 is not rated 3+, and F1 counts NEW 4-5 cards (rated 4+
+  // moved down from 3 to 2 is not rated 3+, and F1 counts NEW 3+ cards (rated 3+
   // now, not before this run).
   const ratingsAt = (cmp, at) => {
     const by = new Map();
@@ -437,6 +437,9 @@ if (!dry) {
   const judged = now.size;
   const strong = [...now.values()].filter((c) => c >= 3).length;
   const newTop = [...now].filter(([id, c]) => c >= 4 && !((before.get(id) ?? 0) >= 4)).length;
+  // F1's bar counts NEW 3+ cards (2026-11-24, the operator: "count 3+ toward
+  // the bar"): sends to 3s accepted and replied no worse than sends to 4-5s.
+  const newStrong = [...now].filter(([id, c]) => c >= 3 && !((before.get(id) ?? 0) >= 3)).length;
   let moved = '';
   if (researchedIds.length) {
     const pre = ratingsAt('<', researchedAt);
@@ -450,7 +453,7 @@ if (!dry) {
   try { waiting = readFileSync(resolve(ROOT, 'data/dash/ready.html'), 'utf8').match(/(\d+) to decide/)?.[1] ?? '0'; } catch { /* no page yet */ }
   console.log(heading('done'));
   console.log(`  searches ${searched ? 'ran' : 'skipped'} · agendas ${agendas ? 'ran' : 'skipped'} · ${vetted.length} firm(s) vetted, ${alive.length} alive · `
-    + `${judged} judged, ${strong} rated 3+, ${newTop} new at 4-5${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
+    + `${judged} judged, ${strong} rated 3+, ${newStrong} new at 3+ (${newTop} at 4-5)${moved} · ${drafted} drafted · $${cost.c ?? 0} model cost · ${cost.t ?? 0} search credits`);
   console.log(`  ${waiting} people waiting on the Ready page`);
   // THE OPERATOR'S PART OF THE MORNING: the few strongest writable people whose
   // seat is the open question and who have no profile on file (funnel.mjs).
