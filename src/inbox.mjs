@@ -527,7 +527,13 @@ const AUTO_PASTE = String.raw`<script>(() => {
       form.action = '/paste';
       form.style.display = 'none';
       document.body.appendChild(form);
-      field(form, 'back', location.pathname + location.hash);
+      field(form, 'back', location.pathname + location.search + location.hash);
+      // ON ONE CARD'S PAGE, THAT CARD (2026-11-27). A paste outside the box was
+      // matched by name across the whole book, so a wrong search result pasted
+      // on one card's page was stored on someone else who shared the initial.
+      // There it is checked against the card he is looking at, and refused.
+      const card = new URLSearchParams(location.search).get('card');
+      if (card) field(form, 'person', card.replace(/^p-/, ''));
     }
     field(form, 'text', text);
     const u = form.querySelector('[name="url"]');

@@ -18,7 +18,13 @@ const SUFFIX = /^(jr|sr|ii|iii|iv|phd|ph\.d|md|mba|cpa|pmp|cfa|cfp|esq)\.?$/;
 const NICK = [['mike', 'michael'], ['bill', 'william'], ['bob', 'robert'], ['jim', 'james'],
   ['dick', 'richard'], ['peggy', 'margaret'], ['ted', 'edward'], ['jack', 'john'], ['liz', 'elizabeth'],
   ['beth', 'elizabeth'], ['tony', 'anthony'], ['chuck', 'charles'], ['joe', 'joseph'], ['ned', 'edward'],
-  ['ned', 'edmond'], ['rudy', 'rudolph'], ['rudy', 'rodolphe'], ['sasha', 'alexander'], ['oleksandr', 'alexander']];
+  ['ned', 'edmond'], ['rudy', 'rudolph'], ['rudy', 'rodolphe'], ['sasha', 'alexander'], ['oleksandr', 'alexander'],
+  // Pairs the three-letter rule misses (2026-11-27: a card's "Tom" refused his
+  // own "Thomas" page).
+  ['tom', 'thomas'], ['hank', 'henry'], ['harry', 'henry'], ['larry', 'lawrence'], ['jerry', 'gerald'],
+  ['kate', 'catherine'], ['katie', 'catherine'], ['cathy', 'katherine'], ['becky', 'rebecca'],
+  ['sally', 'sarah'], ['betsy', 'elizabeth'], ['molly', 'mary'], ['polly', 'mary'], ['bert', 'albert'],
+  ['bert', 'robert'], ['gene', 'eugene'], ['jake', 'jacob'], ['dick', 'rick']];
 const sameFirst = (a, b) => a === b || a.startsWith(b) || b.startsWith(a)
   || (a.length >= 3 && b.length >= 3 && a.slice(0, 3) === b.slice(0, 3))
   || NICK.some((n) => n.includes(a) && n.includes(b));
@@ -136,7 +142,11 @@ export function ownPart(text) {
 const GENERIC = new Set(('the of and for at in on a an inc incorporated llc llp lp ltd co corp corporation company '
   + 'group holdings partners partner services service solutions international global national '
   + 'department dept office state county city board commissioners commission agency authority '
-  + 'government division bureau district public').split(' '));
+  + 'government division bureau district public '
+  // EVERYDAY WORDS IN A FIRM'S NAME (2026-11-27): "new" in "New York Power
+  // Authority" was found in a stranger's About ("a new position") and his page
+  // was stored on that card. A word any sentence can carry identifies no firm.
+  + 'new first united american general north south east west central one all best more').split(' '));
 
 /** The words of a firm's name that identify it, folded. */
 export function firmWords(orgName) {

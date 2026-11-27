@@ -98,3 +98,14 @@ test('a Gulf location is read from the header', async () => {
   const r = 'Cover photo\nJane Contoso\n\n· 2nd\n\nCIO\n\nBucharest, Romania\n\nContact info\n';
   assert.equal(fieldsNear(r, 'Jane Contoso').location, undefined);
 });
+
+test('a card that says Tom matches the page that says Thomas', () => {
+  assert.equal(sameName(nameKey('Thomas Contoso'), 'Tom Contoso'), true);
+  assert.equal(notThisPerson(page('Thomas Contoso', 'Managing Partner at Fabrikam', 'Fabrikam'), 'Tom Contoso', 'Fabrikam'), null);
+});
+
+test('an everyday word of the firm name in a stranger\'s About is not the firm', () => {
+  const p = page('Ann C.', 'Art Commissions | Strategic Advice', 'Toronto, Ontario',
+    '\nI am an executive heading up a new position in a fast market.');
+  assert.match(notThisPerson(p, 'Ann Contoso', 'New Fabrikam Power Authority') ?? '', /never mentions/);
+});
