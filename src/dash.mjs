@@ -669,14 +669,18 @@ const STYLE = `
 /* JUMP TO TOP. The shortlist runs to a hundred-odd cards and the only way back
    to the filters was a long scroll or Home, which does nothing while focus sits
    in a paste box. Hidden until there is something to scroll back from. */
-#totop{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:60;display:none;   /* middle left: the operator, 2026-11-25 */
+/* TWO OF THEM (2026-11-26, the operator: keep the middle-left one and restore the
+   lower-right one): the same button in both places. */
+#totop{left:12px;top:50%;transform:translateY(-50%)}
+#totop2{right:18px;bottom:18px}
+#totop,#totop2{position:fixed;z-index:60;display:none;
   border:1px solid #cfd6e0;background:#fffffff2;color:#334;border-radius:999px;
   padding:.55rem .9rem;font:600 12px/1 system-ui,sans-serif;cursor:pointer;
   box-shadow:0 2px 10px #0000002e;backdrop-filter:blur(3px)}
-a#totop{text-decoration:none}
-#totop:hover{background:#fff;border-color:#8fa1b8;color:#111}
-#totop b{font-weight:600;color:#7a8699;margin-left:.45rem}
-@media print{#totop{display:none!important}}
+a#totop,a#totop2{text-decoration:none}
+#totop:hover,#totop2:hover{background:#fff;border-color:#8fa1b8;color:#111}
+#totop b,#totop2 b{font-weight:600;color:#7a8699;margin-left:.45rem}
+@media print{#totop,#totop2{display:none!important}}
 
 :root { --surface:#fcfcfb; --card:#ffffff; --text:#0b0b0b; --text2:#52514e;
   --grid:#e6e5e1; --line:#e6e5e1; --acc:#3b5ba9; --good:#0ca30c; --warn:#c47f17; --bad:#c03434;
@@ -852,6 +856,8 @@ function layout({ title, h1, sub, body, pages, currentId, personas = [], counts 
   .nbwhy pre{white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,monospace;opacity:.75;margin:.3rem 0}
   .pastebox{margin:.6rem 0 0;font-size:13px}
   .pastebox summary{cursor:pointer;opacity:.85}
+  .pastebox .pbkey{font-size:12px;color:#5b6b80}
+  .pastebox kbd{font:11px ui-monospace,Menlo,monospace;border:1px solid #cfd6e0;border-radius:4px;padding:0 .3rem;background:#f6f8fa;color:#334}
   .pastebox textarea{width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;margin:.4rem 0;padding:.4rem}
   .pbrow{display:flex;gap:.4rem;flex-wrap:wrap}
   .pbrow input{flex:1 1 14rem;padding:.3rem}
@@ -1147,14 +1153,19 @@ ${script}
     btn.title = 'Go to All prospects';
   }
   document.body.appendChild(btn);
-  const pct = btn.querySelector('b');
+  const btn2 = btn.cloneNode(true);
+  btn2.id = 'totop2';
+  document.body.appendChild(btn2);
+  const btns = [btn, btn2];
   let ticking = false;
   const update = () => {
     ticking = false;
     const y = window.scrollY || document.documentElement.scrollTop;
     const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    btn.style.display = y > 600 ? 'block' : 'none';
-    pct.textContent = y > 600 ? Math.round(100 * y / max) + '%' : '';
+    for (const b of btns) {
+      b.style.display = y > 600 ? 'block' : 'none';
+      b.querySelector('b').textContent = y > 600 ? Math.round(100 * y / max) + '%' : '';
+    }
   };
   addEventListener('scroll', () => {
     if (!ticking) { ticking = true; requestAnimationFrame(update); }
@@ -1162,7 +1173,7 @@ ${script}
   addEventListener('resize', update, { passive: true });
   // A CLICK, NOT A HASH. Setting location.hash would push a history entry and
   // put the back button one press further from where the operator came in.
-  if (home) btn.addEventListener('click', () => {
+  if (home) for (const b of btns) b.addEventListener('click', () => {
     scrollTo({ top: 0, behavior: 'smooth' });
   });
   update();
@@ -2706,10 +2717,18 @@ function verdictBox(p, latest, { blind = false } = {}) {
     </form>`;
 }
 
+// THE COPY SHORTCUT, BESIDE THE BOX (2026-11-27, the operator: "in each card near
+// paste a profile indicate shortcut"). A key on the operator's own machine that
+// copies the profile's address and page together; named in runtime.yml
+// (inbox.paste_hotkey) because it is his setup, not this repo's. Unset: no hint.
+const PASTE_HOTKEY = (() => { try { return loadConfig()?.inbox?.paste_hotkey || ''; } catch { return ''; } })();
+const PASTE_KEY = (() => { try { return loadConfig()?.inbox?.paste_key || 'Cmd+V'; } catch { return 'Cmd+V'; } })();
+
 function pasteBox(p) {
   const id = esc(p.person_id);
+  const hint = PASTE_HOTKEY ? ` <span class="pbkey">· <kbd>${esc(PASTE_HOTKEY)}</kbd> on the profile copies its link and page, then <kbd>${esc(PASTE_KEY)}</kbd> here</span>` : '';
   return `<details class="pastebox"><summary><b>Paste a profile</b> — it is the only
-    input that changes this score</summary>
+    input that changes this score${hint}</summary>
     <form method="post" action="${SERVER}/paste" class="pb">
       <input type="hidden" name="person" value="${id}">
       <input type="hidden" name="back" value="">

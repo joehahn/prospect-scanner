@@ -145,3 +145,5 @@ models:
 # inbox:
 #   remote_listen: "100.64.0.1"
 #   operator_name: "Sam"     # how her pages name you ("Note to Sam"); unset: "the operator"
+#   paste_hotkey: "Ctrl+Opt+G"   # a key you set up to copy a profile's link and page together; shown beside each paste box
+#   paste_key: "Cmd+V"           # the paste key the hint names (Firefox and most browsers also take Cmd+Shift+V)

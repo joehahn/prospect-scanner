@@ -533,8 +533,21 @@ const AUTO_PASTE = String.raw`<script>(() => {
     const u = form.querySelector('[name="url"]');
     if (held && !(u && u.value.trim())) field(form, 'url', held);
     hold('');
-    say('Ingesting the paste...');
-    form.requestSubmit ? form.requestSubmit() : form.submit();
+    // NO RELOAD BETWEEN PASTES (2026-11-27, the operator: "i am pasting profiles
+    // too fast"). The form used to submit and reload the page, and a paste made
+    // during that second or two went nowhere. It is sent in the background now
+    // and the page stays put; only a refusal replaces the page, to show why.
+    const name = (form.closest('[data-person]') || {}).dataset?.person
+      || (form.querySelector('[name="person"]') || {}).value || 'this card';
+    say('Sending the paste for ' + name + '...');
+    const body = new URLSearchParams(new FormData(form));
+    if (form !== (box && box.form)) form.remove();
+    fetch('/paste', { method: 'POST', body })
+      .then((r) => {
+        if (r.redirected) { say('\u2713 Queued: ' + name + '. Paste the next one; reload to see the card update.'); return; }
+        return r.text().then((html) => { document.open(); document.write(html); document.close(); });
+      })
+      .catch(() => say('The paste for ' + name + ' did not reach the server. Is npm run inbox running? Paste it again.'));
   });
 })();</script>`;
 
