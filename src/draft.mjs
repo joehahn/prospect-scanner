@@ -27,7 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun } from './db.mjs';
-import { loadBusiness } from './business.mjs';
+import { loadBusiness, credentialText } from './business.mjs';
 import { operatorSaidLines } from './operator-said.mjs';
 import { boardLines } from './boards.mjs';
 import { recheckPages } from './recheck-pages.mjs';
@@ -423,7 +423,7 @@ ${cfg.firm.name}, ${[cfg.firm.location?.town, cfg.firm.location?.county, cfg.fir
 Strengths: ${(cfg.operator?.strengths ?? []).join('; ')}
 WHO HE IS TODAY (say the credentials in the past tense where these require it):
 ${(cfg.operator?.standing ?? []).map((x) => `  - ${x}`).join('\n') || '  - not stated'}
-Credentials, things he has DONE: ${(cfg.operator?.credentials ?? []).join('; ')}
+Credentials, things he has DONE: ${(cfg.operator?.credentials ?? []).map(credentialText).join('; ')}
 
 ## CHANNEL RULES (the operator wrote these; they bind you)
 ${(seed.channel_rules ?? []).map((r) => `- ${r}`).join('\n')}

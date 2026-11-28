@@ -21,7 +21,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun } from './db.mjs';
 import { loadConfig } from './config.mjs';
-import { loadBusiness } from './business.mjs';
+import { loadBusiness, liveOffers, credentialText } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { heading, dim } from './report.mjs';
 
@@ -102,8 +102,8 @@ async function main() {
   const models = String(arg('models', (cfg.models.reviewers ?? []).join(','))).split(',').filter(Boolean);
   const db = openDb();
   const picks = sample(db, from, to);
-  const operator = `# The operator\n\n${(b.offers ?? []).map((o) => `- Offer: ${o.name}${o.price ? ` (${o.price})` : ''}`).join('\n')}\n`
-    + `${(cfg.operator?.credentials ?? []).map((c) => `- ${c}`).join('\n')}\n\nTargets:\n`
+  const operator = `# The operator\n\n${liveOffers(b).map((o) => `- Offer: ${o.name}${o.price ? ` (${o.price})` : ''}`).join('\n')}\n`
+    + `${(cfg.operator?.credentials ?? []).map((c) => `- ${credentialText(c)}`).join('\n')}\n\nTargets:\n`
     + `${(b.targets ?? []).map((t) => `- ${t.name}`).join('\n')}`;
   const batches = [];
   for (let i = 0; i < picks.length; i += per) batches.push(picks.slice(i, i + per));

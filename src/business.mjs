@@ -10,14 +10,20 @@
 //   budget      outreach per month, per channel
 //   you         strengths, proof_points, standing, credentials, never_claim,
 //               identifying_terms
-//   offers      [{ name, label?, url?, price, unit, for, pitch, replaces? }]   live offers only (replaces: old offer ids, a bridge;
+//               credentials: each a string, or { fact, use_when } for one that fits
+//               some readers and is not a default line (credentialText renders it)
+//   offers      [{ name, label?, url?, price, unit, for, pitch, replaces?, status? }]   (replaces: old offer ids, a bridge;
+//               status: retired keeps an offer's past sends counted under it while
+//               nothing pitches it or shows it to the judge;
 //               url: the page a note links to for this offer, firm.url when absent)
 //               variants: [{ name, events, pitch, url? }] — the same offer argued another
 //               way, led with when one of `events` (names from `events:`) is live
 //               for the firm; its pitch and url stand in for the offer's
 //   size        { revenue_min_usd, headcount_max, revenue_max_usd }
 //   where       { countries, home_metro, home_metro_towns, home_region }
-//   targets     [{ name, label?, description, examples, where?, size?, replaces? }]  (replaces: old thesis ids, a bridge)
+//   targets     [{ name, label?, description, examples, where?, size?, replaces?, status? }]  (replaces: old thesis ids, a bridge;
+//               status: retired takes a target out of discovery, judging and filing; it
+//               stays in the file, and in `retired_targets`, as the record)
 //   events      [{ name, description, counts_for_days?, does_not_count?, searched_in?, search_with? }]
 //               (search_with: [tavily, exa] adds Exa beside Tavily for that event's weekly searches)
 //               (searched_in: web, for an event found in what people write and say
@@ -66,6 +72,11 @@ export function readBusinessFile(path = BUSINESS_PATH) {
   for (const [i, t] of (doc.targets ?? []).entries()) {
     if (!t?.name || !t?.description) bad.push(`targets[${i}] needs a name and a description`);
   }
+  for (const [i, c] of (doc.you?.credentials ?? []).entries()) {
+    if (typeof c !== 'string' && !(c?.fact && c?.use_when)) {
+      bad.push(`you.credentials[${i}] is a string, or { fact, use_when }`);
+    }
+  }
   if (bad.length) throw new Error(`${path} is invalid:\n  - ${bad.join('\n  - ')}`);
   return doc;
 }
@@ -112,10 +123,27 @@ export function loadBusiness(cfg, targeting = null, { path = BUSINESS_PATH } = {
       variants: (o.variants ?? []).map((v) => ({ ...v, pitch: clean(v.pitch) })) })),
     size: doc.size ?? {},
     where: doc.where ?? {},
-    targets: (doc.targets ?? []).map((t) => ({ ...t, description: clean(t.description), examples: t.examples ?? [] })),
+    targets: (doc.targets ?? []).filter((t) => !isRetired(t))
+      .map((t) => ({ ...t, description: clean(t.description), examples: t.examples ?? [] })),
+    retired_targets: (doc.targets ?? []).filter(isRetired),
     events: doc.events ?? [],
     _source: path.slice(path.indexOf('config/')),
   };
+}
+
+function isRetired(x) { return (x?.status ?? 'live') === 'retired'; }
+
+/** Offers still for sale: a retired one stays in the file for its past sends. */
+export function liveOffers(b) { return (b?.offers ?? []).filter((o) => !isRetired(o)); }
+
+/**
+ * One credential as a drafter or reviewer reads it. A plain string is a fact to
+ * use freely; { fact, use_when } is copied word for word, only where the reader
+ * fits, and never as a default line.
+ */
+export function credentialText(c) {
+  return typeof c === 'string' ? c
+    : `${c.fact} [use word for word, only when ${c.use_when}; not a default line]`;
 }
 
 /**
@@ -140,7 +168,7 @@ export function overlayBusiness(cfg) {
  * fictional business renders without a word of anyone else's.
  */
 export function describeForJudge(b) {
-  const offers = (b.offers ?? []).map((o) => {
+  const offers = liveOffers(b).map((o) => {
     const price = o.price != null ? `$${Number(o.price).toLocaleString('en-US')}${o.unit ? ` ${o.unit}` : ''}` : 'price not set';
     return `- ${o.name}: ${price}${o.for ? ` — for ${o.for}` : ''}${o.pitch ? `\n    Pitch: ${o.pitch}` : ''}`;
   });

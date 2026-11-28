@@ -40,6 +40,10 @@ you:
   credentials:
     - "Ten years in a regional bank's security team"
     - "CISSP"
+    # A fact that fits some readers, not every note: the drafter copies it word for
+    # word, only when `use_when` holds.
+    # - fact: "a field ecologist for eight years before security"
+    #   use_when: "the reader runs a data or research team"
   superseded_wording:                     # wording you have retired: each `was` found in a
                                           # sent note is replaced by `now` before the note is
                                           # shown to the drafter as an example (exact strings)
@@ -56,6 +60,8 @@ you:
 
 # What you sell. Each offer says who it is FOR, literally: the judge reads it
 # that way, so "for a team that already has X" makes having X a reason to write.
+# `status: retired` on an offer keeps its past sends counted under it while
+# nothing pitches it; on a target, it leaves discovery, judging and filing.
 offers:
   - name: "Security Snapshot"
     price: 3000

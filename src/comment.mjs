@@ -28,7 +28,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb, startRun, finishRun } from './db.mjs';
 import { loadConfig } from './config.mjs';
-import { loadBusiness } from './business.mjs';
+import { loadBusiness, liveOffers } from './business.mjs';
 import { complete, promptBody } from './models.mjs';
 import { neverClaimHits } from './never-claim.mjs';
 import { heading, bold, dim } from './report.mjs';
@@ -159,7 +159,7 @@ function operatorBrief(cfg, business) {
   const list = (xs) => (xs ?? []).map((x) => `- ${typeof x === 'string' ? x : x.claim}`).join('\n');
   return [
     `## What the operator works on`,
-    business.offers.filter((o) => (o.status ?? 'live') === 'live')
+    liveOffers(business)
       .map((o) => `- ${o.name}${o.for ? `: for ${o.for}` : ''}`).join('\n'),
     you.strengths?.length ? `\n## The operator's strengths (stay within these)\n${list(you.strengths)}` : '',
     you.proof_points?.length ? `\n## Public proof points (no client names)\n${list(you.proof_points)}` : '',
