@@ -533,7 +533,7 @@ const AUTO_PASTE = String.raw`<script>(() => {
       // on one card's page was stored on someone else who shared the initial.
       // There it is checked against the card he is looking at, and refused.
       const card = new URLSearchParams(location.search).get('card');
-      if (card) field(form, 'person', card.replace(/^p-/, ''));
+      if (card) field(form, 'person', card.replace(/^[a-z]-/, ''));
     }
     field(form, 'text', text);
     const u = form.querySelector('[name="url"]');
